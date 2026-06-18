@@ -1,0 +1,33 @@
+name: Update stats
+
+# Rebuilds the fighter roster from the latest UFCStats data and commits it.
+# GitHub Pages then re-publishes automatically on the new commit.
+on:
+  schedule:
+    - cron: "0 14 * * 1"   # every Monday 14:00 UTC (captures the weekend's fights)
+  workflow_dispatch: {}     # adds a "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write           # allow the action to commit the refreshed roster
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Rebuild roster from latest UFCStats data
+        run: node build-roster.mjs
+      - name: Commit if the roster changed
+        run: |
+          git config user.name  "ufc-stats-bot"
+          git config user.email "actions@github.com"
+          git add index.html ufc-roster.json
+          if git diff --cached --quiet; then
+            echo "No changes — roster already current."
+          else
+            git commit -m "Auto-update roster ($(date -u +%Y-%m-%d))"
+            git push
+          fi

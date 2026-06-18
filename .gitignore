@@ -1,0 +1,4 @@
+# Local CSV cache — re-downloaded fresh on each build (and in CI). Never commit.
+ufc-data/
+node_modules/
+*.log
