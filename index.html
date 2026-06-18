@@ -65,6 +65,16 @@
   .oddsin{width:84px; padding:5px 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit;}
   .oddsin:focus{border-color:var(--gold); outline:none;}
   .evcell{font-weight:700; color:var(--dim); white-space:nowrap;}
+  .verdict-box{margin:4px 0 16px; padding:12px 14px; border-radius:8px; font-size:14px; line-height:1.5; border:1px solid;}
+  .verdict-box .vh{font-size:16px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:4px;}
+  .verdict-box .vsmall{font-size:11px; color:var(--dim); margin-top:8px;}
+  .verdict-box.take{background:rgba(62,201,126,.12); border-color:var(--green);}
+  .verdict-box.take .vh{color:var(--green);}
+  .verdict-box.pass{background:rgba(226,59,59,.10); border-color:var(--red);}
+  .verdict-box.pass .vh{color:#ff7a7a;}
+  .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);}
+  .verdict-box.caution .vh{color:var(--gold);}
+  tr.rec td{background:rgba(62,201,126,.10);}
   .warn{color:var(--gold); font-size:13px; margin-top:8px;}
   footer{margin-top:28px; font-size:12px; color:var(--dim); line-height:1.6;}
   code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
@@ -115,6 +125,7 @@
   <div class="calc">
     <h3>Fair odds &amp; value calculator</h3>
     <p class="calcnote">"Fair odds" is the model's no-vig price for each outcome. Type a sportsbook's American odds (e.g. <code>-150</code> or <code>+220</code>) to see your expected value — <span class="ok">green = positive EV</span> (the book is paying more than the model thinks it's worth). Props are estimated from the simulation's method/round mix. Read the honesty note before betting.</p>
+    <div class="verdict-box hidden" id="verdictBox"></div>
     <table class="calctable">
       <thead><tr><th>Outcome</th><th>Model %</th><th>Fair odds</th><th>Book odds</th><th>EV</th></tr></thead>
       <tbody id="calcBody"></tbody>
@@ -1102,18 +1113,81 @@ function propsFor(t, pA, A, B){
     [`Goes the distance`, dist], [`Ends inside the distance`, 1-dist],
   ];
 }
-let calcProps = [];
-function renderCalc(props){
-  calcProps = props;
+let calcProps = [], calcA = null, calcB = null;
+function renderCalc(props, A, B){
+  calcProps = props; calcA = A; calcB = B;
   $("calcBody").innerHTML = props.map((p,i)=>
-    `<tr><td>${p[0]}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
+    `<tr id="row${i}"><td>${p[0]}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
     `<td><input class="oddsin" data-i="${i}" placeholder="—"></td>`+
     `<td class="evcell" id="ev${i}">—</td></tr>`).join("");
   document.querySelectorAll("#calcBody .oddsin").forEach(inp => inp.addEventListener("input", e => {
     const i = +e.target.dataset.i, ev = evAt(calcProps[i][1], e.target.value), c = $("ev"+i);
     if(ev === null){ c.textContent = "—"; c.className = "evcell"; }
     else { c.textContent = (ev>=0?"+":"") + (ev*100).toFixed(1) + "%" + (ev>0 ? " ✓ value" : ""); c.className = "evcell" + (ev>0 ? " ok" : ""); }
+    computeVerdict();
   }));
+  computeVerdict();
+}
+// ---- VERDICT ENGINE: turn the filled-in odds into one TAKE / PASS call ----
+// Encodes the betting discipline: heavy-favorite disagreement, implausible EV, thin
+// edges, and debutant/low-fight fighters all force a pass; otherwise the best bet is
+// ranked by quarter-Kelly (method props discounted as the model's noisier output).
+function verdictFor(entered, A, B, pA){
+  if(!entered.length) return { status:"none" };
+  const pB = 1 - pA;
+  const minFights = Math.min(A.w + A.l, B.w + B.l);
+  const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
+  const lowData = minFights < 4;
+  const rel = i => (i >= 2 && i <= 7) ? 0.7 : 1.0; // method props are the noisier part of the model
+
+  // Fight-level red flag: book very high on a favorite the model rates far lower.
+  const mlA = entered.find(e => e.i === 0), mlB = entered.find(e => e.i === 1);
+  if(mlA && mlB){
+    const impA = 1/mlA.dec, impB = 1/mlB.dec;
+    const fav = impA > impB ? { imp:impA, name:A.name, mp:pA } : { imp:impB, name:B.name, mp:pB };
+    if(fav.imp > 0.80 && (fav.imp - fav.mp) > 0.08)
+      return { status:"pass", title:"PASS THIS FIGHT", body:
+        `The book has <b>${fav.name}</b> at ${Math.round(fav.imp*100)}% but the model only ${Math.round(fav.mp*100)}% — a ${Math.round((fav.imp-fav.mp)*100)}-point gap on a heavy favorite. When a thin-data model disagrees with a sharp line this hard, the model is the one missing something. The underdog "value" is almost certainly an illusion.` };
+  }
+
+  entered.forEach(e => {
+    e.kelly = e.ev / (e.dec - 1);
+    e.score = e.kelly * rel(e.i);
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < 0.04 ? "thin" : "take";
+  });
+  const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
+
+  if(takes.length){
+    const best = takes[0], stake = Math.min(3, 25 * best.kelly).toFixed(1);
+    if(lowData) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
+      `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
+    const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are correlated with this (same fight) — treat them as one position, don't stack.` : "";
+    return { status:"take", title:"TAKE THIS BET", bestIndex:best.i, body:
+      `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%).${extra}` };
+  }
+  const tooGood = entered.find(e => e.tag === "toogood");
+  if(tooGood) return { status:"pass", title:"PASS", body:
+    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
+  if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", body:
+    `Only razor-thin edges (under 4%) — inside the model's margin of error. Not worth a bet.` };
+  return { status:"pass", title:"PASS", body:`No positive expected value at these prices. The book's lines look efficient here.` };
+}
+function computeVerdict(){
+  const entered = [];
+  calcProps.forEach((p,i) => {
+    const inp = document.querySelector(`#calcBody .oddsin[data-i="${i}"]`);
+    const dec = inp ? amToDec(inp.value) : null;
+    if(dec !== null) entered.push({ i, label:p[0], prob:p[1], dec, ev:p[1]*dec - 1 });
+    const r = $("row"+i); if(r) r.classList.remove("rec");
+  });
+  const box = $("verdictBox");
+  const v = verdictFor(entered, calcA, calcB, calcProps.length ? calcProps[0][1] : 0.5);
+  if(v.status === "none"){ box.className = "verdict-box hidden"; box.innerHTML = ""; return; }
+  const icon = v.status === "take" ? "✅ " : v.status === "caution" ? "⚠ " : "🚫 ";
+  box.className = "verdict-box " + v.status;
+  box.innerHTML = `<span class="vh">${icon}${v.title}</span>${v.body}`+
+    `<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div>`;
+  if(v.bestIndex != null){ const r = $("row"+v.bestIndex); if(r) r.classList.add("rec"); }
 }
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
 const amOdds = p => {
@@ -1174,7 +1248,7 @@ $("go").onclick = () => {
     ["SLpM",A.slpm,B.slpm],["TD/15min",A.td15,B.td15],["TD defense",pct(A.tdDef).slice(0,-1)+"%",pct(B.tdDef).slice(0,-1)+"%"],["Control time",Math.round(A.ctrlR*100)+"%",Math.round(B.ctrlR*100)+"%"]];
   $("tape").innerHTML = rows.map(r=>`<div class="mrow"><span style="color:#ff7a7a">${r[1]}</span><span class="lab">${r[0]}</span><span style="color:#7aa3ff">${r[2]}</span></div>`).join("");
 
-  renderCalc(propsFor(t, probA, A, B));
+  renderCalc(propsFor(t, probA, A, B), A, B);
 
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({behavior:"smooth"});
