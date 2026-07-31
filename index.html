@@ -1267,9 +1267,11 @@ $("go").onclick = () => {
 
   // each row: [label, displayA, displayB, compareA, compareB, lowerIsBetter]
   const wr = f => (f.w + f.l) ? f.w/(f.w + f.l) : 0;
+  const koPct = f => f.koW / Math.max(1, f.w); // share of wins by KO/TKO
   const tapeRows = [
     ["UFC record", `${A.w}-${A.l}`, `${B.w}-${B.l}`, wr(A), wr(B), false],
     ["Current streak", streakTxt(A.streak), streakTxt(B.streak), A.streak, B.streak, false],
+    ["KO win %", Math.round(koPct(A)*100)+"%", Math.round(koPct(B)*100)+"%", koPct(A), koPct(B), false],
     ["Age", A.age, B.age, A.age, B.age, true],                       // younger = better
     ["Height", A.ht+'"', B.ht+'"', A.ht, B.ht, false],
     ["Reach", A.reach+'"', B.reach+'"', A.reach, B.reach, false],
