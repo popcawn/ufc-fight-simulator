@@ -45,6 +45,11 @@
   .mrow{display:flex; justify-content:space-between; font-size:14px; padding:5px 0; border-bottom:1px solid var(--line);}
   .mrow:last-child{border-bottom:none;}
   .mrow .lab{color:var(--dim);}
+  .taphd{border-bottom:1px solid var(--line); margin-bottom:2px;}
+  .taphd .r{color:#ff7a7a; font-weight:700;} .taphd .b{color:#7aa3ff; font-weight:700;}
+  .twin{color:var(--green); font-weight:700;}   /* better stat */
+  .tlose{color:var(--dim);}                       /* worse stat */
+  .tval{color:var(--text);}                       /* tie / no comparison */
   .driver{font-size:14px; padding:6px 0; border-bottom:1px solid var(--line);}
   .driver:last-child{border-bottom:none;}
   .driver .who{font-weight:700;}
@@ -1260,9 +1265,28 @@ $("go").onclick = () => {
     return `<div class="driver"><span class="who ${d.who==="A"?"r":"b"}">${f.name.split(" ").pop()}</span>: ${d.txt}</div>`;
   }).join("") || `<div class="driver">Statistically even across the board.</div>`;
 
-  const rows = [["UFC record",`${A.w}-${A.l}`,`${B.w}-${B.l}`],["Current streak",streakTxt(A.streak),streakTxt(B.streak)],["Age",A.age,B.age],["Height",A.ht+'"',B.ht+'"'],["Reach",A.reach+'"',B.reach+'"'],
-    ["SLpM (landed/min)",A.slpm,B.slpm],["SApM (absorbed/min)",A.sapm,B.sapm],["Str. defense",Math.round(A.def*100)+"%",Math.round(B.def*100)+"%"],["TD/15min",A.td15,B.td15],["TD defense",pct(A.tdDef).slice(0,-1)+"%",pct(B.tdDef).slice(0,-1)+"%"],["Control time",Math.round(A.ctrlR*100)+"%",Math.round(B.ctrlR*100)+"%"]];
-  $("tape").innerHTML = rows.map(r=>`<div class="mrow"><span style="color:#ff7a7a">${r[1]}</span><span class="lab">${r[0]}</span><span style="color:#7aa3ff">${r[2]}</span></div>`).join("");
+  // each row: [label, displayA, displayB, compareA, compareB, lowerIsBetter]
+  const wr = f => (f.w + f.l) ? f.w/(f.w + f.l) : 0;
+  const tapeRows = [
+    ["UFC record", `${A.w}-${A.l}`, `${B.w}-${B.l}`, wr(A), wr(B), false],
+    ["Current streak", streakTxt(A.streak), streakTxt(B.streak), A.streak, B.streak, false],
+    ["Age", A.age, B.age, A.age, B.age, true],                       // younger = better
+    ["Height", A.ht+'"', B.ht+'"', A.ht, B.ht, false],
+    ["Reach", A.reach+'"', B.reach+'"', A.reach, B.reach, false],
+    ["SLpM (landed/min)", A.slpm, B.slpm, A.slpm, B.slpm, false],
+    ["SApM (absorbed/min)", A.sapm, B.sapm, A.sapm, B.sapm, true],   // fewer absorbed = better
+    ["Str. defense", Math.round(A.def*100)+"%", Math.round(B.def*100)+"%", A.def, B.def, false],
+    ["TD/15min", A.td15, B.td15, A.td15, B.td15, false],
+    ["TD defense", Math.round(A.tdDef*100)+"%", Math.round(B.tdDef*100)+"%", A.tdDef, B.tdDef, false],
+    ["Control time", Math.round(A.ctrlR*100)+"%", Math.round(B.ctrlR*100)+"%", A.ctrlR, B.ctrlR, false],
+  ];
+  const header = `<div class="mrow taphd"><span class="r">${A.name}</span><span class="lab"></span><span class="b">${B.name}</span></div>`;
+  $("tape").innerHTML = header + tapeRows.map(r => {
+    const [lab, da, db, na, nb, lower] = r;
+    let aCls = "tval", bCls = "tval";
+    if(na != null && nb != null && na !== nb){ const aWins = lower ? na < nb : na > nb; aCls = aWins ? "twin" : "tlose"; bCls = aWins ? "tlose" : "twin"; }
+    return `<div class="mrow"><span class="${aCls}">${da}</span><span class="lab">${lab}</span><span class="${bCls}">${db}</span></div>`;
+  }).join("");
 
   renderCalc(propsFor(t, probA, A, B), A, B);
 
