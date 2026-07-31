@@ -1261,7 +1261,7 @@ $("go").onclick = () => {
   }).join("") || `<div class="driver">Statistically even across the board.</div>`;
 
   const rows = [["UFC record",`${A.w}-${A.l}`,`${B.w}-${B.l}`],["Current streak",streakTxt(A.streak),streakTxt(B.streak)],["Age",A.age,B.age],["Height",A.ht+'"',B.ht+'"'],["Reach",A.reach+'"',B.reach+'"'],
-    ["SLpM",A.slpm,B.slpm],["TD/15min",A.td15,B.td15],["TD defense",pct(A.tdDef).slice(0,-1)+"%",pct(B.tdDef).slice(0,-1)+"%"],["Control time",Math.round(A.ctrlR*100)+"%",Math.round(B.ctrlR*100)+"%"]];
+    ["SLpM (landed/min)",A.slpm,B.slpm],["SApM (absorbed/min)",A.sapm,B.sapm],["Str. defense",Math.round(A.def*100)+"%",Math.round(B.def*100)+"%"],["TD/15min",A.td15,B.td15],["TD defense",pct(A.tdDef).slice(0,-1)+"%",pct(B.tdDef).slice(0,-1)+"%"],["Control time",Math.round(A.ctrlR*100)+"%",Math.round(B.ctrlR*100)+"%"]];
   $("tape").innerHTML = rows.map(r=>`<div class="mrow"><span style="color:#ff7a7a">${r[1]}</span><span class="lab">${r[0]}</span><span style="color:#7aa3ff">${r[2]}</span></div>`).join("");
 
   renderCalc(propsFor(t, probA, A, B), A, B);
