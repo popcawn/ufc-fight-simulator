@@ -50,6 +50,14 @@
   .twin{color:var(--green); font-weight:700;}   /* better stat */
   .tlose{color:var(--dim);}                       /* worse stat */
   .tval{color:var(--text);}                       /* tie / no comparison */
+  .tapescore{margin-top:12px; padding-top:10px; border-top:1px solid var(--line);}
+  .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:4px;}
+  .ts-nums{display:flex; justify-content:space-between; font-size:18px; font-weight:800;}
+  .ts-nums .r{color:#ff7a7a;} .ts-nums .b{color:#7aa3ff;}
+  .ts-bar{height:12px; border-radius:6px; overflow:hidden; display:flex; background:var(--blue); margin:4px 0 8px;}
+  .ts-fill{background:var(--red); height:100%;}
+  .ts-verdict{font-size:14px;} .ts-verdict b{color:var(--gold);}
+  .ts-note{font-size:11px; color:var(--dim); margin-top:5px; line-height:1.4;}
   .driver{font-size:14px; padding:6px 0; border-bottom:1px solid var(--line);}
   .driver:last-child{border-bottom:none;}
   .driver .who{font-weight:700;}
@@ -1265,30 +1273,47 @@ $("go").onclick = () => {
     return `<div class="driver"><span class="who ${d.who==="A"?"r":"b"}">${f.name.split(" ").pop()}</span>: ${d.txt}</div>`;
   }).join("") || `<div class="driver">Statistically even across the board.</div>`;
 
-  // each row: [label, displayA, displayB, compareA, compareB, lowerIsBetter]
+  // each row: [label, displayA, displayB, compareA, compareB, lowerIsBetter, weight]
+  // weight = behind-the-scenes importance of the stat (sums to 100), loosely tracking the
+  // model's learned feature strengths: control time, age, record/form and defense weigh most.
   const wr = f => (f.w + f.l) ? f.w/(f.w + f.l) : 0;
   const koPct = f => f.koW / Math.max(1, f.w); // share of wins by KO/TKO
   const tapeRows = [
-    ["UFC record", `${A.w}-${A.l}`, `${B.w}-${B.l}`, wr(A), wr(B), false],
-    ["Current streak", streakTxt(A.streak), streakTxt(B.streak), A.streak, B.streak, false],
-    ["KO win %", Math.round(koPct(A)*100)+"%", Math.round(koPct(B)*100)+"%", koPct(A), koPct(B), false],
-    ["Age", A.age, B.age, A.age, B.age, true],                       // younger = better
-    ["Height", A.ht+'"', B.ht+'"', A.ht, B.ht, false],
-    ["Reach", A.reach+'"', B.reach+'"', A.reach, B.reach, false],
-    ["SLpM (landed/min)", A.slpm, B.slpm, A.slpm, B.slpm, false],
-    ["SApM (absorbed/min)", A.sapm, B.sapm, A.sapm, B.sapm, true],   // fewer absorbed = better
-    ["Str. defense", Math.round(A.def*100)+"%", Math.round(B.def*100)+"%", A.def, B.def, false],
-    ["TD/15min", A.td15, B.td15, A.td15, B.td15, false],
-    ["TD defense", Math.round(A.tdDef*100)+"%", Math.round(B.tdDef*100)+"%", A.tdDef, B.tdDef, false],
-    ["Control time", Math.round(A.ctrlR*100)+"%", Math.round(B.ctrlR*100)+"%", A.ctrlR, B.ctrlR, false],
+    ["UFC record", `${A.w}-${A.l}`, `${B.w}-${B.l}`, wr(A), wr(B), false, 12],
+    ["Current streak", streakTxt(A.streak), streakTxt(B.streak), A.streak, B.streak, false, 10],
+    ["KO win %", Math.round(koPct(A)*100)+"%", Math.round(koPct(B)*100)+"%", koPct(A), koPct(B), false, 4],
+    ["Age", A.age, B.age, A.age, B.age, true, 12],                     // younger = better
+    ["Height", A.ht+'"', B.ht+'"', A.ht, B.ht, false, 2],
+    ["Reach", A.reach+'"', B.reach+'"', A.reach, B.reach, false, 8],
+    ["SLpM (landed/min)", A.slpm, B.slpm, A.slpm, B.slpm, false, 8],
+    ["SApM (absorbed/min)", A.sapm, B.sapm, A.sapm, B.sapm, true, 7],  // fewer absorbed = better
+    ["Str. defense", Math.round(A.def*100)+"%", Math.round(B.def*100)+"%", A.def, B.def, false, 9],
+    ["TD/15min", A.td15, B.td15, A.td15, B.td15, false, 6],
+    ["TD defense", Math.round(A.tdDef*100)+"%", Math.round(B.tdDef*100)+"%", A.tdDef, B.tdDef, false, 8],
+    ["Control time", Math.round(A.ctrlR*100)+"%", Math.round(B.ctrlR*100)+"%", A.ctrlR, B.ctrlR, false, 14],
   ];
   const header = `<div class="mrow taphd"><span class="r">${A.name}</span><span class="lab"></span><span class="b">${B.name}</span></div>`;
-  $("tape").innerHTML = header + tapeRows.map(r => {
-    const [lab, da, db, na, nb, lower] = r;
+  let tsA = 0, tsB = 0, tsTot = 0; // weighted tale-of-the-tape score
+  const tapeHtml = tapeRows.map(r => {
+    const [lab, da, db, na, nb, lower, wt] = r;
     let aCls = "tval", bCls = "tval";
-    if(na != null && nb != null && na !== nb){ const aWins = lower ? na < nb : na > nb; aCls = aWins ? "twin" : "tlose"; bCls = aWins ? "tlose" : "twin"; }
+    if(na != null && nb != null){
+      tsTot += wt;
+      if(na === nb){ tsA += wt/2; tsB += wt/2; }
+      else { const aWins = lower ? na < nb : na > nb; if(aWins){ tsA += wt; aCls="twin"; bCls="tlose"; } else { tsB += wt; bCls="twin"; aCls="tlose"; } }
+    }
     return `<div class="mrow"><span class="${aCls}">${da}</span><span class="lab">${lab}</span><span class="${bCls}">${db}</span></div>`;
   }).join("");
+  const tsPctA = tsTot ? tsA/tsTot : 0.5, tsWin = tsPctA >= 0.5 ? A : B;
+  const scoreHtml =
+    `<div class="tapescore">`+
+      `<div class="ts-lab">Weighted tale-of-the-tape score</div>`+
+      `<div class="ts-nums"><span class="r">${Math.round(tsPctA*100)}</span><span class="b">${Math.round((1-tsPctA)*100)}</span></div>`+
+      `<div class="ts-bar"><div class="ts-fill" style="width:${(tsPctA*100).toFixed(1)}%"></div></div>`+
+      `<div class="ts-verdict">On-paper winner: <b>${tsWin.name}</b></div>`+
+      `<div class="ts-note">A weighted tally of the stats above only — separate from the model's win probability up top, which also factors opponent quality (Elo) and simulates the fight, so the two can disagree.</div>`+
+    `</div>`;
+  $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
   renderCalc(propsFor(t, probA, A, B), A, B);
 
