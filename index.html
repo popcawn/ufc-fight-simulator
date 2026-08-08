@@ -984,6 +984,13 @@ const logit = p => { const q = Math.max(1e-6, Math.min(1-1e-6, p)); return Math.
 const sig = z => 1/(1+Math.exp(-z));
 const wRate = f => (f.w + 2.5) / (f.w + f.l + 5); // shrunk UFC win rate
 const ctrlDom = f => f.ctrlR - f.octrlR;          // net control: time controlling minus time controlled
+// Division weights (lbs). The model is trained only on same-division fights, so for
+// cross-division fantasy matchups we add a physical size prior: the heavier fighter is
+// favored ~0.055 logit per pound of gap (1 division ≈ 70%, 2 divisions ≈ 87%).
+const DIVW = { "Strawweight":115, "Women's Strawweight":115, "Flyweight":125, "Women's Flyweight":125,
+  "Bantamweight":135, "Women's Bantamweight":135, "Featherweight":145, "Women's Featherweight":145,
+  "Lightweight":155, "Welterweight":170, "Middleweight":185, "Light Heavyweight":205, "Heavyweight":245 };
+const divWt = f => DIVW[f.div] || 170;
 function blend(pSim, A, B){
   const x = [
     logit(pSim),                                        // Monte Carlo engine
@@ -996,7 +1003,8 @@ function blend(pSim, A, B){
     (wRate(A) - wRate(B))*4,                            // win rate
     (ctrlDom(A) - ctrlDom(B))*2,                        // net octagon-control dominance
   ];
-  return sig(x.reduce((s,v,i)=>s+v*B_COEF[i],0));
+  const sizeLogit = 0.055 * (divWt(A) - divWt(B));      // cross-division size prior (0 for same division)
+  return sig(x.reduce((s,v,i)=>s+v*B_COEF[i],0) + sizeLogit);
 }
 
 // ---- SIMULATION ENGINE ----
@@ -1258,7 +1266,7 @@ $("go").onclick = () => {
   const conf = Math.max(probA,1-probA);
   const confTxt = conf>0.72 ? "clear favorite" : conf>0.58 ? "moderate favorite" : "near coin-flip — genuinely competitive";
   $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b> (${pct(topMC/winN)} of their wins)${rdTxt} &middot; ${confTxt}`;
-  $("xdiv").textContent = A.div!==B.div ? `⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — size gap is only partially captured by height/reach.` : "";
+  $("xdiv").textContent = A.div!==B.div ? `⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — win % is adjusted for the ${Math.abs(divWt(A)-divWt(B))}lb weight-class gap, but the model is trained on same-division fights, so treat it as a rough estimate.` : "";
 
   $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c/winN)}</span></div>`).join("");
   const rdAll = {};
