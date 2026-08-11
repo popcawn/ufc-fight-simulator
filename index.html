@@ -138,7 +138,7 @@
     <select id="cf_div" title="Division"></select>
     <select id="cf_stance" title="Stance"><option value="O">Orthodox</option><option value="S">Southpaw</option><option value="X">Switch</option></select>
     <input id="cf_age" type="number" placeholder="Age">
-    <input id="cf_ht" type="number" placeholder="Height (in)">
+    <input id="cf_ht" placeholder="Height (e.g. 5'11)">
     <input id="cf_reach" type="number" placeholder="Reach (in)">
     <input id="cf_w" type="number" placeholder="Wins">
     <input id="cf_l" type="number" placeholder="Losses">
@@ -1167,12 +1167,22 @@ const divAvg = {}, allAvg = { ht:0, reach:0 }; CF_FILL.forEach(k => allAvg[k] = 
 })();
 Object.keys(DIVW).forEach(div => { const o = document.createElement("option"); o.value = div; o.textContent = div; $("cf_div").appendChild(o); });
 $("cf_div").value = "Lightweight";
+// height input -> inches: accepts feet-inches (5'11", 5 11, 5-11), plain feet (<12), or inches (>=12)
+function parseHeight(raw, def){
+  raw = String(raw).trim();
+  if(!raw) return def;
+  const m = raw.match(/(\d+)\s*['’ft.\-\s]+\s*(\d+)/);
+  if(m) return +m[1]*12 + +m[2];
+  const one = parseFloat(raw);
+  if(!isFinite(one)) return def;
+  return one < 12 ? Math.round(one*12) : Math.round(one);
+}
 function buildCustom(){
   const nm = $("cf_name").value.trim();
   if(!nm) return { err:"Enter a name." };
   const div = $("cf_div").value || "Lightweight", avg = divAvg[div] || allAvg;
   const num = (id,d) => { const v = parseFloat($(id).value); return isFinite(v) ? v : d; };
-  const w = Math.max(0, num("cf_w",0)), l = Math.max(0, num("cf_l",0)), ht = Math.round(num("cf_ht", avg.ht));
+  const w = Math.max(0, num("cf_w",0)), l = Math.max(0, num("cf_l",0)), ht = parseHeight($("cf_ht").value, Math.round(avg.ht));
   const f = {
     name:nm, div, age:num("cf_age",28), ht, reach:Math.round(num("cf_reach",0)) || Math.round(avg.reach) || ht,
     stance:$("cf_stance").value || "O", w, l,
