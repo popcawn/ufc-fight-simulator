@@ -28,6 +28,16 @@
   button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
   .chk{font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:center; cursor:pointer;}
   .err{color:var(--red); font-size:14px; margin-top:8px; min-height:18px;}
+  .customwrap{margin:4px 0 8px; border:1px solid var(--line); border-radius:8px; padding:10px 14px; background:var(--panel);}
+  .customwrap summary{cursor:pointer; color:var(--gold); font-size:14px; font-weight:600;}
+  .cfnote{font-size:12px; color:var(--dim); line-height:1.5; margin:10px 0;}
+  .customform{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; align-items:center;}
+  @media(max-width:640px){.customform{grid-template-columns:repeat(2,1fr);}}
+  .customform input,.customform select{padding:8px 10px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit; width:100%;}
+  .customform input:focus,.customform select:focus{border-color:var(--gold); outline:none;}
+  .customform #cf_name{grid-column:span 2;}
+  .customform button{background:var(--gold); color:#14130c; font-weight:700; border:none; cursor:pointer; grid-column:span 2;}
+  .cfmsg{font-size:13px; margin-top:8px; min-height:16px;}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:18px;}
   .hidden{display:none;}
   .names{display:flex; justify-content:space-between; font-size:20px; font-weight:700; margin-bottom:4px;}
@@ -119,6 +129,27 @@
   <button id="bt" class="secondary">Run backtest (28 real fights)</button>
 </div>
 <div class="err" id="err"></div>
+
+<details class="customwrap">
+  <summary>➕ Add a custom fighter (prospect / newcomer not in the roster)</summary>
+  <p class="cfnote">For Contender Series fighters, debut signings, or hypotheticals. Enter what you can find — the stats we can't know (striking volume, control time, etc.) are filled with <b>division averages</b>, and the fighter is rated at baseline. Predictions involving a custom fighter are <b>estimate-grade</b>, not the model's validated 65.8%.</p>
+  <div class="customform">
+    <input id="cf_name" placeholder="Name*">
+    <select id="cf_div" title="Division"></select>
+    <select id="cf_stance" title="Stance"><option value="O">Orthodox</option><option value="S">Southpaw</option><option value="X">Switch</option></select>
+    <input id="cf_age" type="number" placeholder="Age">
+    <input id="cf_ht" type="number" placeholder="Height (in)">
+    <input id="cf_reach" type="number" placeholder="Reach (in)">
+    <input id="cf_w" type="number" placeholder="Wins">
+    <input id="cf_l" type="number" placeholder="Losses">
+    <input id="cf_koW" type="number" placeholder="KO wins">
+    <input id="cf_subW" type="number" placeholder="Sub wins">
+    <input id="cf_koL" type="number" placeholder="KO losses">
+    <input id="cf_subL" type="number" placeholder="Sub losses">
+    <button id="cf_add">Add fighter</button>
+  </div>
+  <div class="cfmsg" id="cf_msg"></div>
+</details>
 
 <div class="card hidden" id="result">
   <div class="names"><span class="r" id="na"></span><span class="b" id="nb"></span></div>
@@ -1117,6 +1148,51 @@ fighters.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(f=>{
 });
 const $ = id => document.getElementById(id);
 const pct = x => (x*100).toFixed(1)+"%";
+
+// ---- CUSTOM FIGHTER MODE (prospects / newcomers not in the UFCStats data) ----
+// The granular stats we can't know for a regional prospect are filled with the averages
+// for their division; their rating starts at baseline. Estimate-grade, clearly flagged.
+const CF_FILL = ["slpm","sapm","acc","def","td15","tdAcc","tdDef","sub15","ctrlR","octrlR","kd15","okd15"];
+const divAvg = {}, allAvg = { ht:0, reach:0 }; CF_FILL.forEach(k => allAvg[k] = 0);
+(function(){
+  const acc = {}, blank = () => { const o = { n:0, ht:0, reach:0 }; CF_FILL.forEach(k => o[k]=0); return o; };
+  let n = 0;
+  fighters.forEach(f => {
+    const d = acc[f.div] = acc[f.div] || blank();
+    d.n++; n++; d.ht += f.ht; d.reach += f.reach; allAvg.ht += f.ht; allAvg.reach += f.reach;
+    CF_FILL.forEach(k => { d[k] += (+f[k]||0); allAvg[k] += (+f[k]||0); });
+  });
+  for(const div in acc){ const d = acc[div], o = { ht:d.ht/d.n, reach:d.reach/d.n }; CF_FILL.forEach(k => o[k] = d[k]/d.n); divAvg[div] = o; }
+  allAvg.ht /= n; allAvg.reach /= n; CF_FILL.forEach(k => allAvg[k] /= n);
+})();
+Object.keys(DIVW).forEach(div => { const o = document.createElement("option"); o.value = div; o.textContent = div; $("cf_div").appendChild(o); });
+$("cf_div").value = "Lightweight";
+function buildCustom(){
+  const nm = $("cf_name").value.trim();
+  if(!nm) return { err:"Enter a name." };
+  const div = $("cf_div").value || "Lightweight", avg = divAvg[div] || allAvg;
+  const num = (id,d) => { const v = parseFloat($(id).value); return isFinite(v) ? v : d; };
+  const w = Math.max(0, num("cf_w",0)), l = Math.max(0, num("cf_l",0)), ht = Math.round(num("cf_ht", avg.ht));
+  const f = {
+    name:nm, div, age:num("cf_age",28), ht, reach:Math.round(num("cf_reach",0)) || Math.round(avg.reach) || ht,
+    stance:$("cf_stance").value || "O", w, l,
+    koW:Math.min(w,Math.max(0,num("cf_koW",0))), subW:Math.min(w,Math.max(0,num("cf_subW",0))),
+    koL:Math.min(l,Math.max(0,num("cf_koL",0))), subL:Math.min(l,Math.max(0,num("cf_subL",0))),
+    elo:1500, form:0, mo:3, streak:0, custom:true,
+  };
+  CF_FILL.forEach(k => f[k] = +avg[k].toFixed(3));
+  return { f: derive(f) };
+}
+$("cf_add").onclick = () => {
+  const msg = $("cf_msg"), r = buildCustom();
+  if(r.err){ msg.textContent = r.err; msg.style.color = "var(--red)"; return; }
+  const key = r.f.name.toLowerCase();
+  if(byName[key] && !byName[key].custom){ msg.textContent = "That name matches a real fighter — choose a different name."; msg.style.color = "var(--red)"; return; }
+  if(!byName[key]){ const o = document.createElement("option"); o.value = r.f.name; o.label = r.f.div + " (custom)"; dl.appendChild(o); fighters.push(r.f); }
+  byName[key] = r.f;
+  msg.innerHTML = `✓ Added <b>${r.f.name}</b> (${r.f.div}, custom). Type their name into a corner to simulate.`; msg.style.color = "var(--green)";
+};
+
 // current streak -> fight-card notation: W6 / L2 / "—" if even or debut
 const streakTxt = s => s > 0 ? "W"+s : s < 0 ? "L"+(-s) : "—";
 // American odds -> decimal; EV per $1 staked = prob*decimal - 1 (positive = value)
@@ -1266,7 +1342,10 @@ $("go").onclick = () => {
   const conf = Math.max(probA,1-probA);
   const confTxt = conf>0.72 ? "clear favorite" : conf>0.58 ? "moderate favorite" : "near coin-flip — genuinely competitive";
   $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b> (${pct(topMC/winN)} of their wins)${rdTxt} &middot; ${confTxt}`;
-  $("xdiv").textContent = A.div!==B.div ? `⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — win % is adjusted for the ${Math.abs(divWt(A)-divWt(B))}lb weight-class gap, but the model is trained on same-division fights, so treat it as a rough estimate.` : "";
+  const warns = [];
+  if(A.custom || B.custom){ const c = [A,B].filter(f=>f.custom).map(f=>f.name).join(" & "); warns.push(`⚠ Custom fighter (${c}) — granular stats are division averages and the rating is unproven, so this is an estimate, not the model's validated 65.8%. Especially rough for raw prospects (Contender Series, debuts).`); }
+  if(A.div !== B.div){ warns.push(`⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — win % is adjusted for the ${Math.abs(divWt(A)-divWt(B))}lb weight-class gap, but the model is trained on same-division fights, so treat it as a rough estimate.`); }
+  $("xdiv").innerHTML = warns.join("<br>");
 
   $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c/winN)}</span></div>`).join("");
   const rdAll = {};
