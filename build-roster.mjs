@@ -4,8 +4,9 @@
 //   - recency-weighted career stats (730-day half-life, so recent fights count more)
 //   - Elo rating (K=40) across all UFC fights -> opponent quality / strength of schedule
 //   - recent form (net result of last 5 fights) and months since last fight
-// Re-run any time to refresh:  node ufc-build-roster.mjs  (delete ufc-data\ to force re-download)
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "fs";
+// Re-run any time to refresh:  node build-roster.mjs   (always re-downloads current data)
+// Pass --cache to reuse the local ufc-data/ snapshot instead (faster, for dev only).
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 
 const ROOT = import.meta.dirname.replace(/\\/g, "/"); // repo folder, works on Windows/Linux/CI
 const BASE = "https://raw.githubusercontent.com/Greco1899/scrape_ufc_stats/main/";
@@ -15,11 +16,12 @@ const CUTOFF = new Date("2024-06-01"); // "active" = fought in the last ~24 mont
 const TODAY = new Date();
 const HL = 730, ELO_K = 40;
 
-if (process.argv.includes("--fresh") && existsSync(DIR)) rmSync(DIR, { recursive: true });
+// Fresh download by default so a stale cache can never silently produce a wrong roster.
+const USE_CACHE = process.argv.includes("--cache");
 if (!existsSync(DIR)) mkdirSync(DIR);
 async function csv(name) {
   const p = DIR + name;
-  if (!existsSync(p)) { console.log("downloading", name); writeFileSync(p, await fetch(BASE + name).then(r => r.text())); }
+  if (!(USE_CACHE && existsSync(p))) { console.log("downloading", name); writeFileSync(p, await fetch(BASE + name).then(r => r.text())); }
   return parseCSV(readFileSync(p, "utf8"));
 }
 function parseCSV(text) {

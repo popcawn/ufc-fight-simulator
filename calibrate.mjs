@@ -1,6 +1,6 @@
 // Compares the engine's predicted method/round distribution against the real
 // UFC distribution (2018+), to calibrate finish timing.
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 
 function parseCSV(text) {
   const rows = []; let row = [], cur = "", q = false;
@@ -16,9 +16,14 @@ function parseCSV(text) {
   const head = rows[0].map(h => h.trim());
   return rows.slice(1).filter(r => r.length === head.length).map(r => Object.fromEntries(head.map((h,i)=>[h, r[i].trim()])));
 }
-const ROOT = import.meta.dirname.replace(/\\/g, "/");
-const ev = new Map(parseCSV(readFileSync(ROOT + "/ufc-data/ufc_event_details.csv","utf8")).map(e => [e.EVENT.trim(), new Date(e.DATE)]));
-const res = parseCSV(readFileSync(ROOT + "/ufc-data/ufc_fight_results.csv","utf8"));
+const ROOT = import.meta.dirname.replace(/\\/g, "/"), DIR = ROOT + "/ufc-data/";
+const BASE = "https://raw.githubusercontent.com/Greco1899/scrape_ufc_stats/main/";
+// fresh download by default; --cache reuses local snapshot
+const USE_CACHE = process.argv.includes("--cache");
+if (!existsSync(DIR)) mkdirSync(DIR);
+async function csv(name){ const p = DIR + name; if(!(USE_CACHE && existsSync(p))){ console.log("downloading", name); writeFileSync(p, await fetch(BASE+name).then(r=>r.text())); } return parseCSV(readFileSync(p, "utf8")); }
+const ev = new Map((await csv("ufc_event_details.csv")).map(e => [e.EVENT.trim(), new Date(e.DATE)]));
+const res = await csv("ufc_fight_results.csv");
 const since = new Date("2018-01-01");
 
 console.log("=== REAL UFC (2018+) ===");

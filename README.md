@@ -41,8 +41,10 @@ automatically. To update on demand, go to the **Actions** tab → **Update stats
 Requires [Node.js](https://nodejs.org) (v20+).
 
 ```sh
-node build-roster.mjs    # download latest stats, recompute roster, rewrite index.html
+node build-roster.mjs    # always re-downloads current data, recomputes roster, rewrites index.html
 ```
+
+This **always fetches fresh data** — a stale cache can never silently produce a wrong roster. Add `--cache` to reuse the local snapshot for faster dev iteration (`eval.mjs` and `calibrate.mjs` behave the same way).
 
 If hosting online, commit and push afterward (`git add -A && git commit -m "update" && git push`).
 

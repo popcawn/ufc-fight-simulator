@@ -24,11 +24,12 @@ const el = () => new Proxy({ classList:{add(){},remove(){}}, style:{}, addEventL
 globalThis.document = { getElementById: el, createElement: () => el() };
 const { simulate, derive } = new Function(scr + "; return {simulate, derive};")();
 
-// ---- data ----
+// ---- data ---- (fresh download by default; --cache reuses local snapshot for fast dev)
+const USE_CACHE = process.argv.includes("--cache");
 if (!existsSync(DIR)) mkdirSync(DIR);
 async function csv(name) {
   const p = DIR + name;
-  if (!existsSync(p)) { console.log("downloading", name); writeFileSync(p, await fetch(BASE + name).then(r => r.text())); }
+  if (!(USE_CACHE && existsSync(p))) { console.log("downloading", name); writeFileSync(p, await fetch(BASE + name).then(r => r.text())); }
   return parseCSV(readFileSync(p, "utf8"));
 }
 function parseCSV(text) {
