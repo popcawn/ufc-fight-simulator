@@ -135,6 +135,7 @@ for (const { r, date } of bouts) {
         // did not improve held-out accuracy. Displayed in UI only.
       ],
       y: out === "W/L" ? 1 : 0,
+      mf: Math.min(sA.w + sA.l, sB.w + sB.l), // prior UFC fights of the LESS experienced fighter
     });
   }
   // update
@@ -201,6 +202,18 @@ evalSet(test, r => 0.4*sig(r.x[0]) + 0.6*eloPfromX(r), "fixed blend w=0.4");
 function eloPfromX(r){ return 1/(1+Math.pow(10, -r.x[1]*100/400)); }
 evalSet(test, r => sig(r.x.reduce((s,v,i)=>s+v*b[i],0)), "logistic (all features)");
 evalSet(train, r => sig(r.x.reduce((s,v,i)=>s+v*b[i],0)), "logistic on TRAIN (overfit check)");
-// established fighters only (3+ UFC fights each is implied by experience feature >= ...): use exp feature reconstruction
+
+// ---- accuracy bucketed by the LESS-experienced fighter's prior UFC fights ----
+console.log(`\n=== held-out accuracy by min(prior UFC fights) of the two fighters ===`);
+const predOf = r => sig(r.x.reduce((s,v,i)=>s+v*b[i],0));
+const buckets = [[0,1,"0-1 fights (debut/near-debut)"],[2,3,"2-3 fights"],[4,6,"4-6 fights"],[7,10,"7-10 fights"],[11,999,"11+ fights (established)"]];
+for (const [lo,hi,label] of buckets) {
+  const set = test.filter(r => r.mf >= lo && r.mf <= hi);
+  if (!set.length) { console.log(`  ${label.padEnd(30)} n=0`); continue; }
+  let hit = 0, ll = 0;
+  for (const r of set) { const p = Math.min(0.99, Math.max(0.01, predOf(r))); if ((p >= 0.5) === (r.y === 1)) hit++; ll += -Math.log(r.y ? p : 1-p); }
+  console.log(`  ${label.padEnd(30)} n=${String(set.length).padStart(3)}  acc ${(100*hit/set.length).toFixed(1)}%  logloss ${(ll/set.length).toFixed(3)}`);
+}
+
 writeFileSync(ROOT + "/ufc-eval-coefs.json", JSON.stringify(b));
 console.log("\ncoefficients saved to ufc-eval-coefs.json");
