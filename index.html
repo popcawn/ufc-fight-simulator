@@ -79,6 +79,7 @@
   .oddsin:focus{border-color:var(--gold); outline:none;}
   .evcell{font-weight:700; color:var(--dim); white-space:nowrap;}
   .evcell.suspect{color:var(--gold); font-weight:600; opacity:.75;}
+  .evcell.best{color:var(--gold); font-weight:800; letter-spacing:.3px;}
   .mktcell{color:var(--text);}
   .verdict-box{margin:4px 0 16px; padding:12px 14px; border-radius:8px; font-size:14px; line-height:1.5; border:1px solid;}
   .verdict-box .vh{font-size:16px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:4px;}
@@ -89,7 +90,8 @@
   .verdict-box.pass .vh{color:#ff7a7a;}
   .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);}
   .verdict-box.caution .vh{color:var(--gold);}
-  tr.rec td{background:rgba(62,201,126,.10);}
+  tr.rec td{background:rgba(212,168,67,.15);}                 /* best-bet row: gold tint, distinct from green value rows */
+  tr.rec td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
   .warn{color:var(--gold); font-size:13px; margin-top:8px;}
   footer{margin-top:28px; font-size:12px; color:var(--dim); line-height:1.6;}
   code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
@@ -1265,7 +1267,10 @@ function computeVerdict(){
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
-    else if(v.status === "take"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ✓ value"; ev.className = "evcell ok"; }
+    else if(v.status === "take"){
+      if(i === v.bestIndex){ ev.textContent = "★ BEST +"+(e.ev*100).toFixed(1)+"%"; ev.className = "evcell best"; } // the one to bet if you only bet one
+      else { ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ✓ value"; ev.className = "evcell ok"; }
+    }
     else { ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ⚠ suspect"; ev.className = "evcell suspect"; } // pass/caution: green flags are illusory
   });
   const box = $("verdictBox");
