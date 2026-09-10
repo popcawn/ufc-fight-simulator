@@ -1193,6 +1193,9 @@ function propsFor(t, pA, A, B){
     [`${A.name} by KO/TKO`, koA], [`${A.name} by submission`, subA], [`${A.name} by decision`, decA],
     [`${B.name} by KO/TKO`, koB], [`${B.name} by submission`, subB], [`${B.name} by decision`, decB],
     [`Goes the distance`, dist], [`Ends inside the distance`, 1-dist],
+    // double chance (2-of-3 methods for one fighter) — exact sums of the method props above
+    [`${A.name} by KO/TKO or submission`, koA+subA], [`${A.name} by KO/TKO or decision`, koA+decA], [`${A.name} by submission or decision`, subA+decA],
+    [`${B.name} by KO/TKO or submission`, koB+subB], [`${B.name} by KO/TKO or decision`, koB+decB], [`${B.name} by submission or decision`, subB+decB],
   ];
 }
 let calcProps = [], calcA = null, calcB = null;
@@ -1222,7 +1225,7 @@ function verdictFor(entered, A, B, pA){
   const minFights = Math.min(A.w + A.l, B.w + B.l);
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
   const lowData = minFights < 4;
-  const rel = i => (i >= 2 && i <= 7) ? 0.7 : 1.0; // method props are the noisier part of the model
+  const rel = i => ((i >= 2 && i <= 7) || i >= 10) ? 0.7 : 1.0; // method props + double-chance combos are the noisier part of the model
 
   // Fight-level red flag: NO-VIG market high on a favorite the model rates materially lower.
   const mlA = entered.find(e => e.i === 0), mlB = entered.find(e => e.i === 1);
