@@ -77,6 +77,10 @@
   .calctable tr:last-child td{border-bottom:none;}
   .oddsin{width:84px; padding:5px 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit;}
   .oddsin:focus{border-color:var(--gold); outline:none;}
+  .openline{font-size:13px; margin:0 0 8px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center;}
+  .openline label{display:flex; gap:6px; align-items:center;} .dimtxt{color:var(--dim); font-size:12px;}
+  .anchornote{font-size:12px; color:var(--dim); line-height:1.5; margin:0 0 12px;} .anchornote b{color:var(--text);}
+  .blcell{color:var(--gold); font-weight:700;}
   .evcell{font-weight:700; color:var(--dim); white-space:nowrap;}
   .evcell.suspect{color:var(--gold); font-weight:600; opacity:.75;}
   .evcell.best{color:var(--gold); font-weight:800; letter-spacing:.3px;}
@@ -141,10 +145,12 @@
   </div>
   <div class="calc">
     <h3>Fair odds &amp; value calculator</h3>
-    <p class="calcnote">"Fair odds" is the model's no-vig price for each outcome. Type a sportsbook's American odds (e.g. <code>-150</code> or <code>+220</code>) to see your expected value — <span class="ok">green = positive EV</span> (the book is paying more than the model thinks it's worth). <b>Market %</b> is the book's <i>no-vig</i> probability (vig removed on the two-way win/distance markets) — compare it to <b>Model %</b> to see where you actually disagree with the line. When the verdict says pass, green flags are downgraded to <span style="color:var(--gold)">⚠ suspect</span>. Props are estimated from the simulation's method/round mix. Read the honesty note before betting.</p>
+    <p class="calcnote">Type a sportsbook's American odds (e.g. <code>-150</code> or <code>+220</code>) for any outcome. The calculator <b>anchors to the betting market</b>: it blends the moneyline you enter with the model, weighted by <b>when</b> you are betting (the model moves an opening line more than a fight-week one). In a 2021–26 backtest against real opening/closing lines, raw model edges lost money while the anchored blend made money. <b>Model %</b> = raw sim · <b>Blend %</b> = market-anchored probability used for fair odds &amp; EV · <b>Market %</b> = the book's no-vig price. <span class="ok">Green</span> = positive EV, ★ = best single bet, <span style="color:var(--gold)">⚠ suspect</span> = the verdict says pass.</p>
+    <div class="openline"><label>When are you betting? <select id="lineTiming"><option value="current">Fight week / current line (conservative)</option><option value="open">Early — at or near the opening line (the backtested edge)</option></select></label> <span class="dimtxt">The moneyline you enter below is your price; this picks how much the model is allowed to move it.</span></div>
+    <div class="anchornote" id="anchorNote"></div>
     <div class="verdict-box hidden" id="verdictBox"></div>
     <table class="calctable">
-      <thead><tr><th>Outcome</th><th>Model %</th><th>Fair odds</th><th>Book odds</th><th>Market %</th><th>EV</th></tr></thead>
+      <thead><tr><th>Outcome</th><th>Model %</th><th>Blend %</th><th>Fair odds</th><th>Book odds</th><th>Market %</th><th>EV</th></tr></thead>
       <tbody id="calcBody"></tbody>
     </table>
   </div>
@@ -1212,15 +1218,30 @@ function propsFor(t, pA, A, B){
     [`${B.name} by KO/TKO or submission`, koB+subB], [`${B.name} by KO/TKO or decision`, koB+decB], [`${B.name} by submission or decision`, subB+decB],
   ];
 }
-let calcProps = [], calcA = null, calcB = null;
-function renderCalc(props, A, B){
-  calcProps = props; calcA = A; calcB = B;
+let calcProps = [], calcA = null, calcB = null, calcT = null;
+// ---- MARKET ANCHOR (backtested in market-eval.mjs: 2021-26 walk-forward vs BestFightOdds lines) ----
+// win prob = sig(wMkt*logit(no-vig line) + wModel*logit(raw model)). Raw model edges LOST money;
+// anchored to the OPENING line, edges >=3% returned +7% ROI overall and +12% when both fighters
+// have 4+ UFC fights (thin-data fights broke even). Against the current/closing line the model
+// carries less information, so its weight drops to 0.2.
+const W_OPEN = [1.011, 0.513], W_CUR = [1.101, 0.201];
+const noVig = (d1, d2) => (1/d1) / (1/d1 + 1/d2);
+function renderCalc(props, A, B, t){
+  calcProps = props; calcA = A; calcB = B; calcT = t;
   $("calcBody").innerHTML = props.map((p,i)=>
-    `<tr id="row${i}"><td>${p[0]}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
+    `<tr id="row${i}"><td>${p[0]}</td><td>${(p[1]*100).toFixed(1)}%</td><td class="blcell" id="bl${i}">—</td><td id="fair${i}">${amOdds(p[1])}</td>`+
     `<td><input class="oddsin" data-i="${i}" placeholder="—"></td>`+
     `<td class="mktcell" id="mkt${i}">—</td><td class="evcell" id="ev${i}">—</td></tr>`).join("");
   document.querySelectorAll("#calcBody .oddsin").forEach(inp => inp.addEventListener("input", computeVerdict));
   computeVerdict();
+}
+// Anchor to the moneyline you entered (that IS your price). Each blend was only proven at its own
+// price: open-weights when betting at the opener, current-weights when betting late. Mixing them
+// (open-anchored prob vs a later price) would bet against line moves the model already predicted.
+function anchorOf(decs){
+  if(!(decs[0] && decs[1])) return null;
+  const kind = $("lineTiming").value === "open" ? "open" : "current";
+  return { kind, pMkt:noVig(decs[0], decs[1]), w: kind === "open" ? W_OPEN : W_CUR };
 }
 // two-way markets that can be de-vigged against their partner: moneyline (0,1), distance (8,9)
 const pairOf = i => i===0?1 : i===1?0 : i===8?9 : i===9?8 : -1;
@@ -1230,63 +1251,73 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
   return (j>=0 && m[j]) ? raw/(raw + 1/m[j].dec) : raw;
 }
 // ---- VERDICT ENGINE: turn the filled-in odds into one TAKE / PASS call ----
-// Encodes the betting discipline: heavy-favorite disagreement (vs the NO-VIG market),
-// implausible EV, thin edges, and debutant/low-fight fighters all force a pass;
-// otherwise the best bet is ranked by quarter-Kelly (method props discounted as noisier).
-function verdictFor(entered, A, B, pA){
+// Anchored mode (moneyline or opening line entered) uses the backtested rule: TAKE at >=3% EV on the
+// market-anchored probability, LEAN PASS when a fighter has <4 UFC fights (that's where the edge broke
+// even). Anchoring replaces the old "heavy favorite disagreement" heuristic — the blend shrinks the
+// model toward the market automatically. Unanchored mode keeps the stricter 4% bar.
+function verdictFor(entered, A, B, pA, anchor){
   if(!entered.length) return { status:"none" };
-  const pB = 1 - pA;
   const minFights = Math.min(A.w + A.l, B.w + B.l);
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
   const lowData = minFights < 4;
   const rel = i => ((i >= 2 && i <= 7) || i >= 10) ? 0.7 : 1.0; // method props + double-chance combos are the noisier part of the model
-
-  // Fight-level red flag: NO-VIG market high on a favorite the model rates materially lower.
-  const mlA = entered.find(e => e.i === 0), mlB = entered.find(e => e.i === 1);
-  if(mlA && mlB){
-    const rawA = 1/mlA.dec, rawB = 1/mlB.dec, tot = rawA + rawB;
-    const dvA = rawA/tot, dvB = rawB/tot; // de-vigged market probabilities
-    const fav = dvA > dvB ? { dv:dvA, name:A.name, mp:pA } : { dv:dvB, name:B.name, mp:pB };
-    if(fav.dv > 0.70 && (fav.dv - fav.mp) > 0.08)
-      return { status:"pass", title:"PASS THIS FIGHT", body:
-        `The no-vig market has <b>${fav.name}</b> at ${Math.round(fav.dv*100)}% but the model only ${Math.round(fav.mp*100)}% — a ${Math.round((fav.dv-fav.mp)*100)}-point gap on a clear favorite. When a thin-data model disagrees with a sharp line this hard, the model is the one missing something. The underdog "value" is almost certainly an illusion.` };
-  }
+  const TH = anchor ? 0.03 : 0.04;
 
   entered.forEach(e => {
     e.kelly = e.ev / (e.dec - 1);
     e.score = e.kelly * rel(e.i);
-    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < 0.04 ? "thin" : "take";
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < TH ? "thin" : "take";
   });
   const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
 
   if(takes.length){
     const best = takes[0], stake = Math.min(3, 25 * best.kelly).toFixed(1);
-    if(lowData) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
-      `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
-    const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are correlated with this (same fight) — treat them as one position, don't stack.` : "";
+    if(lowData) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body: anchor
+      ? `<b>${best.label}</b> shows +${(best.ev*100).toFixed(1)}% EV even after anchoring to the line, but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}. In the 2021–26 backtest the anchored edge on fights like this broke even (+0.8% ROI) — the line moves the right way, but it doesn't pay after vig. Lean pass.`
+      : `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
+    const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are on the same fight — treat them as one position, don't stack.` : "";
+    const propNote = (anchor && best.i > 1) ? ` Heads up: prop edges inherit the anchored win % but aren't backtested against real prop lines — only the moneyline rule is proven.` : "";
     return { status:"take", title:"TAKE THIS BET", bestIndex:best.i, body:
-      `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%).${extra}` };
+      `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%).${extra}${propNote}` };
   }
   const tooGood = entered.find(e => e.tag === "toogood");
   if(tooGood) return { status:"pass", title:"PASS", body:
     `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
   if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", body:
-    `Only razor-thin edges (under 4%) — inside the model's margin of error. Not worth a bet.` };
-  return { status:"pass", title:"PASS", body:`No positive expected value at these prices. The book's lines look efficient here.` };
+    `Only razor-thin edges (under ${TH*100}%) — inside the margin of error. Not worth a bet.` };
+  return { status:"pass", title:"PASS", body: anchor
+    ? `No positive expected value once the model is anchored to the market — the line already prices this fight well.`
+    : `No positive expected value at these prices. The book's lines look efficient here.` };
 }
 function computeVerdict(){
-  const m = {};
+  const decs = {};
   calcProps.forEach((p,i) => {
     const inp = document.querySelector(`#calcBody .oddsin[data-i="${i}"]`);
-    const dec = inp ? amToDec(inp.value) : null;
-    if(dec !== null) m[i] = { i, label:p[0], prob:p[1], dec, ev:p[1]*dec - 1 };
+    const d = inp ? amToDec(inp.value) : null;
+    if(d !== null) decs[i] = d;
   });
+  const pModel = calcProps.length ? calcProps[0][1] : 0.5;
+  const anchor = calcT ? anchorOf(decs) : null;
+  const pStar = anchor ? sig(anchor.w[0]*logit(anchor.pMkt) + anchor.w[1]*logit(pModel)) : pModel;
+  const props = anchor ? propsFor(calcT, pStar, calcA, calcB) : calcProps; // method splits rescaled to the anchored win %
+  const m = {};
+  for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
-  const v = verdictFor(entered, calcA, calcB, calcProps.length ? calcProps[0][1] : 0.5);
-  // style every row's Market % and EV cell, reconciled with the verdict
+  const v = verdictFor(entered, calcA, calcB, pStar, anchor);
+  // anchor status line
+  const an = $("anchorNote");
+  an.innerHTML = !anchor
+    ? (entered.length ? `⚠ <b>Not anchored</b> — enter both fighters' moneyline. In backtesting, raw model edges lost money; the market-anchored blend is what made money.` : "")
+    : `⚓ Anchored to your moneyline as <b>${anchor.kind === "open" ? "an opening line" : "a fight-week line"}</b> (${calcA.name} ${(anchor.pMkt*100).toFixed(1)}% no-vig) → blended win prob <b>${(pStar*100).toFixed(1)}%</b> vs raw model ${(pModel*100).toFixed(1)}%. `
+      + (anchor.kind === "open"
+        ? `This is the backtested rule: +12% ROI on ≥3% edges when both fighters have 4+ UFC fights (2022–26).`
+        : `Conservative blend (model weight 0.2). If you are betting early at the opener, switch the timing above for the stronger backtested version.`);
+  // style every row, reconciled with the verdict
   calcProps.forEach((p,i) => {
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
     if(row) row.classList.remove("rec");
+    $("bl"+i).textContent = anchor ? (props[i][1]*100).toFixed(1)+"%" : "—";
+    $("fair"+i).textContent = amOdds(props[i][1]);
     const e = m[i];
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
@@ -1305,6 +1336,7 @@ function computeVerdict(){
     `<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div>`;
   if(v.bestIndex != null){ const r = $("row"+v.bestIndex); if(r) r.classList.add("rec"); }
 }
+$("lineTiming").addEventListener("change", computeVerdict);
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
 const amOdds = p => {
   p = Math.min(0.995, Math.max(0.005, p));
@@ -1402,7 +1434,7 @@ $("go").onclick = () => {
     `</div>`;
   $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
-  renderCalc(propsFor(t, probA, A, B), A, B);
+  renderCalc(propsFor(t, probA, A, B), A, B, t);
 
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({behavior:"smooth"});

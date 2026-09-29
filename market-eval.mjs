@@ -150,3 +150,15 @@ for (const minEV of [0.00, 0.03, 0.05]) {
   }
   console.log(`  close-blend EV >= ${(minEV*100).toFixed(0)}% bet AT THE CLOSE: bets ${String(n).padStart(4)}  ROI ${(n?100*pnl/n:0).toFixed(1).padStart(6)}%`);
 }
+
+// ---- 7) does the open-blend edge hold for thin-data fighters? ----
+console.log("\n=== 7) OPEN-BLEND EDGE BY EXPERIENCE (EV >= 3%, bet at open) ===");
+for (const [lo, hi, lab] of [[1,3,"less-experienced fighter has 1-3 UFC fights"],[4,99,"both fighters have 4+ UFC fights"]]) {
+  let n = 0, pnl = 0, beat = 0;
+  for (const r of OB.filter(r => r.mf >= lo && r.mf <= hi)) for (const side of ["a","b"]) {
+    const pm = side === "a" ? r.pOB : 1 - r.pOB, won = side === "a" ? r.y === 1 : r.y === 0;
+    const o = side === "a" ? r.ao : r.bo, c = side === "a" ? r.ac : r.bc;
+    if (pm * o - 1 < 0.03) continue; n++; pnl += won ? o - 1 : -1; if (c < o) beat++;
+  }
+  console.log(`  ${lab.padEnd(46)} bets ${String(n).padStart(3)}  ROI ${(100*pnl/n).toFixed(1).padStart(5)}%  beat close ${(100*beat/n).toFixed(0)}%`);
+}

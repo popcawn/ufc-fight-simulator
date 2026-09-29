@@ -56,6 +56,7 @@ If hosting online, commit and push afterward (`git add -A && git commit -m "upda
 | `build-roster.mjs` | Downloads latest UFCStats data, recomputes all fighter stats, injects them into `index.html`. |
 | `eval.mjs` | Re-validates model accuracy on held-out fights and retrains the coefficients. |
 | `calibrate.mjs` | Checks the engine's method/round finish mix against real UFC distributions. |
+| `market-eval.mjs` | Model vs the betting market: joins walk-forward predictions (`node eval.mjs --dump`) to BestFightOdds opening/closing lines; source of the calculator's market-anchor weights. |
 | `.github/workflows/update-stats.yml` | Weekly automatic stat refresh. |
 
 ## Data source
