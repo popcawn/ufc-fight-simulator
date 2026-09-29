@@ -3,3 +3,4 @@ ufc-data/
 node_modules/
 *.log
 ufc-eval-coefs.json
+ufc-eval-preds.json

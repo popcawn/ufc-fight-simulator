@@ -137,6 +137,7 @@ for (const { r, date } of bouts) {
       ],
       y: out === "W/L" ? 1 : 0,
       mf: Math.min(sA.w + sA.l, sB.w + sB.l), // prior UFC fights of the LESS experienced fighter
+      fa: nA, fb: nB,                         // fighter names (for joining to betting lines)
     });
   }
   // update
@@ -218,3 +219,28 @@ for (const [lo,hi,label] of buckets) {
 
 writeFileSync(ROOT + "/ufc-eval-coefs.json", JSON.stringify(b));
 console.log("\ncoefficients saved to ufc-eval-coefs.json");
+
+// ---- --dump: walk-forward out-of-sample predictions for market comparison ----
+// For each year Y (2021..now) fit the logistic head ONLY on fights before Y, then predict
+// every fight in Y. Every probability is genuinely pre-fight; nothing is fit on its own year.
+if (process.argv.includes("--dump")) {
+  const fitLogit = trainRows => {
+    const m = trainRows.flatMap(r => [r, { x: r.x.map(v=>-v), y: 1 - r.y }]);
+    const w = new Array(D).fill(0);
+    for (let it = 0; it < 3000; it++) {
+      const g = new Array(D).fill(0);
+      for (const r of m) { const e = sig(r.x.reduce((s,v,i)=>s+v*w[i],0)) - r.y; for (let i = 0; i < D; i++) g[i] += e * r.x[i]; }
+      for (let i = 0; i < D; i++) w[i] -= LR * (g[i]/m.length + L2*w[i]);
+    }
+    return w;
+  };
+  const out = [];
+  for (let Y = 2021; Y <= TODAY.getFullYear(); Y++) {
+    const cut = new Date(`${Y}-01-01`), next = new Date(`${Y+1}-01-01`);
+    const w = fitLogit(rows.filter(r => r.date < cut));
+    for (const r of rows.filter(r => r.date >= cut && r.date < next))
+      out.push({ date: r.date.toISOString().slice(0,10), a: r.fa, b: r.fb, p: +sig(r.x.reduce((s,v,i)=>s+v*w[i],0)).toFixed(4), y: r.y, mf: r.mf });
+  }
+  writeFileSync(ROOT + "/ufc-eval-preds.json", JSON.stringify(out));
+  console.log(`\nwalk-forward dump: ${out.length} out-of-sample predictions (2021-${TODAY.getFullYear()}) -> ufc-eval-preds.json`);
+}
