@@ -1666,9 +1666,14 @@ let ODDS = null, scanRows = [], slip = [];
 let myBooks = (() => { try { return JSON.parse(localStorage.getItem("ufcsim.books")); } catch(e){ return null; } })();
 const usableBook = k => !myBooks || myBooks.includes(k);
 const modelCache = new Map();
+// next to the page first; a copy opened from disk (file://) can't read local files, so it falls back to the live feed
+const ODDS_URLS = ["odds.json", "https://popcawn.github.io/ufc-fight-simulator/odds.json"];
 async function loadOdds(){
   if(ODDS && Date.now() - ODDS._at < 10 * 60e3) return ODDS;
-  try { const r = await fetch("odds.json?t=" + Date.now()); if(!r.ok) throw 0; ODDS = await r.json(); ODDS._at = Date.now(); } catch(e){ ODDS = null; }
+  ODDS = null;
+  for(const u of ODDS_URLS){
+    try { const r = await fetch(u + "?t=" + Date.now()); if(!r.ok) continue; ODDS = await r.json(); ODDS._at = Date.now(); break; } catch(e){}
+  }
   return ODDS;
 }
 function scoreFight(id, f){
@@ -1703,7 +1708,7 @@ async function openScan(){
   $("wkcard").classList.remove("hidden");
   $("wkinfo").textContent = "Loading lines…";
   const O = await loadOdds();
-  if(!O){ $("wkinfo").textContent = "No odds feed yet — the \"Scan odds\" GitHub Action creates odds.json (needs the ODDS_API_KEY secret)."; $("wkbody").innerHTML = ""; renderSlip(); return; }
+  if(!O){ $("wkinfo").textContent = "Couldn't load the odds feed — check your internet connection (the feed lives on popcawn.github.io)."; $("wkbody").innerHTML = ""; renderSlip(); return; }
   buildScan();
 }
 function buildScan(){
@@ -1716,7 +1721,8 @@ function buildScan(){
     .sort((a, b) => a.t.toDateString() === b.t.toDateString() ? (b.take - a.take) || (a.t - b.t) : a.t - b.t);
   const h = (now - new Date(O.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + "h" : Math.round(h / 24) + " days";
   const takes = scanRows.filter(r => r.take).length;
-  $("wkinfo").innerHTML = `<b>${takes} bet${takes === 1 ? "" : "s"}</b> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`;
+  $("wkinfo").innerHTML = `<b>${takes} bet${takes === 1 ? "" : "s"}</b> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`
+    + (h > 36 ? ` <span class="warnline">⚠ stale — the "Scan odds" GitHub Action isn't refreshing (is the ODDS_API_KEY secret set?). Re-check prices at your book.</span>` : "");
   renderScan(); renderSlip();
 }
 function renderScan(){
