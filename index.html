@@ -39,7 +39,7 @@
   .tabs button{flex:1; padding:7px 4px; font-size:12px; background:var(--panel2); color:var(--dim); border:1px solid var(--line); font-weight:600;}
   .tabs button.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
   .dash{flex:1; min-height:0; display:grid; gap:var(--gap); padding:var(--gap);
-        grid-template-columns:minmax(290px,1fr) minmax(260px,.85fr) minmax(430px,1.55fr); grid-template-areas:"res tape calc";}
+        grid-template-columns:minmax(290px,1fr) minmax(240px,.8fr) minmax(430px,1.75fr); grid-template-areas:"res tape calc";}
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; overflow:auto; min-height:0; min-width:0;}
   .p-res{grid-area:res;} .p-tape{grid-area:tape;} .p-calc{grid-area:calc;}
   .empty{color:var(--dim); font-size:14px; line-height:1.7; margin-top:24px; text-align:center;}
@@ -58,9 +58,9 @@
   .verdict{margin:10px 0 2px; font-size:14px; line-height:1.4;} .verdict b{color:var(--gold);}
   .warn{color:var(--gold); font-size:12px; margin-top:4px; line-height:1.4;} .warn:empty{display:none;}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px;}
-  .mrow{display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:3px 0; border-bottom:1px solid var(--line);}
+  .mrow{display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:calc(3px + var(--rp,0px)) 0; border-bottom:1px solid var(--line);}
   .mrow:last-child{border-bottom:none;} .mrow .lab{color:var(--dim); text-align:center;}
-  .driver{font-size:13px; padding:4px 0; border-bottom:1px solid var(--line); line-height:1.35;}
+  .driver{font-size:13px; padding:calc(4px + var(--rp,0px)) 0; border-bottom:1px solid var(--line); line-height:1.35;}
   .driver:last-child{border-bottom:none;} .driver .who{font-weight:700;}
   .who.r{color:#ff7a7a;} .who.b{color:#7aa3ff;}
 
@@ -91,7 +91,7 @@
   .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .calctable{width:100%; border-collapse:collapse; font-size:12.5px;}
   .calctable th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:1px; text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
-  .calctable td{padding:2px 6px; border-bottom:1px solid var(--line); white-space:nowrap; height:26px;}
+  .calctable td{padding:2px 6px; border-bottom:1px solid var(--line); white-space:nowrap; height:calc(26px + 2*var(--rp,0px));}
   .calctable tr:last-child td{border-bottom:none;}
   .oc .r{color:#ff7a7a; font-weight:600;} .oc .b{color:#7aa3ff; font-weight:600;}
   .oddsin{width:68px; padding:2px 6px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:12.5px; font-family:inherit;}
@@ -108,6 +108,10 @@
   tr.dc-head td{padding:4px 6px 2px;}
   .linkbtn{background:none; border:none; color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:0; cursor:pointer;}
   .anchornote{cursor:help;}
+  /* holds the verdict's space until odds are entered, so nothing jumps; doubles as the "enter odds" hint */
+  .fit-reserve{display:none; position:relative; margin-bottom:8px;} #verdictBox.hidden + .fit-reserve{display:block;}
+  .fit-reserve > *{visibility:hidden;} .fit-reserve .verdict-box{margin:0;}
+  .fit-reserve::after{content:"Enter the book's odds below — your TAKE / PASS call shows up here"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px; border:1px dashed var(--line); border-radius:8px; color:var(--dim); font-size:12.5px;}
 
   /* track record / info pop-up */
   .modal{position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
@@ -130,6 +134,7 @@
     .tabs button[data-tab="calc"]{display:none;}
     .dash{grid-template-columns:minmax(300px,1fr) minmax(420px,1.3fr); grid-template-rows:1fr; grid-template-areas:"left calc";}
     .p-res, .p-tape{grid-area:left; display:none;} .p-res.active, .p-tape.active{display:block;}
+    .dash.fitting .p-res, .dash.fitting .p-tape{display:block;}
   }
   /* ---- phones: one panel at a time via tabs, each fits the screen ---- */
   @media (max-width:760px){
@@ -138,6 +143,7 @@
     .dash{grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:none; padding:8px 10px 10px;}
     .dash .panel{display:none; grid-area:auto;} .dash .panel.active{display:block;}
     .grid2{grid-template-columns:1fr 1fr;}
+    #verdictBox.hidden + .fit-reserve{display:none;}
   }
 </style>
 </head>
@@ -192,6 +198,7 @@
     <div class="needs-sim">
       <div class="anchornote" id="anchorNote"></div>
       <div class="verdict-box hidden" id="verdictBox"></div>
+      <div class="fit-reserve" id="fitReserve" aria-hidden="true"><div class="anchornote">⚓ <b>Fight-week anchor</b> · Islam Makhachev: market 71.2% → blend <b>70.4%</b> (raw model 62.3%)</div><div class="verdict-box take"><span class="vh">✅ TAKE THIS BET</span><b>Makhachev · KO or sub</b> at your entered odds — <b>+6.4% EV</b>, hits ~31%. Suggested stake ~<b>1.2% of bankroll</b> (¼-Kelly, capped at 3%). The other 2 green rows are on the same fight — treat them as one position, don't stack.<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div></div></div>
       <div class="tblwrap"><table class="calctable" id="calcTable">
         <thead><tr><th>Outcome</th><th>Fair %</th><th>Fair odds</th><th>Book odds</th><th>Mkt %</th><th>EV</th></tr></thead>
         <tbody id="calcBody"></tbody>
@@ -1243,6 +1250,45 @@ function setDc(off, remember){
   const b = $("dcToggle"); if(b) b.textContent = (off ? "▸ " : "▾ ") + "Double chance (6)";
   if(remember){ dcPicked = true; try { localStorage.setItem("ufcsim.dcOff", off ? "1" : "0"); } catch(e){} }
 }
+// ---- fit to screen: scale the dashboard to the largest size where no panel has to scroll ----
+// (big monitors get bigger text; small laptops shrink a little; phones keep 1:1 and scroll inside a tab)
+let dashZoom = 1;
+function panelsOverflow(){
+  const d = $("result"); if(!d || !d.querySelectorAll) return false;
+  if(d.scrollWidth > d.clientWidth + 1) return true;
+  return [...d.querySelectorAll(".panel")].some(p => p.offsetParent && (p.scrollHeight > p.clientHeight + 1 || p.scrollWidth > p.clientWidth + 1));
+}
+function fitDash(){
+  const d = $("result"), tb = document.querySelector ? document.querySelector(".topbar") : null;
+  if(!d || !d.style || !tb || typeof innerWidth !== "number") return;
+  const panels = d.querySelectorAll ? [...d.querySelectorAll(".panel")] : [];
+  panels.forEach(p => p.style.setProperty("--rp", "0px"));
+  if(!d.classList.contains("ready") || innerWidth <= 760){ d.style.zoom = ""; tb.style.zoom = ""; dashZoom = 1; $("verdictBox").style.minHeight = ""; return; }
+  d.classList.add("fitting");
+  const fits = z => { d.style.zoom = z; return !panelsOverflow(); };
+  tb.style.zoom = "";
+  let lo, hi;
+  if(fits(1)){ lo = 1; hi = 1.7; } else { lo = 0.85; hi = 1; }
+  if(!fits(lo)) hi = lo;
+  for(let k = 0; k < 7 && hi - lo > 0.01; k++){ const m = (lo + hi) / 2; if(fits(m)) lo = m; else hi = m; }
+  // header grows a little with the dashboard; step the dashboard down if that costs a fit
+  tb.style.zoom = Math.min(1.2, Math.max(1, lo));
+  while(lo > 0.85 && !fits(lo)) lo -= 0.02;
+  dashZoom = Math.floor(lo * 100) / 100; d.style.zoom = dashZoom; // round down: never past the last size that fit
+  panels.forEach(spreadRows);
+  // the real verdict takes exactly the placeholder's space, so the odds inputs don't move while typing
+  const rv = $("fitReserve").querySelector(".verdict-box"); if(rv && rv.offsetHeight) $("verdictBox").style.minHeight = rv.offsetHeight + "px";
+  d.classList.remove("fitting");
+}
+function spreadRows(p){ // leftover height becomes a little extra row spacing (up to 8px), so panels fill instead of leaving a gap
+  if(!p.offsetParent || p.scrollHeight > p.clientHeight + 1) return;
+  let lo = 0, hi = 8;
+  for(let k = 0; k < 5; k++){ const m = (lo + hi) / 2; p.style.setProperty("--rp", m + "px"); if(p.scrollHeight <= p.clientHeight + 1) lo = m; else hi = m; }
+  p.style.setProperty("--rp", Math.floor(lo * 2) / 2 + "px");
+}
+let fitTimer = null;
+const queueFit = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitDash, 120); }; // once the window stops resizing
+if(typeof addEventListener === "function") addEventListener("resize", queueFit);
 // until the user picks, follow the window height (e.g. a window dragged smaller); never hide a ★ double-chance pick
 if(typeof addEventListener === "function") addEventListener("resize", () => {
   if(dcPicked || !$("dcToggle")) return;
@@ -1275,7 +1321,7 @@ function renderCalc(props, A, B, t){
   // insert the collapsible "Double chance" header before the first double-chance row
   const firstDc = $("row10"); if(firstDc){ const tr = document.createElement("tr"); tr.className = "dc-head"; tr.innerHTML = '<td colspan="6"><button class="linkbtn" id="dcToggle"></button></td>'; firstDc.parentNode.insertBefore(tr, firstDc); }
   for(let i = 10; i < props.length; i++){ const r = $("row"+i); if(r) r.classList.add("dc"); }
-  if($("dcToggle")) $("dcToggle").addEventListener("click", () => setDc(!dcOff, true));
+  if($("dcToggle")) $("dcToggle").addEventListener("click", () => { setDc(!dcOff, true); fitDash(); });
   setDc(dcOff, false);
   document.querySelectorAll("#calcBody .oddsin").forEach(inp => inp.addEventListener("input", computeVerdict));
   computeVerdict();
@@ -1382,6 +1428,7 @@ function computeVerdict(){
   box.innerHTML = `<span class="vh">${icon}${v.title}</span>${v.body}`+
     `<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div>`;
   if(v.bestIndex != null){ const r = $("row"+v.bestIndex); if(r) r.classList.add("rec"); if(v.bestIndex >= 10 && dcOff) setDc(false, false); } // never hide the ★ pick
+  if($("result").classList.contains("ready") && panelsOverflow()) fitDash(); // a long verdict can outgrow the reserved space
 }
 $("lineTiming").addEventListener("change", computeVerdict);
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
@@ -1434,7 +1481,7 @@ $("go").onclick = () => {
   for(const[k,v] of Object.entries(t.rdB)) rdAll[k]=(rdAll[k]||0)+v;
   const finishes = Object.values(rdAll).reduce((a,b)=>a+b,0);
   $("rounds").innerHTML = Object.keys(rdAll).sort().map(k=>`<div class="mrow"><span class="lab">Round ${k}</span><span>${pct(rdAll[k]/N)}</span></div>`).join("")
-    + `<div class="mrow"><span class="lab">Goes to decision</span><span>${pct(1-finishes/N)}</span></div>`;
+    + `<div class="mrow"><span class="lab">Goes the distance</span><span>${pct(1-finishes/N)}</span></div>`;
 
   $("drivers").innerHTML = drivers(A,B).map(d=>{
     const f = d.who==="A"?A:B;
@@ -1486,6 +1533,7 @@ $("go").onclick = () => {
   renderCalc(propsFor(t, probA, A, B), A, B, t);
 
   $("result").classList.add("ready");
+  fitDash();
 };
 
 // ---- TRACK RECORD (written by `node market-eval.mjs --apply` — do not edit by hand) ----
