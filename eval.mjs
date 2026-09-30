@@ -16,7 +16,7 @@ const TODAY = new Date();
 // --shrink=K: pull per-minute rates toward league average as if K extra average minutes were fought.
 // Default 20: tames tiny-sample stat blowups (engine-alone logloss 0.754 -> 0.701); final model unchanged.
 const SH = +((process.argv.find(a => a.startsWith("--shrink=")) || "--shrink=20").split("=")[1]);
-const SIMS = 400;
+const SIMS = +((process.argv.find(a => a.startsWith("--sims=")) || "--sims=1000").slice(7)); // sims per historical fight (~10s)
 const HL = 730;   // stat recency half-life (days) — won grid search
 const ELO_K = 40; // won grid search
 
@@ -152,6 +152,12 @@ for (const { r, date } of bouts) {
       y: out === "W/L" ? 1 : 0,
       mf: Math.min(sA.w + sA.l, sB.w + sB.l), // prior UFC fights of the LESS experienced fighter
       fa: nA, fb: nB,                         // fighter names (for joining to betting lines)
+      // for prop validation (prop-eval.mjs): format, actual method class, and the sim's method split per fighter
+      nR, div, rd: +r.ROUND || 0,
+      oc: out === "W/L" || out === "L/W" ? (out === "W/L" ? 0 : 3) + (isKO ? 0 : isSub ? 1 : /Decision/.test(method) ? 2 : NaN) : NaN,
+      sh: [t.mA.KO/Math.max(1,t.A), t.mA.SUB/Math.max(1,t.A), t.mA.DEC/Math.max(1,t.A), t.mB.KO/Math.max(1,t.B), t.mB.SUB/Math.max(1,t.B), t.mB.DEC/Math.max(1,t.B)],
+      tend: [[sA.koW, sA.subW, sA.w, sA.koL, sA.subL, sA.l], [sB.koW, sB.subW, sB.w, sB.koL, sB.subL, sB.l]], // career finish/finished mix at fight time
+      snap: nR === 5 ? [A, B] : null,         // 5-round snapshots for format tuning
     });
   }
   // update
@@ -256,8 +262,11 @@ if (process.argv.includes("--dump")) {
     const cut = new Date(`${Y}-01-01`), next = new Date(`${Y+1}-01-01`);
     const w = fitLogit(rows.filter(r => r.date < cut));
     for (const r of rows.filter(r => r.date >= cut && r.date < next))
-      out.push({ date: r.date.toISOString().slice(0,10), a: r.fa, b: r.fb, p: +sig(r.x.reduce((s,v,i)=>s+v*w[i],0)).toFixed(4), y: r.y, mf: r.mf });
+      out.push({ date: r.date.toISOString().slice(0,10), a: r.fa, b: r.fb, p: +sig(r.x.reduce((s,v,i)=>s+v*w[i],0)).toFixed(4), y: r.y, mf: r.mf,
+        nR: r.nR, div: r.div, rd: r.rd, oc: Number.isNaN(r.oc) ? -1 : r.oc, sh: r.sh.map(v => +v.toFixed(3)), tend: r.tend });
   }
   writeFileSync(ROOT + "/ufc-eval-preds.json", JSON.stringify(out));
+  // 5-round fighter snapshots (all years) so the 5-round engine can be tuned without re-running everything
+  writeFileSync(ROOT + "/ufc-eval-snaps5.json", JSON.stringify(rows.filter(r => r.snap).map(r => ({ date: r.date.toISOString().slice(0,10), A: r.snap[0], B: r.snap[1], oc: Number.isNaN(r.oc) ? -1 : r.oc, rd: r.rd }))));
   console.log(`\nwalk-forward dump: ${out.length} out-of-sample predictions (2021-${TODAY.getFullYear()}) -> ufc-eval-preds.json`);
 }

@@ -1077,7 +1077,7 @@ fighters.forEach(derive);
 // fights 2019->now with rate shrinkage (eval.mjs, --shrink=20 default) — see eval.mjs.
 // Combines the Monte Carlo result with Elo, age, reach, form, ring rust, experience,
 // win rate, and net octagon-control dominance.
-const B_COEF = [0.1713, 0.6383, 0.3324, 0.1483, 0.0311, 0.168, -0.1296, -0.0383, 0.4197];
+const B_COEF = [0.1702, 0.6377, 0.3325, 0.1481, 0.031, 0.1686, -0.1302, -0.038, 0.4209];
 const logit = p => { const q = Math.max(1e-6, Math.min(1-1e-6, p)); return Math.log(q/(1-q)); };
 const sig = z => 1/(1+Math.exp(-z));
 const wRate = f => (f.w + 2.5) / (f.w + f.l + 5); // shrunk UFC win rate
@@ -1153,7 +1153,9 @@ function simOne(A, B, nRounds){
     subTryB = poisson(B.sub15/2 * (0.5 + ctrlB/1.5)) + poisson(B.sub15/3 * 0.4 * (ctrlA>0.5?1:0));
     // finish hazard: spikes in R1 (fresh, full power) and declines from R3 (survivors are durable and
     // tired). Calibrated to real UFC 2018+: KO/SUB/DEC 31.5/18.1/50.1, R1/R2/R3 finishes 51.8/32.4/15.8.
-    const early = rd===1 ? 1.2 : 1, late = rd>=3 ? 0.6 : 1;
+    // 5-round fights (main events, title fights) open more cautiously: R1 x0.85 / R2 x1.15 reproduces the
+    // real 5-round finish timing (R1-R5 = 31/31/18/11/9% of finishes, matchups since 2015).
+    const early = rd===1 ? (nRounds===5 ? 0.85 : 1.2) : (rd===2 && nRounds===5 ? 1.15 : 1), late = rd>=3 ? 0.6 : 1;
     for(let i=0;i<subTryA;i++) if(rand() < clamp(0.30 * B.subVuln * chaos * early, 0, 0.75)) return {win:"A", method:"SUB", rd};
     for(let i=0;i<subTryB;i++) if(rand() < clamp(0.30 * A.subVuln * chaos * early, 0, 0.75)) return {win:"B", method:"SUB", rd};
 
@@ -1179,7 +1181,7 @@ function simOne(A, B, nRounds){
 }
 
 function simulate(A, B, nRounds, N){
-  const tally = {A:0,B:0, mA:{KO:0,SUB:0,DEC:0}, mB:{KO:0,SUB:0,DEC:0}, rdA:{}, rdB:{}};
+  const tally = {nR:nRounds, A:0,B:0, mA:{KO:0,SUB:0,DEC:0}, mB:{KO:0,SUB:0,DEC:0}, rdA:{}, rdB:{}};
   for(let i=0;i<N;i++){
     const r = simOne(A,B,nRounds);
     if(r.win==="A"){ tally.A++; tally.mA[r.method]++; if(r.method!=="DEC") tally.rdA[r.rd]=(tally.rdA[r.rd]||0)+1; }
@@ -1225,10 +1227,25 @@ const amToDec = am => { const v = parseFloat(String(am).replace(/[^0-9.+\-]/g,""
 const evAt = (prob, am) => { const d = amToDec(am); return d===null ? null : prob*d-1; };
 // joint outcome probabilities for the matchup: moneyline + each method + distance props.
 // method splits are scaled to the BLENDED win prob so they sum to the headline numbers.
+// Calibrated method odds (prop-eval.mjs). The sim's raw KO/SUB/DEC split is overconfident, and a fighter's
+// own record predicts HOW he wins better. A 7-number softmax blends the sim's split with the winner's career
+// finishing mix and the loser's career history of being finished, per format. Validated walk-forward on
+// ~2,000 held-out fights. Refit: node eval.mjs --dump && node prop-eval.mjs --apply
+const M_COEF = /*MCOEF*/[0.1321,0.8343,0.504,0.1559,0.4126,-0.0837,0.2207]/*END_MCOEF*/;
+function methodShares(t, side, W, L){ // share of W's wins that come by [KO, SUB, DEC]
+  const base = t.nR === 5 ? [0.40, 0.15, 0.45] : [0.31, 0.185, 0.505], K = 5, c = M_COEF;
+  const n = side === "A" ? t.A : t.B, m = side === "A" ? t.mA : t.mB;
+  const sim = [m.KO, m.SUB, m.DEC].map(x => Math.log(Math.max(0.01, n ? x/n : 0)));
+  const mix = (k1, k2, tot) => { const d = Math.max(0, tot - k1 - k2); return [(k1 + K*base[0])/(tot+K), (k2 + K*base[1])/(tot+K), (d + K*base[2])/(tot+K)]; };
+  const w = mix(W.koW, W.subW, W.w), l = mix(L.koL, L.subL, L.l);
+  const z = [0,1,2].map(i => c[0]*sim[i] + c[1]*Math.log(w[i]) + c[2]*Math.log(l[i]) + (i < 2 ? c[(t.nR === 5 ? 5 : 3) + i] : 0));
+  const mx = Math.max(...z), e = z.map(v => Math.exp(v - mx)), s = e[0] + e[1] + e[2];
+  return e.map(v => v / s);
+}
 function propsFor(t, pA, A, B){
-  const pB = 1-pA, r = (cnt,w) => w ? cnt/w : 0;
-  const koA=pA*r(t.mA.KO,t.A), subA=pA*r(t.mA.SUB,t.A), decA=pA*r(t.mA.DEC,t.A);
-  const koB=pB*r(t.mB.KO,t.B), subB=pB*r(t.mB.SUB,t.B), decB=pB*r(t.mB.DEC,t.B);
+  const pB = 1-pA, sA = methodShares(t, "A", A, B), sB = methodShares(t, "B", B, A);
+  const koA=pA*sA[0], subA=pA*sA[1], decA=pA*sA[2];
+  const koB=pB*sB[0], subB=pB*sB[1], decB=pB*sB[2];
   const dist=decA+decB;
   return [
     [`${A.name} to win`, pA], [`${B.name} to win`, pB],
@@ -1300,7 +1317,7 @@ if(typeof addEventListener === "function") addEventListener("resize", () => {
 // anchored to the OPENING line, edges >=3% returned +9% ROI and beat the closing line 70% of the
 // time (+12% with established fighters, +5% when one has <4 UFC fights). Against the current/closing
 // line the model carries less information, so its weight drops to ~0.24. Refit: market-eval.mjs.
-const W_OPEN = [0.999, 0.543], W_CUR = [1.083, 0.242];
+const W_OPEN = [0.999, 0.544], W_CUR = [1.083, 0.243];
 const noVig = (d1, d2) => (1/d1) / (1/d1 + 1/d2);
 // compact outcome label for the table: surname in corner color + short method ("Makhachev · KO or sub")
 function shortLabel(s){
@@ -1366,7 +1383,7 @@ function verdictFor(entered, A, B, pA, anchor){
     if(lowData && !anchor) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
       `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
     const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are on the same fight — treat them as one position, don't stack.` : "";
-    const propNote = (anchor && best.i > 1) ? ` Heads up: prop edges inherit the anchored win % but aren't backtested against real prop lines — only the moneyline rule is proven.` : "";
+    const propNote = (anchor && best.i > 1) ? ` Heads up: method odds are calibrated on ~2,000 past fights, but there are no historical prop lines to backtest betting them — only the moneyline rule is proven profitable.` : "";
     const sg = x => (x >= 0 ? "+" : "") + x;
     const thinNote = half ? ` <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}: anchored edges on fights like this were positive but weaker in the backtest (${TRACK ? sg(TRACK.thin.roi) : "+4"}% ROI vs ${TRACK ? sg(TRACK.est.roi) : "+10"}% with established fighters), so the stake is halved.` : "";
     return { status:"take", title: half ? "TAKE — HALF STAKE (THIN DATA)" : "TAKE THIS BET", bestIndex:best.i, body:
@@ -1453,14 +1470,15 @@ $("go").onclick = () => {
   const nRounds = $("five").checked ? 5 : 3;
   const t = simulate(A, B, nRounds, 10000);
   const N = t.A + t.B, probA = blend(t.A/N, A, B);
-  const W = probA>=0.5 ? A : B, winT = probA>=0.5 ? t.mA : t.mB, winRd = probA>=0.5 ? t.rdA : t.rdB, winN = Math.max(1, probA>=0.5 ? t.A : t.B); // the picked fighter's own sim wins
+  const W = probA>=0.5 ? A : B, winRd = probA>=0.5 ? t.rdA : t.rdB;
+  const sAc = methodShares(t, "A", A, B), sBc = methodShares(t, "B", B, A), ws = probA>=0.5 ? sAc : sBc; // calibrated, same as the odds table
 
   $("na").textContent = A.name; $("nb").textContent = B.name;
   $("pa").textContent = pct(probA); $("pb").textContent = pct(1-probA);
   $("oa").textContent = amOdds(probA); $("ob").textContent = amOdds(1-probA);
   $("fill").style.width = (probA*100)+"%";
 
-  const methods = Object.entries(winT).sort((a,b)=>b[1]-a[1]);
+  const methods = [["KO",ws[0]],["SUB",ws[1]],["DEC",ws[2]]].sort((a,b)=>b[1]-a[1]);
   const [topM, topMC] = methods[0];
   const mName = {KO:"KO/TKO", SUB:"Submission", DEC:"Decision"};
   let rdTxt = "";
@@ -1470,18 +1488,19 @@ $("go").onclick = () => {
   }
   const conf = Math.max(probA,1-probA);
   const confTxt = conf>0.72 ? "clear favorite" : conf>0.58 ? "moderate favorite" : "near coin-flip — genuinely competitive";
-  $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b> (${pct(topMC/winN)} of their wins)${rdTxt} &middot; ${confTxt}`;
+  $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b> (${pct(topMC)} of their wins)${rdTxt} &middot; ${confTxt}`;
   const womens = f => /^Women's/.test(f.div);
   $("xdiv").textContent = womens(A) !== womens(B) ? `⚠ Men's vs women's fantasy matchup — the model has no data for this and can't size-adjust across divisions of different genders. Entertainment only.`
     : A.div !== B.div ? `⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — win % is adjusted for the ${Math.abs(divWt(A)-divWt(B))}lb weight-class gap, but the model is trained on same-division fights, so treat it as a rough estimate.` : "";
 
-  $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c/winN)}</span></div>`).join("");
+  $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c)}</span></div>`).join("");
   const rdAll = {};
   for(const[k,v] of Object.entries(t.rdA)) rdAll[k]=(rdAll[k]||0)+v;
   for(const[k,v] of Object.entries(t.rdB)) rdAll[k]=(rdAll[k]||0)+v;
   const finishes = Object.values(rdAll).reduce((a,b)=>a+b,0);
-  $("rounds").innerHTML = Object.keys(rdAll).sort().map(k=>`<div class="mrow"><span class="lab">Round ${k}</span><span>${pct(rdAll[k]/N)}</span></div>`).join("")
-    + `<div class="mrow"><span class="lab">Goes the distance</span><span>${pct(1-finishes/N)}</span></div>`;
+  const pDist = probA*sAc[2] + (1-probA)*sBc[2], sc = finishes ? (1 - pDist)/finishes : 0; // sim's round timing, scaled to the calibrated finish chance
+  $("rounds").innerHTML = Object.keys(rdAll).sort().map(k=>`<div class="mrow"><span class="lab">Round ${k}</span><span>${pct(rdAll[k]*sc)}</span></div>`).join("")
+    + `<div class="mrow"><span class="lab">Goes the distance</span><span>${pct(pDist)}</span></div>`;
 
   $("drivers").innerHTML = drivers(A,B).map(d=>{
     const f = d.who==="A"?A:B;
@@ -1537,7 +1556,7 @@ $("go").onclick = () => {
 };
 
 // ---- TRACK RECORD (written by `node market-eval.mjs --apply` — do not edit by hand) ----
-const TRACK = /*TRACK*/{"asOf":"2026-09-30","n":2202,"bFrom":"2022","from":"2021-01-16","to":"2026-09-19","model":{"acc":62.1,"ll":0.6461},"open":{"acc":65.8,"ll":0.6197},"close":{"acc":68.7,"ll":0.5907},"toward15":63,"rawOpen":{"n":1938,"roi":-2.8,"clv":54},"rawClose":{"n":1981,"roi":-11.8,"clv":null},"anch3":{"n":860,"roi":9.2,"clv":70},"anch5":{"n":630,"roi":10.8,"clv":71},"est":{"n":519,"roi":11.6,"clv":68},"thin":{"n":341,"roi":5.4,"clv":72},"byYear":[{"y":2022,"n":221,"roi":-3.4,"clv":69},{"y":2023,"n":137,"roi":13.3,"clv":63},{"y":2024,"n":178,"roi":8.5,"clv":75},{"y":2025,"n":153,"roi":22.5,"clv":74},{"y":2026,"n":171,"roi":11,"clv":68}]}/*END_TRACK*/;
+const TRACK = /*TRACK*/{"asOf":"2026-09-30","n":2202,"bFrom":"2022","from":"2021-01-16","to":"2026-09-19","model":{"acc":62.4,"ll":0.6461},"open":{"acc":65.8,"ll":0.6197},"close":{"acc":68.7,"ll":0.5907},"toward15":64,"rawOpen":{"n":1945,"roi":-3.1,"clv":54},"rawClose":{"n":1981,"roi":-11.9,"clv":null},"anch3":{"n":854,"roi":8.6,"clv":70},"anch5":{"n":632,"roi":11.2,"clv":71},"est":{"n":513,"roi":11.6,"clv":69},"thin":{"n":341,"roi":4,"clv":72},"byYear":[{"y":2022,"n":220,"roi":-3.5,"clv":69},{"y":2023,"n":134,"roi":10.7,"clv":63},{"y":2024,"n":176,"roi":8.9,"clv":74},{"y":2025,"n":151,"roi":23.2,"clv":74},{"y":2026,"n":173,"roi":9.2,"clv":69}]}/*END_TRACK*/;
 $("bt").onclick = () => {
   const T = TRACK;
   if(!T){ $("btacc").textContent = "No track record yet"; $("btsum").textContent = "Run: node eval.mjs --dump && node market-eval.mjs --apply"; $("btbody").innerHTML = ""; $("btyear").innerHTML = ""; }
