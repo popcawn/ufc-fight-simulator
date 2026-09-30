@@ -18,13 +18,15 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
+      - name: Fetch pro histories for new fighters (ESPN, cached)
+        run: node espn-history.mjs
       - name: Rebuild roster from latest UFCStats data
         run: node build-roster.mjs
       - name: Commit if the roster changed
         run: |
           git config user.name  "ufc-stats-bot"
           git config user.email "actions@github.com"
-          git add index.html ufc-roster.json
+          git add index.html ufc-roster.json espn-history.json
           if git diff --cached --quiet; then
             echo "No changes — roster already current."
           else

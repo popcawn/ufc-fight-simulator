@@ -106,6 +106,13 @@ const logit = p => Math.log(Math.max(1e-6, Math.min(1-1e-6, p)) / (1 - Math.max(
 const streak = res => { let n = 0; for (let i = res.length-1; i >= 0; i--) { if (res[i] === 0) break; if (n === 0) n = res[i]; else if (Math.sign(res[i]) === Math.sign(n)) n += res[i]; else break; } return n; };
 const rows = [];
 const t0 = Date.now();
+// --pre: pre-UFC / outside-the-UFC pro record (regional + Contender Series) from espn-history.json, counted
+// only from fights BEFORE each bout's date (no look-ahead). --pre=thin weights it toward low-UFC-experience fights.
+const PRE = (process.argv.find(a => a.startsWith("--pre")) || "").replace(/^--pre=?/, "") || (process.argv.includes("--pre") ? "on" : "");
+const ESPN = PRE && existsSync(ROOT + "/espn-history.json") ? JSON.parse(readFileSync(ROOT + "/espn-history.json", "utf8")) : {};
+const outRec = (n, date) => { const hh = ESPN[n], d = date.toISOString().slice(0, 10); let w = 0, l = 0, fin = 0;
+  if (hh && hh.f) for (const [dt, r, , m] of hh.f) { if (dt >= d) break; if (r === "W") { w++; if (m === "K" || m === "S") fin++; } else if (r === "L") l++; }
+  return { w, l, fin }; };
 // league-average priors (a prior on rates, not outcome info) for --shrink
 const P = (() => { let m=0,sl=0,sa=0,td=0,tda=0,sub=0,kd=0,ct=0;
   for (const { r } of bouts) { const ba = boutAgg.get(r.EVENT.trim()+"|"+r.BOUT.trim()); if (!ba || ba.size !== 2) continue;
@@ -144,6 +151,10 @@ for (const { r, date } of bouts) {
         (Math.sqrt(sA.w+sA.l) - Math.sqrt(sB.w+sB.l))/2, // 6 UFC experience
         (wp(sA) - wp(sB))*4,                // 7 shrunk UFC win rate
         ((A.ctrlR - A.octrlR) - (B.ctrlR - B.octrlR))*2,  // 8 net octagon-control dominance
+        ...(PRE ? (() => { const oA = outRec(nA, date), oB = outRec(nB, date), sw = o => (o.w + 2.5) / (o.w + o.l + 5);
+          const th = PRE === "thin" ? 3 / (3 + Math.min(sA.w + sA.l, sB.w + sB.l)) : 1;
+          return [ (sw(oA) - sw(oB)) * 4 * th,                                                          // 9 outside win-rate edge
+                   (Math.sqrt(sA.w + sA.l + oA.w + oA.l) - Math.sqrt(sB.w + sB.l + oB.w + oB.l)) / 2 * th ]; })() : []), // 10 total pro experience edge
         // NOTE: net knockdown differential tested as a 10th feature — coefficient ~0.01,
         // redundant with the sim's power/KO model, no accuracy gain. Dropped.
         // NOTE: current streak tested as a feature — redundant with form (#4),
@@ -158,6 +169,8 @@ for (const { r, date } of bouts) {
       sh: [t.mA.KO/Math.max(1,t.A), t.mA.SUB/Math.max(1,t.A), t.mA.DEC/Math.max(1,t.A), t.mB.KO/Math.max(1,t.B), t.mB.SUB/Math.max(1,t.B), t.mB.DEC/Math.max(1,t.B)],
       tend: [[sA.koW, sA.subW, sA.w, sA.koL, sA.subL, sA.l], [sB.koW, sB.subW, sB.w, sB.koL, sB.subL, sB.l]], // career finish/finished mix at fight time
       snap: nR === 5 ? [A, B] : null,         // 5-round snapshots for format tuning
+      rdp: [1, 2, 3, 4, 5].slice(0, nR).map(k => ((t.rdA[k] || 0) + (t.rdB[k] || 0)) / (t.A + t.B)), // sim finish chance by round
+      tm: (Math.max(1, +r.ROUND || 1) - 1) * 5 + (() => { const q = (r.TIME || "0:00").split(":"); return (+q[0] || 0) + (+q[1] || 0) / 60; })(), // minutes elapsed at the end
     });
   }
   // update
@@ -205,8 +218,8 @@ for (let it = 0; it < 3000; it++) {
   }
   for (let i = 0; i < D; i++) b[i] -= LR * (g[i]/tr.length + L2*b[i]);
 }
-const FEAT = ["logit(pSim)","eloGap/100","youth/5","reach/5","form/3","rust/12","exp","winrate*4","ctrlDom"];
-console.log("\ncoefficients:"); FEAT.forEach((f,i)=>console.log("  " + f.padEnd(12), b[i].toFixed(4)));
+const FEAT = ["logit(pSim)","eloGap/100","youth/5","reach/5","form/3","rust/12","exp","winrate*4","ctrlDom","outsideWR","proExp"];
+console.log("\ncoefficients:"); FEAT.slice(0, b.length).forEach((f,i)=>console.log("  " + f.padEnd(12), b[i].toFixed(4)));
 
 const fitRows = trainRows => {
   const m = trainRows.flatMap(r => [r, { x: r.x.map(v=>-v), y: 1 - r.y }]);
@@ -263,7 +276,7 @@ if (process.argv.includes("--dump")) {
     const w = fitLogit(rows.filter(r => r.date < cut));
     for (const r of rows.filter(r => r.date >= cut && r.date < next))
       out.push({ date: r.date.toISOString().slice(0,10), a: r.fa, b: r.fb, p: +sig(r.x.reduce((s,v,i)=>s+v*w[i],0)).toFixed(4), y: r.y, mf: r.mf,
-        nR: r.nR, div: r.div, rd: r.rd, oc: Number.isNaN(r.oc) ? -1 : r.oc, sh: r.sh.map(v => +v.toFixed(3)), tend: r.tend });
+        nR: r.nR, div: r.div, rd: r.rd, oc: Number.isNaN(r.oc) ? -1 : r.oc, sh: r.sh.map(v => +v.toFixed(3)), tend: r.tend, rdp: r.rdp.map(v => +v.toFixed(4)), tm: +r.tm.toFixed(2) });
   }
   writeFileSync(ROOT + "/ufc-eval-preds.json", JSON.stringify(out));
   // 5-round fighter snapshots (all years) so the 5-round engine can be tuned without re-running everything

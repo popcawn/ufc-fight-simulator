@@ -46,7 +46,7 @@ automatically. To update on demand, go to the **Actions** tab → **Update stats
   **Log bet** saves it to **My bets**, which tracks closing-line value and your P/L (stored in your
   browser; Export/Import moves it between computers).
 - The odds come from `odds.json`, refreshed twice a day by the **Scan odds** GitHub Action
-  (`odds-scan.mjs`, 2 credits per run on The Odds API's free 500/month). It needs one repo secret:
+  (`odds-scan.mjs`, 4 credits per run on The Odds API's free 500/month). It needs one repo secret:
   **Settings → Secrets and variables → Actions → New repository secret**, name `ODDS_API_KEY`.
   Locally, put the key in a `.odds-key` file (gitignored) and run `node odds-scan.mjs`.
 
@@ -71,7 +71,8 @@ If hosting online, commit and push afterward (`git add -A && git commit -m "upda
 | `eval.mjs` | Re-validates model accuracy on held-out fights and retrains the coefficients. |
 | `calibrate.mjs` | Checks the engine's method/round finish mix against real UFC distributions. |
 | `prop-eval.mjs` | Validates the KO/SUB/decision odds fight by fight on held-out fights and fits the calibration layer the app uses (`--apply`). |
-| `odds-scan.mjs` | Pulls current sportsbook lines into `odds.json` for the This week scanner. |
+| `odds-scan.mjs` | Pulls current sportsbook lines (moneylines + total rounds) into `odds.json` for the This week scanner. |
+| `espn-history.mjs` | Fetches every fighter's full pro history (regional + Contender Series) from ESPN into `espn-history.json` (cached; the weekly Action adds new fighters). Shown as "Pro record" in the tale of the tape. Tested as a model feature with `node eval.mjs --pre`: more accurate raw picks, but no betting edge because the books already price it, so it's display-only. |
 | `market-eval.mjs` | Model vs the betting market: joins walk-forward predictions (`node eval.mjs --dump`) to BestFightOdds opening/closing lines; source of the calculator's market-anchor weights. |
 | `.github/workflows/update-stats.yml` | Weekly automatic stat refresh. |
 

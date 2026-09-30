@@ -37,7 +37,8 @@ for (const r of parseCSV(readFileSync(DIR + "ufc_fight_results.csv", "utf8"))) {
   const d = ev.get(r.EVENT.trim()); if (!d || d.getFullYear() < 2010 || !/^(W\/L|L\/W)$/.test(r.OUTCOME.trim())) continue;
   const m = r.METHOD || "", k = /KO\/TKO|TKO/.test(m) ? 0 : /Submission/.test(m) ? 1 : /Decision/.test(m) ? 2 : -1; if (k < 0) continue;
   const div = ((r.WEIGHTCLASS || "").match(/(Women's )?(Straw|Fly|Bantam|Feather|Light Heavy|Light|Welter|Middle|Heavy)weight/) || ["Unknown"])[0];
-  hist.push({ y: d.getFullYear(), div, f: /5 Rnd/.test(r["TIME FORMAT"] || "") ? 5 : 3, k });
+  const q = (r.TIME || "0:00").split(":"), tm = (Math.max(1, +r.ROUND || 1) - 1) * 5 + (+q[0] || 0) + (+q[1] || 0) / 60;
+  hist.push({ y: d.getFullYear(), div, f: /5 Rnd/.test(r["TIME FORMAT"] || "") ? 5 : 3, k, tm });
 }
 const splitCache = new Map();
 const divSplit = (year, div, f) => {
@@ -119,6 +120,23 @@ for (const fmt of [3, 5]) for (const K_ of ["sim", "head"]) {
   const db = [[0, .3], [.3, .45], [.45, .6], [.6, .75], [.75, 1]].map(([lo, hi]) => { const B = S.filter(r => { const d = r.P[K_][2] + r.P[K_][5]; return d >= lo && d < hi; });
     return B.length >= 20 ? `${Math.round(100*B.reduce((s, r) => s + r.P[K_][2] + r.P[K_][5], 0)/B.length)}→${Math.round(100*B.filter(r => r.oc % 3 === 2).length/B.length)}%(${B.length})` : null; }).filter(Boolean);
   console.log(`  goes the distance predicted→actual: ` + db.join("  "));
+}
+// ---- TOTAL ROUNDS (over/under X.5) — the one UFC prop that sportsbook feeds carry ----
+// P(under X.5) = finishes in rounds 1..X plus the share of round-(X+1) finishes that land before 2:30.
+// Round timing is the sim's, scaled to the calibrated finish chance (exactly as the app shows it).
+if (F[0].rdp) {
+  const pre = hist.filter(h => h.y < 2021 && h.k < 2), HALF = pre.filter(h => (h.tm % 5) < 2.5).length / pre.length;
+  const baseU = (f, L) => { const H = hist.filter(h => h.y < 2021 && h.f === f); return H.filter(h => h.tm < L * 5).length / H.length; };
+  const underP = (r, L, raw) => { const tot = r.rdp.reduce((a, b) => a + b, 0), sc = raw ? 1 : (tot ? (1 - r.P.head[2] - r.P.head[5]) / tot : 0), X = Math.floor(L);
+    let u = 0; for (let k = 1; k <= X; k++) u += (r.rdp[k - 1] || 0) * sc; return u + HALF * (r.rdp[X] || 0) * sc; };
+  console.log(`\nTOTAL ROUNDS — P(under X.5) vs real finish times · ${(100*HALF).toFixed(0)}% of finishes come in a round's first half`);
+  for (const [f, lines] of [[3, [1.5, 2.5]], [5, [1.5, 2.5, 3.5, 4.5]]]) for (const L of lines) {
+    const S = F.filter(r => r.nR === f && r.rdp), bu = baseU(f, L), y = r => r.tm < L * 5 ? 1 : 0;
+    const ll = g => S.reduce((s, r) => { const p = Math.min(.99, Math.max(.01, g(r))); return s - Math.log(y(r) ? p : 1 - p); }, 0) / S.length;
+    const cal = [[0, .25], [.25, .4], [.4, .55], [.55, .7], [.7, 1]].map(([lo, hi]) => { const B = S.filter(r => { const p = underP(r, L); return p >= lo && p < hi; });
+      return B.length >= 20 ? `${Math.round(100*B.reduce((s, r) => s + underP(r, L), 0)/B.length)}→${Math.round(100*B.filter(y).length/B.length)}%(${B.length})` : null; }).filter(Boolean);
+    console.log(`  ${f}-rd under ${L}: n=${S.length} logloss model ${ll(r => underP(r, L)).toFixed(4)}  raw sim ${ll(r => underP(r, L, true)).toFixed(4)}  baseline ${ll(() => bu).toFixed(4)} · calibration ${cal.join("  ")}`);
+  }
 }
 // production fit on every year -> index.html (M_COEF) with --apply
 const PROD = fitHead(JSON.parse(readFileSync(ROOT + "/ufc-eval-preds.json", "utf8")).filter(r => r.sh && r.oc >= 0 && r.tend));

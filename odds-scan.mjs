@@ -2,7 +2,8 @@
 // the app's "This week" panel reads. Keeps, per fight and book, the FIRST price ever seen (so the app knows
 // how fresh a line is — the backtested edge lives at the opener) and the latest price (frozen once the fight
 // starts = the closing line, used by the bet log's CLV tracker).
-// Key: env ODDS_API_KEY (GitHub secret) or a local .odds-key file (gitignored). Each run costs 2 API credits.
+// Also pulls total rounds (over/under X.5), the one UFC prop the feed carries, as f.tot = { book: { point: [over, under] } }.
+// Key: env ODDS_API_KEY (GitHub secret) or a local .odds-key file (gitignored). Each run costs 4 API credits.
 // Run: node odds-scan.mjs
 import { readFileSync, writeFileSync, existsSync } from "fs";
 
@@ -10,7 +11,7 @@ const ROOT = import.meta.dirname.replace(/\\/g, "/"), OUT = ROOT + "/odds.json";
 const KEY = process.env.ODDS_API_KEY || (existsSync(ROOT + "/.odds-key") ? readFileSync(ROOT + "/.odds-key", "utf8").trim() : "");
 if (!KEY) { console.log("::warning::ODDS_API_KEY not set — add it under repo Settings > Secrets and variables > Actions"); process.exit(0); }
 
-const url = `https://api.the-odds-api.com/v4/sports/mma_mixed_martial_arts/odds?regions=us,us2&markets=h2h&oddsFormat=decimal&apiKey=${KEY}`;
+const url = `https://api.the-odds-api.com/v4/sports/mma_mixed_martial_arts/odds?regions=us,us2&markets=h2h,totals&oddsFormat=decimal&apiKey=${KEY}`;
 const res = await fetch(url);
 if (!res.ok) { console.log(`::error::Odds API ${res.status}: ${(await res.text()).slice(0, 200)}`); process.exit(1); }
 const feed = await res.json(), now = new Date().toISOString();
@@ -29,6 +30,13 @@ for (const e of feed) {
     const px = [pa.price, pb.price];
     if (!(bk.key in f.open)) f.open[bk.key] = seeding ? null : px; // first price this book ever showed (null = posted before scanning began)
     f.now[bk.key] = px;
+  }
+  f.tot = {}; // total rounds: latest prices only (frozen once the fight starts = closing, for the bet log)
+  for (const bk of e.bookmakers) {
+    const m = bk.markets.find(x => x.key === "totals"); if (!m) continue;
+    const t = {};
+    for (const o of m.outcomes) if (o.point != null) (t[o.point] ||= [0, 0])[o.name === "Over" ? 0 : 1] = o.price;
+    for (const [pt, v] of Object.entries(t)) if (v[0] > 1 && v[1] > 1) (f.tot[bk.key] ||= {})[pt] = v;
   }
 }
 // keep finished fights 45 days (closing lines for the bet log), then drop

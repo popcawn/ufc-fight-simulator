@@ -126,6 +126,10 @@ const oppDiv = s => { for (let i = (s.opps||[]).length-1; i >= 0; i--) { const o
 const medHt = { "Heavyweight":75,"Light Heavyweight":75,"Middleweight":73,"Welterweight":71,"Lightweight":70,"Featherweight":68,"Bantamweight":67,"Flyweight":66,"Women's Featherweight":68,"Women's Bantamweight":66,"Women's Flyweight":65,"Women's Strawweight":64 };
 // current win/loss streak: consecutive same-sign results from the most recent fight (+N win, -N loss)
 const streak = res => { let n = 0; for (let i = res.length-1; i >= 0; i--) { if (res[i] === 0) break; if (n === 0) n = res[i]; else if (Math.sign(res[i]) === Math.sign(n)) n += res[i]; else break; } return n; };
+// outside-the-UFC pro record (regional + Contender Series) from espn-history.json — display only (tale of the tape);
+// tested as a model feature: more accurate raw picks, but no betting edge (books already price it) -> not in the model
+const ESPN = existsSync(ROOT + "/espn-history.json") ? JSON.parse(readFileSync(ROOT + "/espn-history.json", "utf8")) : {};
+const outside = n => { const h = ESPN[n]; if (!h || !h.f) return [-1, -1]; return [h.f.filter(x => x[1] === "W").length, h.f.filter(x => x[1] === "L").length]; };
 const rows = [];
 for (const [name, s] of S) {
   if (!s.last || s.last < CUTOFF) continue;
@@ -143,7 +147,8 @@ for (const [name, s] of S) {
     Math.round(s.elo), s.res.slice(-5).reduce((x,y)=>x+y,0),
     +((TODAY - s.last)/86400000/30.44).toFixed(1), streak(s.res),
     +sh.kd15.toFixed(3), +sh.okd15.toFixed(3),                  // knockdowns scored / absorbed per 15min
-    +sh.ctrlR.toFixed(3), +sh.octrlR.toFixed(3)]);               // control min / fight min, for & against
+    +sh.ctrlR.toFixed(3), +sh.octrlR.toFixed(3),                // control min / fight min, for & against
+    ...outside(name)]);                                          // outside-UFC wins, losses (-1 = unknown)
 }
 rows.sort((x,y) => x[0].localeCompare(y[0]));
 console.log(`Active roster: ${rows.length} fighters (fought since ${CUTOFF.toISOString().slice(0,10)})`);
