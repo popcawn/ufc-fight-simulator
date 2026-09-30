@@ -8,170 +8,216 @@
   :root{
     --bg:#0e0f13; --panel:#171922; --panel2:#1e2130; --line:#2b2f42;
     --text:#e8eaf2; --dim:#8b91a7; --red:#e23b3b; --blue:#3b6fe2;
-    --gold:#d4a843; --green:#3ec97e;
+    --gold:#d4a843; --green:#3ec97e; --gap:12px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; padding:24px; max-width:980px; margin:0 auto;}
-  h1{font-size:26px; letter-spacing:1px;}
-  h1 span{color:var(--gold);}
-  .sub{color:var(--dim); font-size:13px; margin:6px 0 22px;}
-  .pickers{display:grid; grid-template-columns:1fr 60px 1fr; gap:12px; align-items:end;}
-  .picker label{display:block; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
-  .picker input{width:100%; padding:12px 14px; font-size:16px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:8px; outline:none;}
-  .picker input:focus{border-color:var(--gold);}
-  .picker.red input:focus{border-color:var(--red);}
-  .picker.blue input:focus{border-color:var(--blue);}
-  .vs{text-align:center; font-weight:800; font-size:20px; color:var(--gold); padding-bottom:14px;}
-  .controls{display:flex; gap:16px; align-items:center; margin:16px 0 8px; flex-wrap:wrap;}
-  button{padding:12px 28px; font-size:15px; font-weight:700; letter-spacing:1px; background:var(--gold); color:#14130c; border:none; border-radius:8px; cursor:pointer;}
+  html,body{height:100%;}
+  body{background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; font-size:13px;
+       display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;}
+  button{padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.5px; background:var(--gold); color:#14130c; border:none; border-radius:8px; cursor:pointer; white-space:nowrap; font-family:inherit;}
   button:hover{filter:brightness(1.1);}
   button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
-  .chk{font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:center; cursor:pointer;}
-  .err{color:var(--red); font-size:14px; margin-top:8px; min-height:18px;}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:18px;}
-  .hidden{display:none;}
-  .names{display:flex; justify-content:space-between; font-size:20px; font-weight:700; margin-bottom:4px;}
-  .names .r{color:#ff7a7a;} .names .b{color:#7aa3ff;}
-  .probs{display:flex; justify-content:space-between; font-size:30px; font-weight:800; margin-bottom:10px;}
-  .probs .pcol:last-child{text-align:right;}
-  .odds{font-size:14px; font-weight:600; color:var(--dim); margin-top:2px;}
-  .bar{height:18px; border-radius:9px; overflow:hidden; display:flex; background:var(--blue);}
-  .bar .fillA{background:var(--red); height:100%; transition:width .6s;}
-  .verdict{margin:14px 0 4px; font-size:16px;}
-  .verdict b{color:var(--gold);}
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:16px;}
-  @media(max-width:700px){.grid2{grid-template-columns:1fr;} .pickers{grid-template-columns:1fr;} .vs{display:none;}}
-  .mini h3{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;}
-  .mrow{display:flex; justify-content:space-between; font-size:14px; padding:5px 0; border-bottom:1px solid var(--line);}
-  .mrow:last-child{border-bottom:none;}
-  .mrow .lab{color:var(--dim);}
-  .taphd{border-bottom:1px solid var(--line); margin-bottom:2px;}
-  .taphd .r{color:#ff7a7a; font-weight:700;} .taphd .b{color:#7aa3ff; font-weight:700;}
-  .twin{color:var(--green); font-weight:700;}   /* better stat */
-  .tlose{color:var(--dim);}                       /* worse stat */
-  .tval{color:var(--text);}                       /* tie / no comparison */
-  .tapescore{margin-top:12px; padding-top:10px; border-top:1px solid var(--line);}
-  .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:4px;}
-  .ts-nums{display:flex; justify-content:space-between; font-size:18px; font-weight:800;}
-  .ts-nums .r{color:#ff7a7a;} .ts-nums .b{color:#7aa3ff;}
-  .ts-bar{height:12px; border-radius:6px; overflow:hidden; display:flex; background:var(--blue); margin:4px 0 8px;}
-  .ts-fill{background:var(--red); height:100%;}
-  .ts-verdict{font-size:14px;} .ts-verdict b{color:var(--gold);}
-  .ts-note{font-size:11px; color:var(--dim); margin-top:5px; line-height:1.4;}
-  .driver{font-size:14px; padding:6px 0; border-bottom:1px solid var(--line);}
-  .driver:last-child{border-bottom:none;}
-  .driver .who{font-weight:700;}
-  .who.r{color:#ff7a7a;} .who.b{color:#7aa3ff;}
-  table{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px;}
-  th,td{text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);}
-  th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px;}
+  code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
+  .hidden{display:none !important;}
+  .dimtxt{color:var(--dim); font-size:12px;}
   .ok{color:var(--green); font-weight:700;} .miss{color:var(--red); font-weight:700;}
-  .bigstat{font-size:34px; font-weight:800; color:var(--gold);}
-  .note{font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;}
-  .calc{margin-top:18px; border-top:1px solid var(--line); padding-top:16px;}
-  .calc h3{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
-  .calcnote{font-size:12px; color:var(--dim); margin-bottom:12px; line-height:1.5;}
-  .calctable{width:100%; border-collapse:collapse; font-size:13px;}
-  .calctable th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px; text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);}
-  .calctable td{padding:6px 8px; border-bottom:1px solid var(--line);}
-  .calctable tr:last-child td{border-bottom:none;}
-  .oddsin{width:84px; padding:5px 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit;}
-  .oddsin:focus{border-color:var(--gold); outline:none;}
-  .openline{font-size:13px; margin:0 0 8px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center;}
-  .openline label{display:flex; gap:6px; align-items:center;} .dimtxt{color:var(--dim); font-size:12px;}
-  .anchornote{font-size:12px; color:var(--dim); line-height:1.5; margin:0 0 12px;} .anchornote b{color:var(--text);}
-  .blcell{color:var(--gold); font-weight:700;}
+
+  /* ---- top bar ---- */
+  .topbar{display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:relative; flex:none;}
+  .brand{font-size:18px; font-weight:800; letter-spacing:1px; white-space:nowrap;} .brand span{color:var(--gold);}
+  .pick{flex:1 1 200px; min-width:150px;}
+  .pick input{width:100%; padding:9px 12px; font-size:15px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; outline:none; font-family:inherit;}
+  .pick.red input{border-left:3px solid var(--red);} .pick.blue input{border-left:3px solid var(--blue);}
+  .pick input:focus{border-color:var(--gold);}
+  .vs{font-weight:800; color:var(--gold);}
+  .chk{font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:center; cursor:pointer; white-space:nowrap;}
+  .err{position:absolute; left:14px; top:100%; margin-top:6px; color:#ff7a7a; font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
+  .err:empty{display:none;}
+
+  /* ---- dashboard: three panels that fill the window; panels scroll inside, the page never does ---- */
+  .tabs{display:none;}
+  .tabs button{flex:1; padding:7px 4px; font-size:12px; background:var(--panel2); color:var(--dim); border:1px solid var(--line); font-weight:600;}
+  .tabs button.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
+  .dash{flex:1; min-height:0; display:grid; gap:var(--gap); padding:var(--gap);
+        grid-template-columns:minmax(290px,1fr) minmax(260px,.85fr) minmax(430px,1.55fr); grid-template-areas:"res tape calc";}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; overflow:auto; min-height:0; min-width:0;}
+  .p-res{grid-area:res;} .p-tape{grid-area:tape;} .p-calc{grid-area:calc;}
+  .empty{color:var(--dim); font-size:14px; line-height:1.7; margin-top:24px; text-align:center;}
+  .dash:not(.ready) .needs-sim{display:none;} .dash.ready .empty{display:none;}
+  .panel h3, .mini h3{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
+  .sec{margin-top:12px;}
+
+  /* result */
+  .names{display:flex; justify-content:space-between; gap:10px; font-size:16px; font-weight:700;}
+  .names .r{color:#ff7a7a;} .names .b{color:#7aa3ff; text-align:right;}
+  .probs{display:flex; justify-content:space-between; font-size:26px; font-weight:800; margin:2px 0 6px;}
+  .probs .pcol:last-child{text-align:right;}
+  .odds{font-size:12px; font-weight:600; color:var(--dim);}
+  .bar{height:12px; border-radius:6px; overflow:hidden; display:flex; background:var(--blue);}
+  .bar .fillA{background:var(--red); height:100%; transition:width .6s;}
+  .verdict{margin:10px 0 2px; font-size:14px; line-height:1.4;} .verdict b{color:var(--gold);}
+  .warn{color:var(--gold); font-size:12px; margin-top:4px; line-height:1.4;} .warn:empty{display:none;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px;}
+  .mrow{display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:3px 0; border-bottom:1px solid var(--line);}
+  .mrow:last-child{border-bottom:none;} .mrow .lab{color:var(--dim); text-align:center;}
+  .driver{font-size:13px; padding:4px 0; border-bottom:1px solid var(--line); line-height:1.35;}
+  .driver:last-child{border-bottom:none;} .driver .who{font-weight:700;}
+  .who.r{color:#ff7a7a;} .who.b{color:#7aa3ff;}
+
+  /* tale of the tape */
+  .taphd{border-bottom:1px solid var(--line); margin-bottom:2px;}
+  .taphd .r{color:#ff7a7a; font-weight:700;} .taphd .b{color:#7aa3ff; font-weight:700; text-align:right;}
+  .twin{color:var(--green); font-weight:700;} .tlose{color:var(--dim);} .tval{color:var(--text);}
+  .tapescore{margin-top:10px; padding-top:8px; border-top:1px solid var(--line);}
+  .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:2px;}
+  .ts-nums{display:flex; justify-content:space-between; font-size:16px; font-weight:800;}
+  .ts-nums .r{color:#ff7a7a;} .ts-nums .b{color:#7aa3ff;}
+  .ts-bar{height:10px; border-radius:5px; overflow:hidden; display:flex; background:var(--blue); margin:3px 0 6px;}
+  .ts-fill{background:var(--red); height:100%;}
+  .ts-verdict{font-size:13px;} .ts-verdict b{color:var(--gold);}
+  .ts-note{font-size:11px; color:var(--dim); margin-top:4px; line-height:1.4;}
+
+  /* calculator */
+  .calc-top{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; justify-content:space-between; margin-bottom:8px;}
+  .calc-top h3{margin:0;}
+  select{background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:12px; font-family:inherit;}
+  .anchornote{font-size:11.5px; color:var(--dim); line-height:1.45; margin:0 0 8px;} .anchornote:empty{display:none;} .anchornote b{color:var(--text);}
+  .verdict-box{margin:0 0 8px; padding:8px 10px; border-radius:8px; font-size:12.5px; line-height:1.45; border:1px solid;}
+  .verdict-box .vh{font-size:13.5px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:2px;}
+  .verdict-box .vsmall{font-size:10.5px; color:var(--dim); margin-top:4px;}
+  .verdict-box.take{background:rgba(62,201,126,.12); border-color:var(--green);} .verdict-box.take .vh{color:var(--green);}
+  .verdict-box.pass{background:rgba(226,59,59,.10); border-color:var(--red);} .verdict-box.pass .vh{color:#ff7a7a;}
+  .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);} .verdict-box.caution .vh{color:var(--gold);}
   .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-  .bth{font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin:18px 0 4px;}
-  .evcell{font-weight:700; color:var(--dim); white-space:nowrap;}
+  .calctable{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .calctable th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:1px; text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  .calctable td{padding:2px 6px; border-bottom:1px solid var(--line); white-space:nowrap; height:26px;}
+  .calctable tr:last-child td{border-bottom:none;}
+  .oc .r{color:#ff7a7a; font-weight:600;} .oc .b{color:#7aa3ff; font-weight:600;}
+  .oddsin{width:68px; padding:2px 6px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:12.5px; font-family:inherit;}
+  .oddsin:focus{border-color:var(--gold); outline:none;}
+  .blcell{color:var(--gold); font-weight:700;}
+  .evcell{font-weight:700; color:var(--dim);}
   .evcell.suspect{color:var(--gold); font-weight:600; opacity:.75;}
   .evcell.best{color:var(--gold); font-weight:800; letter-spacing:.3px;}
   .mktcell{color:var(--text);}
-  .verdict-box{margin:4px 0 16px; padding:12px 14px; border-radius:8px; font-size:14px; line-height:1.5; border:1px solid;}
-  .verdict-box .vh{font-size:16px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:4px;}
-  .verdict-box .vsmall{font-size:11px; color:var(--dim); margin-top:8px;}
-  .verdict-box.take{background:rgba(62,201,126,.12); border-color:var(--green);}
-  .verdict-box.take .vh{color:var(--green);}
-  .verdict-box.pass{background:rgba(226,59,59,.10); border-color:var(--red);}
-  .verdict-box.pass .vh{color:#ff7a7a;}
-  .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);}
-  .verdict-box.caution .vh{color:var(--gold);}
-  tr.rec td{background:rgba(212,168,67,.15);}                 /* best-bet row: gold tint, distinct from green value rows */
+  tr.rec td{background:rgba(212,168,67,.15);}                 /* best-bet row: gold tint */
   tr.rec td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
-  .warn{color:var(--gold); font-size:13px; margin-top:8px;}
-  footer{margin-top:28px; font-size:12px; color:var(--dim); line-height:1.6;}
-  code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
+  .legend{font-size:11px; color:var(--dim); margin-top:6px; line-height:1.5;}
+  .calctable.dc-off tr.dc{display:none;}
+  tr.dc-head td{padding:4px 6px 2px;}
+  .linkbtn{background:none; border:none; color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:0; cursor:pointer;}
+  .anchornote{cursor:help;}
+
+  /* track record / info pop-up */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
+  .modal-box{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px 22px; max-width:1180px; width:100%; max-height:100%; overflow:auto; position:relative;}
+  .modal-box h3{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
+  .close{position:absolute; top:8px; right:10px; background:none; color:var(--dim); font-size:24px; line-height:1; padding:4px 10px;}
+  .mcols{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:28px;}
+  @media (max-width:1000px){ .mcols{grid-template-columns:1fr; gap:4px;} }
+  @media (max-height:760px) and (min-width:1001px){ .modal{padding:8px;} .modal-box{padding:12px 18px;} .modal-box .bth{margin-top:10px;} .modal-box .note{margin-top:5px; line-height:1.45;} .modal-box th, .modal-box td{padding:3px 8px;} }
+  .bigstat{font-size:28px; font-weight:800; color:var(--gold);}
+  .modal-box table{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
+  .modal-box th, .modal-box td{text-align:left; padding:4px 8px; border-bottom:1px solid var(--line);}
+  .modal-box th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px;}
+  .bth{font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin:16px 0 4px;}
+  .note{font-size:12px; color:var(--dim); margin-top:8px; line-height:1.55;} .note b{color:var(--text);}
+
+  /* ---- medium screens: calculator stays on the right; Result / Tale of the tape toggle on the left ---- */
+  @media (max-width:1180px) and (min-width:761px){
+    .tabs{display:flex; gap:6px; padding:10px 12px 0; flex:none; max-width:460px;}
+    .tabs button[data-tab="calc"]{display:none;}
+    .dash{grid-template-columns:minmax(300px,1fr) minmax(420px,1.3fr); grid-template-rows:1fr; grid-template-areas:"left calc";}
+    .p-res, .p-tape{grid-area:left; display:none;} .p-res.active, .p-tape.active{display:block;}
+  }
+  /* ---- phones: one panel at a time via tabs, each fits the screen ---- */
+  @media (max-width:760px){
+    .topbar{gap:8px; padding:8px 10px;} .brand{font-size:16px;} .pick{flex:1 1 100%;} .vs{display:none;}
+    .tabs{display:flex; gap:6px; padding:8px 10px 0; flex:none;}
+    .dash{grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:none; padding:8px 10px 10px;}
+    .dash .panel{display:none; grid-area:auto;} .dash .panel.active{display:block;}
+    .grid2{grid-template-columns:1fr 1fr;}
+  }
 </style>
 </head>
 <body>
 
-<h1>UFC FIGHT <span>SIMULATOR</span></h1>
-<div class="sub">Monte Carlo engine + trained outcome model (Elo, age, reach, form, ring rust, experience, octagon control) &middot; 10,000 simulated fights per matchup &middot; full active roster, recency-weighted stats from UFCStats fight data &middot; ~66% on 741 held-out real fights &middot; betting calculator anchored to the market (backtested vs real opening/closing lines) &middot; method/round mix calibrated to the real 2018+ finish distribution</div>
-
-<div class="pickers">
-  <div class="picker red">
-    <label>Red Corner</label>
-    <input id="fa" list="roster" placeholder="Type a fighter name...">
-  </div>
+<header class="topbar">
+  <div class="brand">UFC <span>SIM</span></div>
+  <div class="pick red"><input id="fa" list="roster" placeholder="Red corner — type a fighter" aria-label="Red corner"></div>
   <div class="vs">VS</div>
-  <div class="picker blue">
-    <label>Blue Corner</label>
-    <input id="fb" list="roster" placeholder="Type a fighter name...">
-  </div>
-</div>
+  <div class="pick blue"><input id="fb" list="roster" placeholder="Blue corner — type a fighter" aria-label="Blue corner"></div>
+  <label class="chk"><input type="checkbox" id="five" checked> 5 rounds</label>
+  <button id="go">SIMULATE</button>
+  <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
+  <div class="err" id="err"></div>
+</header>
 <datalist id="roster"></datalist>
 
-<div class="controls">
-  <button id="go">SIMULATE FIGHT</button>
-  <label class="chk"><input type="checkbox" id="five" checked> 5-round main event</label>
-  <button id="bt" class="secondary">Model track record</button>
-</div>
-<div class="err" id="err"></div>
+<nav class="tabs" id="tabs"><button data-tab="res" class="on">Result</button><button data-tab="tape">Tale of the tape</button><button data-tab="calc">Odds &amp; value</button></nav>
 
-<div class="card hidden" id="result">
-  <div class="names"><span class="r" id="na"></span><span class="b" id="nb"></span></div>
-  <div class="probs">
-    <div class="pcol"><span id="pa"></span><div class="odds" id="oa"></div></div>
-    <div class="pcol"><span id="pb"></span><div class="odds" id="ob"></div></div>
-  </div>
-  <div class="bar"><div class="fillA" id="fill"></div></div>
-  <div class="verdict" id="verdict"></div>
-  <div class="warn" id="xdiv"></div>
-  <div class="grid2">
-    <div class="mini"><h3>Method (winner-weighted)</h3><div id="methods"></div></div>
-    <div class="mini"><h3>Round of finish</h3><div id="rounds"></div></div>
-  </div>
-  <div class="grid2">
-    <div class="mini"><h3>What drove the pick</h3><div id="drivers"></div></div>
-    <div class="mini"><h3>Tale of the tape</h3><div id="tape"></div></div>
-  </div>
-  <div class="calc">
-    <h3>Fair odds &amp; value calculator</h3>
-    <p class="calcnote">Type a sportsbook's American odds (e.g. <code>-150</code> or <code>+220</code>) for any outcome. The calculator <b>anchors to the betting market</b>: it blends the moneyline you enter with the model, weighted by <b>when</b> you are betting (the model moves an opening line more than a fight-week one). In a 2021–26 backtest against real opening/closing lines, raw model edges lost money while the anchored blend made money. <b>Model %</b> = raw sim · <b>Blend %</b> = market-anchored probability used for fair odds &amp; EV · <b>Market %</b> = the book's no-vig price. <span class="ok">Green</span> = positive EV, ★ = best single bet, <span style="color:var(--gold)">⚠ suspect</span> = the verdict says pass.</p>
-    <div class="openline"><label>When are you betting? <select id="lineTiming"><option value="current">Fight week / current line (conservative)</option><option value="open">Early — at or near the opening line (the backtested edge)</option></select></label> <span class="dimtxt">The moneyline you enter below is your price; this picks how much the model is allowed to move it.</span></div>
-    <div class="anchornote" id="anchorNote"></div>
-    <div class="verdict-box hidden" id="verdictBox"></div>
-    <div class="tblwrap"><table class="calctable">
-      <thead><tr><th>Outcome</th><th>Model %</th><th>Blend %</th><th>Fair odds</th><th>Book odds</th><th>Market %</th><th>EV</th></tr></thead>
-      <tbody id="calcBody"></tbody>
-    </table></div>
-  </div>
-</div>
+<main class="dash" id="result">
+  <section class="panel p-res active" data-tab="res">
+    <div class="empty">Pick two fighters above and hit <b>Simulate</b>.<br><span class="dimtxt">10,000 simulated fights per matchup · ~66% of winners on 741 held-out fights · odds calculator anchored to the betting market</span></div>
+    <div class="needs-sim">
+      <div class="names"><span class="r" id="na"></span><span class="b" id="nb"></span></div>
+      <div class="probs">
+        <div class="pcol"><span id="pa"></span><div class="odds" id="oa"></div></div>
+        <div class="pcol"><span id="pb"></span><div class="odds" id="ob"></div></div>
+      </div>
+      <div class="bar"><div class="fillA" id="fill"></div></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="warn" id="xdiv"></div>
+      <div class="grid2">
+        <div class="mini"><h3>Method (winner)</h3><div id="methods"></div></div>
+        <div class="mini"><h3>Round of finish</h3><div id="rounds"></div></div>
+      </div>
+      <div class="mini sec"><h3>What drove the pick</h3><div id="drivers"></div></div>
+    </div>
+  </section>
 
-<div class="card hidden" id="btcard">
-  <div class="mini"><h3>Track record — model vs the betting market</h3></div>
-  <div class="bigstat" id="btacc"></div>
-  <div id="btsum" style="font-size:14px; margin-top:4px;"></div>
-  <div class="tblwrap" id="btbody"></div>
-  <div class="note">Honesty note: no fight model hits 90% — betting favorites win roughly 65–69% of UFC fights. On its own this model picks ~66% of winners on 741 held-out fights (Jan 2025 → now, pre-fight data only, no leakage), but the closing betting line is sharper still. What the backtest shows is that the model knows things the <i>opening</i> line doesn't — the line moves toward it before fight night — and that anchoring the model to the market is what turns that into a betting edge. That's why the calculator anchors to the line. Every number here is walk-forward: each prediction made before the fight, with the model refit only on earlier years. Past results don't guarantee future ones — expect losing cards.</div>
-</div>
-</div>
+  <section class="panel p-tape" data-tab="tape">
+    <h3>Tale of the tape</h3>
+    <div class="empty">Stats appear after you simulate.</div>
+    <div class="needs-sim"><div id="tape"></div></div>
+  </section>
 
-<footer>
-  <b>Refreshing the data:</b> run <code>node ufc-build-roster.mjs</code> — it downloads the latest UFCStats dataset
-  (Greco1899/scrape_ufc_stats on GitHub, auto-updated after every event), recomputes all fighter stats, and re-injects
-  the roster into this file. Records shown are UFC fights only.
-</footer>
+  <section class="panel p-calc" data-tab="calc">
+    <div class="calc-top">
+      <h3>Fair odds &amp; value</h3>
+      <label class="dimtxt">Betting <select id="lineTiming"><option value="current">fight week (conservative)</option><option value="open">early, at the opener (backtested edge)</option></select></label>
+    </div>
+    <div class="empty">Simulate a fight, then type your book's odds (e.g. <code>-150</code>, <code>+220</code>). Enter <b>both moneylines</b> to anchor the model to the market.</div>
+    <div class="needs-sim">
+      <div class="anchornote" id="anchorNote"></div>
+      <div class="verdict-box hidden" id="verdictBox"></div>
+      <div class="tblwrap"><table class="calctable" id="calcTable">
+        <thead><tr><th>Outcome</th><th>Fair %</th><th>Fair odds</th><th>Book odds</th><th>Mkt %</th><th>EV</th></tr></thead>
+        <tbody id="calcBody"></tbody>
+      </table></div>
+      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
+    </div>
+  </section>
+</main>
+
+<div class="modal hidden" id="btcard" role="dialog" aria-modal="true" aria-label="Model track record">
+  <div class="modal-box">
+    <button class="close" id="btclose" aria-label="Close">×</button>
+    <div class="mcols"><div class="mcol">
+    <h3>Track record — model vs the betting market</h3>
+    <div class="bigstat" id="btacc"></div>
+    <div id="btsum" style="font-size:13px; margin-top:2px;"></div>
+    <div class="tblwrap" id="btbody"></div>
+    </div><div class="mcol">
+    <h4 class="bth" style="margin-top:0">How the odds calculator works</h4>
+    <p class="note">Type a sportsbook's American odds (e.g. <code>-150</code> or <code>+220</code>) for any outcome. The calculator <b>anchors to the betting market</b>: it blends the moneyline you enter with the model, weighted by <b>when</b> you are betting (the model moves an opening line more than a fight-week one). In a 2021–26 backtest against real opening/closing lines, raw model edges lost money while the anchored blend made money. <b>Fair %</b> = the probability behind fair odds &amp; EV — the raw model until you enter both moneylines, then the market-anchored blend (shown in gold) · <b>Mkt %</b> = the book's no-vig price. <span class="ok">Green</span> = positive EV, ★ = best single bet, <span style="color:var(--gold)">⚠ suspect</span> = the verdict says pass.</p>
+    <p class="note">Honesty note: no fight model hits 90% — betting favorites win roughly 65–69% of UFC fights. On its own this model picks ~66% of winners on 741 held-out fights (Jan 2025 → now, pre-fight data only, no leakage), but the closing betting line is sharper still. What the backtest shows is that the model knows things the <i>opening</i> line doesn't — the line moves toward it before fight night — and that anchoring the model to the market is what turns that into a betting edge. That's why the calculator anchors to the line. Every number here is walk-forward: each prediction made before the fight, with the model refit only on earlier years. Past results don't guarantee future ones — expect losing cards.</p>
+    <p class="note"><b>Data:</b> fighter stats come from UFCStats (via the Greco1899/scrape_ufc_stats mirror) and refresh automatically every Monday. Records are UFC fights only; small samples are shrunk toward the league average. Refresh by hand with <code>node build-roster.mjs</code>; update this track record with <code>node eval.mjs --dump &amp;&amp; node market-eval.mjs --apply</code>.</p>
+    <div class="tblwrap" id="btyear"></div>
+    </div></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -1188,6 +1234,21 @@ function propsFor(t, pA, A, B){
   ];
 }
 let calcProps = [], calcA = null, calcB = null, calcT = null;
+// Double-chance rows (index 10+) collapse on shorter screens so the calculator fits without scrolling.
+let dcPicked = false; // true once the user has chosen (clicked the toggle, now or on a past visit)
+let dcOff = (() => { try { const v = localStorage.getItem("ufcsim.dcOff"); if(v !== null){ dcPicked = true; return v === "1"; } } catch(e){}
+  return typeof innerHeight === "number" && innerHeight < 900; })();
+function setDc(off, remember){
+  dcOff = off; $("calcTable").classList.toggle("dc-off", off);
+  const b = $("dcToggle"); if(b) b.textContent = (off ? "▸ " : "▾ ") + "Double chance (6)";
+  if(remember){ dcPicked = true; try { localStorage.setItem("ufcsim.dcOff", off ? "1" : "0"); } catch(e){} }
+}
+// until the user picks, follow the window height (e.g. a window dragged smaller); never hide a ★ double-chance pick
+if(typeof addEventListener === "function") addEventListener("resize", () => {
+  if(dcPicked || !$("dcToggle")) return;
+  const want = innerHeight < 900, star = document.querySelector("#calcTable tr.dc.rec");
+  if(want !== dcOff && !(want && star)) setDc(want, false);
+});
 // ---- MARKET ANCHOR (backtested in market-eval.mjs: 2021-26 walk-forward vs BestFightOdds lines) ----
 // win prob = sig(wMkt*logit(no-vig line) + wModel*logit(raw model)). Raw model edges LOST money;
 // anchored to the OPENING line, edges >=3% returned +9% ROI and beat the closing line 70% of the
@@ -1195,12 +1256,27 @@ let calcProps = [], calcA = null, calcB = null, calcT = null;
 // line the model carries less information, so its weight drops to ~0.24. Refit: market-eval.mjs.
 const W_OPEN = [0.999, 0.543], W_CUR = [1.083, 0.242];
 const noVig = (d1, d2) => (1/d1) / (1/d1 + 1/d2);
+// compact outcome label for the table: surname in corner color + short method ("Makhachev · KO or sub")
+function shortLabel(s){
+  const sn = f => { const k = f.name.indexOf(" "); return k > 0 ? f.name.slice(k+1) : f.name; };
+  let a = sn(calcA), b = sn(calcB); if(a === b){ a = calcA.name; b = calcB.name; }
+  const out = s.startsWith(calcA.name) ? `<span class="r">${a}</span>` + s.slice(calcA.name.length)
+            : s.startsWith(calcB.name) ? `<span class="b">${b}</span>` + s.slice(calcB.name.length) : s;
+  return out.replace(" to win", " · win").replace(" by KO/TKO or submission", " · KO or sub").replace(" by KO/TKO or decision", " · KO or dec")
+    .replace(" by submission or decision", " · sub or dec").replace(" by KO/TKO", " · KO/TKO").replace(" by submission", " · sub")
+    .replace(" by decision", " · dec").replace("Ends inside the distance", "Inside the distance");
+}
 function renderCalc(props, A, B, t){
   calcProps = props; calcA = A; calcB = B; calcT = t;
   $("calcBody").innerHTML = props.map((p,i)=>
-    `<tr id="row${i}"><td>${p[0]}</td><td>${(p[1]*100).toFixed(1)}%</td><td class="blcell" id="bl${i}">—</td><td id="fair${i}">${amOdds(p[1])}</td>`+
+    `<tr id="row${i}"><td class="oc">${shortLabel(p[0])}</td><td id="bl${i}">${(p[1]*100).toFixed(1)}%</td><td id="fair${i}">${amOdds(p[1])}</td>`+
     `<td><input class="oddsin" data-i="${i}" placeholder="—"></td>`+
     `<td class="mktcell" id="mkt${i}">—</td><td class="evcell" id="ev${i}">—</td></tr>`).join("");
+  // insert the collapsible "Double chance" header before the first double-chance row
+  const firstDc = $("row10"); if(firstDc){ const tr = document.createElement("tr"); tr.className = "dc-head"; tr.innerHTML = '<td colspan="6"><button class="linkbtn" id="dcToggle"></button></td>'; firstDc.parentNode.insertBefore(tr, firstDc); }
+  for(let i = 10; i < props.length; i++){ const r = $("row"+i); if(r) r.classList.add("dc"); }
+  if($("dcToggle")) $("dcToggle").addEventListener("click", () => setDc(!dcOff, true));
+  setDc(dcOff, false);
   document.querySelectorAll("#calcBody .oddsin").forEach(inp => inp.addEventListener("input", computeVerdict));
   computeVerdict();
 }
@@ -1274,19 +1350,20 @@ function computeVerdict(){
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
   const v = verdictFor(entered, calcA, calcB, pStar, anchor);
-  // anchor status line
-  const an = $("anchorNote");
+  // anchor status line (one line; the backtest detail lives in the hover tooltip)
+  const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
+  an.title = !anchor ? "" : anchor.kind === "open"
+    ? (TRACK ? `Backtested rule: ${sgn(TRACK.anch3.roi)}% ROI on ≥3% edges at the open, beating the closing line ${TRACK.anch3.clv}% of the time (${TRACK.bFrom || TRACK.from.slice(0,4)}–${TRACK.to.slice(0,4)}).` : "Backtested rule.")
+    : "Conservative blend (the model barely moves a fight-week line). Betting early at the opener? Switch the timing above for the stronger, backtested version.";
   an.innerHTML = !anchor
-    ? (entered.length ? `⚠ <b>Not anchored</b> — enter both fighters' moneyline. In backtesting, raw model edges lost money; the market-anchored blend is what made money.` : "")
-    : `⚓ Anchored to your moneyline as <b>${anchor.kind === "open" ? "an opening line" : "a fight-week line"}</b> (${calcA.name} ${(anchor.pMkt*100).toFixed(1)}% no-vig) → blended win prob <b>${(pStar*100).toFixed(1)}%</b> vs raw model ${(pModel*100).toFixed(1)}%. `
-      + (anchor.kind === "open"
-        ? (TRACK ? `This is the backtested rule: ${TRACK.anch3.roi >= 0 ? "+" : ""}${TRACK.anch3.roi}% ROI on ≥3% edges at the open, beating the closing line ${TRACK.anch3.clv}% of the time (${TRACK.bFrom || TRACK.from.slice(0,4)}–${TRACK.to.slice(0,4)}).` : `This is the backtested rule.`)
-        : `Conservative blend (model weight 0.2). If you are betting early at the opener, switch the timing above for the stronger backtested version.`);
+    ? (entered.length ? `⚠ <b>Not anchored</b> — enter both moneylines (raw model edges lost money in backtesting).` : "")
+    : `⚓ <b>${anchor.kind === "open" ? "Opening-line" : "Fight-week"} anchor</b> · ${calcA.name}: market ${(anchor.pMkt*100).toFixed(1)}% → blend <b>${(pStar*100).toFixed(1)}%</b> (raw model ${(pModel*100).toFixed(1)}%)`
+      + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn(TRACK.anch3.roi)}% ROI` : "");
   // style every row, reconciled with the verdict
   calcProps.forEach((p,i) => {
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
     if(row) row.classList.remove("rec");
-    $("bl"+i).textContent = anchor ? (props[i][1]*100).toFixed(1)+"%" : "—";
+    $("bl"+i).textContent = (props[i][1]*100).toFixed(1)+"%"; $("bl"+i).className = anchor ? "blcell" : "";
     $("fair"+i).textContent = amOdds(props[i][1]);
     const e = m[i];
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
@@ -1304,7 +1381,7 @@ function computeVerdict(){
   box.className = "verdict-box " + v.status;
   box.innerHTML = `<span class="vh">${icon}${v.title}</span>${v.body}`+
     `<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div>`;
-  if(v.bestIndex != null){ const r = $("row"+v.bestIndex); if(r) r.classList.add("rec"); }
+  if(v.bestIndex != null){ const r = $("row"+v.bestIndex); if(r) r.classList.add("rec"); if(v.bestIndex >= 10 && dcOff) setDc(false, false); } // never hide the ★ pick
 }
 $("lineTiming").addEventListener("change", computeVerdict);
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
@@ -1408,15 +1485,14 @@ $("go").onclick = () => {
 
   renderCalc(propsFor(t, probA, A, B), A, B, t);
 
-  $("result").classList.remove("hidden");
-  $("result").scrollIntoView({behavior:"smooth"});
+  $("result").classList.add("ready");
 };
 
 // ---- TRACK RECORD (written by `node market-eval.mjs --apply` — do not edit by hand) ----
 const TRACK = /*TRACK*/{"asOf":"2026-09-30","n":2202,"bFrom":"2022","from":"2021-01-16","to":"2026-09-19","model":{"acc":62.1,"ll":0.6461},"open":{"acc":65.8,"ll":0.6197},"close":{"acc":68.7,"ll":0.5907},"toward15":63,"rawOpen":{"n":1938,"roi":-2.8,"clv":54},"rawClose":{"n":1981,"roi":-11.8,"clv":null},"anch3":{"n":860,"roi":9.2,"clv":70},"anch5":{"n":630,"roi":10.8,"clv":71},"est":{"n":519,"roi":11.6,"clv":68},"thin":{"n":341,"roi":5.4,"clv":72},"byYear":[{"y":2022,"n":221,"roi":-3.4,"clv":69},{"y":2023,"n":137,"roi":13.3,"clv":63},{"y":2024,"n":178,"roi":8.5,"clv":75},{"y":2025,"n":153,"roi":22.5,"clv":74},{"y":2026,"n":171,"roi":11,"clv":68}]}/*END_TRACK*/;
 $("bt").onclick = () => {
   const T = TRACK;
-  if(!T){ $("btacc").textContent = "No track record yet"; $("btsum").textContent = "Run: node eval.mjs --dump && node market-eval.mjs --apply"; $("btbody").innerHTML = ""; }
+  if(!T){ $("btacc").textContent = "No track record yet"; $("btsum").textContent = "Run: node eval.mjs --dump && node market-eval.mjs --apply"; $("btbody").innerHTML = ""; $("btyear").innerHTML = ""; }
   else {
     const f = x => (x >= 0 ? "+" : "") + x + "%";
     const row = (lab, a, b) => `<tr><td>${lab}</td><td>${a}</td><td>${b}</td></tr>`;
@@ -1431,12 +1507,22 @@ $("bt").onclick = () => {
       bet("Raw model edges, bet at the close", T.rawClose) + bet("Raw model edges, bet at the open", T.rawOpen) +
       bet("<b>Anchored edges ≥3%, at the open</b>", T.anch3) + bet("Anchored edges ≥5%, at the open", T.anch5) +
       bet("…both fighters 4+ UFC fights", T.est) + bet("…a fighter with 1–3 UFC fights", T.thin) +
-      `</tbody></table><h4 class="bth">Anchored edges ≥3% by year</h4><table><thead><tr><th>Year</th><th>Bets</th><th>ROI</th><th>Beat close</th></tr></thead><tbody>` +
+      `</tbody></table>`;
+    $("btyear").innerHTML = `<h4 class="bth">Anchored edges ≥3% by year</h4><table><thead><tr><th>Year</th><th>Bets</th><th>ROI</th><th>Beat close</th></tr></thead><tbody>` +
       T.byYear.map(y => bet(String(y.y), y)).join("") + `</tbody></table>`;
   }
   $("btcard").classList.remove("hidden");
-  $("btcard").scrollIntoView({behavior:"smooth"});
 };
+const closeBt = () => $("btcard").classList.add("hidden");
+$("btclose").addEventListener("click", closeBt);
+$("btcard").addEventListener("click", e => { if(e.target && e.target.id === "btcard") closeBt(); });
+if(document.addEventListener) document.addEventListener("keydown", e => { if(e.key === "Escape") closeBt(); });
+// phone tabs: one panel at a time
+$("tabs").addEventListener("click", e => {
+  const t = e.target && e.target.closest ? e.target.closest("button[data-tab]") : null; if(!t) return;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === t));
+  document.querySelectorAll(".dash .panel").forEach(p => p.classList.toggle("active", p.dataset.tab === t.dataset.tab));
+});
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));
