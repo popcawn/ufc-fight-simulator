@@ -38,6 +38,18 @@ latest UFCStats data, rebuilds the roster, and commits it — GitHub Pages repub
 automatically. To update on demand, go to the **Actions** tab → **Update stats** →
 **Run workflow**.
 
+## This week, parlays and your bet log
+
+- **This week** scans every UFC line from ~10 US sportsbooks with the backtested rule and lists the
+  TAKE bets, the best price at the books you pick, and a stake. **+ Parlay** builds a slip that only
+  uses TAKE legs from different fights and prices it at one book (hit chance, EV, capped stake).
+  **Log bet** saves it to **My bets**, which tracks closing-line value and your P/L (stored in your
+  browser; Export/Import moves it between computers).
+- The odds come from `odds.json`, refreshed twice a day by the **Scan odds** GitHub Action
+  (`odds-scan.mjs`, 2 credits per run on The Odds API's free 500/month). It needs one repo secret:
+  **Settings → Secrets and variables → Actions → New repository secret**, name `ODDS_API_KEY`.
+  Locally, put the key in a `.odds-key` file (gitignored) and run `node odds-scan.mjs`.
+
 ## Update the data manually (local)
 
 Requires [Node.js](https://nodejs.org) (v20+).
@@ -58,6 +70,8 @@ If hosting online, commit and push afterward (`git add -A && git commit -m "upda
 | `build-roster.mjs` | Downloads latest UFCStats data, recomputes all fighter stats, injects them into `index.html`. |
 | `eval.mjs` | Re-validates model accuracy on held-out fights and retrains the coefficients. |
 | `calibrate.mjs` | Checks the engine's method/round finish mix against real UFC distributions. |
+| `prop-eval.mjs` | Validates the KO/SUB/decision odds fight by fight on held-out fights and fits the calibration layer the app uses (`--apply`). |
+| `odds-scan.mjs` | Pulls current sportsbook lines into `odds.json` for the This week scanner. |
 | `market-eval.mjs` | Model vs the betting market: joins walk-forward predictions (`node eval.mjs --dump`) to BestFightOdds opening/closing lines; source of the calculator's market-anchor weights. |
 | `.github/workflows/update-stats.yml` | Weekly automatic stat refresh. |
 

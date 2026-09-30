@@ -128,6 +128,36 @@
   .bth{font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin:16px 0 4px;}
   .note{font-size:12px; color:var(--dim); margin-top:8px; line-height:1.55;} .note b{color:var(--text);}
 
+
+  /* ---- This week (card scanner) · parlay slip · My bets ---- */
+  .modal-box.wide{max-width:1400px;}
+  .wkgrid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; margin-top:10px; align-items:start;}
+  @media (max-width:1000px){ .wkgrid{grid-template-columns:1fr;} }
+  table.scan{width:100%; border-collapse:collapse; font-size:13px;}
+  table.scan th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:1px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line);}
+  table.scan td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  table.scan .r{color:#ff7a7a; font-weight:600;} table.scan .b{color:#7aa3ff; font-weight:600;}
+  table.scan tr.take td{background:rgba(62,201,126,.08);}
+  table.scan tr.dayrow td{color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding-top:12px;}
+  table.scan tr.unscored td{opacity:.6;}
+  .sub{font-size:11px; color:var(--dim); font-weight:400;} .bk{font-size:11px; color:var(--dim);}
+  .badge{font-size:9.5px; font-weight:800; letter-spacing:.8px; padding:1px 5px; border-radius:4px; border:1px solid var(--line); color:var(--dim); margin-left:4px; cursor:help; white-space:nowrap;}
+  .badge.early{color:var(--green); border-color:var(--green);}
+  .mini-btn{padding:3px 8px; font-size:11.5px; font-weight:600; letter-spacing:0; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; margin:1px 2px;}
+  .mini-btn.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
+  .mini-btn:disabled{opacity:.55; cursor:default; filter:none;}
+  .mini-btn.x{background:none; border:none; color:var(--dim); font-size:15px; padding:0 4px;}
+  .acts{white-space:nowrap;}
+  .slip{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px;}
+  .leg{display:flex; justify-content:space-between; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .slipstat{font-size:13px; margin-top:8px;}
+  .warnline{font-size:12px; color:var(--gold); margin-top:8px; line-height:1.4;}
+  .slipbtns{margin-top:10px; display:flex; gap:6px;}
+  #betsum{font-size:13px; margin:8px 0;} #betsum:empty{display:none;}
+  .stakein{width:56px;}
+  .howto{margin-top:8px;} .howto summary{cursor:pointer; color:var(--dim); font-size:12px;}
+  .bookchips{margin-top:6px; display:flex; flex-wrap:wrap; gap:2px; align-items:center;} .bookchips .sub{margin-right:4px;}
+
   /* ---- medium screens: calculator stays on the right; Result / Tale of the tape toggle on the left ---- */
   @media (max-width:1180px) and (min-width:761px){
     .tabs{display:flex; gap:6px; padding:10px 12px 0; flex:none; max-width:460px;}
@@ -154,12 +184,38 @@
   <div class="pick red"><input id="fa" list="roster" placeholder="Red corner — type a fighter" aria-label="Red corner"></div>
   <div class="vs">VS</div>
   <div class="pick blue"><input id="fb" list="roster" placeholder="Blue corner — type a fighter" aria-label="Blue corner"></div>
-  <label class="chk"><input type="checkbox" id="five" checked> 5 rounds</label>
+  <label class="chk" title="Main events and title fights"><input type="checkbox" id="five"> 5 rounds</label>
   <button id="go">SIMULATE</button>
+  <button id="wk" class="secondary" title="Every UFC line from US sportsbooks, scanned with the backtested rule">This week</button>
+  <button id="mb" class="secondary" title="Your logged bets and closing-line value">My bets</button>
   <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
   <div class="err" id="err"></div>
 </header>
 <datalist id="roster"></datalist>
+<div class="modal hidden" id="wkcard" role="dialog" aria-modal="true" aria-label="This week's UFC lines">
+  <div class="modal-box wide">
+    <button class="close" id="wkclose" aria-label="Close">×</button>
+    <h3>This week — every UFC line, scanned</h3>
+    <div class="dimtxt" id="wkinfo">Loading lines…</div>
+    <div class="bookchips" id="wkbooks"></div>
+    <div class="wkgrid">
+      <div class="tblwrap" id="wkbody"></div>
+      <div class="slip" id="slip"></div>
+    </div>
+    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 3%+. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
+  </div>
+</div>
+<div class="modal hidden" id="betcard" role="dialog" aria-modal="true" aria-label="My bets">
+  <div class="modal-box wide">
+    <button class="close" id="betclose" aria-label="Close">×</button>
+    <h3>My bets</h3>
+    <div id="betsum"></div>
+    <div class="tblwrap" id="betbody"></div>
+    <div class="slipbtns"><button class="mini-btn" id="betexp">Export</button><button class="mini-btn" id="betimp">Import</button><input type="file" id="betfile" accept=".json,application/json" hidden></div>
+    <p class="note"><b>CLV</b> (closing-line value) = your price vs the de-vigged consensus line at fight time. Positive means you beat the market's final number, the fastest proof of a real edge (about 50 bets, vs hundreds for win/loss). It shows "live" until the fight starts. Right after you bet it is usually slightly negative (you just paid the book's cut); it turns positive when the line moves your way by fight time. Units: 1u = 1% of bankroll. Click W / L / P to settle. Saved in this browser only: Export on one computer, Import on another.</p>
+  </div>
+</div>
+
 
 <nav class="tabs" id="tabs"><button data-tab="res" class="on">Result</button><button data-tab="tape">Tale of the tape</button><button data-tab="calc">Odds &amp; value</button></nav>
 
@@ -1590,6 +1646,231 @@ $("tabs").addEventListener("click", e => {
   document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === t));
   document.querySelectorAll(".dash .panel").forEach(p => p.classList.toggle("active", p.dataset.tab === t.dataset.tab));
 });
+
+// ---- THIS WEEK: whole-card scanner. odds.json is refreshed twice a day by odds-scan.mjs (GitHub Action).
+// Per fight: consensus market % (mean price across books, de-vigged — exactly as in the backtest), anchored
+// fair % (opening-line weights only while the line is fresh), best price per side across books, same TAKE rule.
+const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const rosterIdx = new Map(fighters.map(f => [nmz(f.name), f]));
+function findFighter(n){ // sportsbook spelling -> roster fighter (exact, else unique surname + first initial)
+  const k = nmz(n); if(rosterIdx.has(k)) return rosterIdx.get(k);
+  const last = k.split(" ").pop(), c = fighters.filter(f => { const q = nmz(f.name); return q.split(" ").pop() === last && q[0] === k[0]; });
+  return c.length === 1 ? c[0] : null;
+}
+const BOOK = { draftkings:"DraftKings", fanduel:"FanDuel", betmgm:"BetMGM", betrivers:"BetRivers", hardrockbet:"Hard Rock", betonlineag:"BetOnline",
+  bovada:"Bovada", betanysports:"BetAnySports", betparx:"betPARX", ballybet:"Bally Bet", espnbet:"ESPN BET", fanatics:"Fanatics", williamhill_us:"Caesars", mybookieag:"MyBookie", lowvig:"LowVig", betus:"BetUS" };
+const bookName = k => BOOK[k] || (ODDS && ODDS.books && ODDS.books[k]) || k;
+const decAm = d => d >= 2 ? "+" + Math.round((d - 1) * 100) : "-" + Math.round(100 / (d - 1));
+let ODDS = null, scanRows = [], slip = [];
+// the sportsbooks you actually have accounts at (null = all); remembered per browser
+let myBooks = (() => { try { return JSON.parse(localStorage.getItem("ufcsim.books")); } catch(e){ return null; } })();
+const usableBook = k => !myBooks || myBooks.includes(k);
+const modelCache = new Map();
+async function loadOdds(){
+  if(ODDS && Date.now() - ODDS._at < 10 * 60e3) return ODDS;
+  try { const r = await fetch("odds.json?t=" + Date.now()); if(!r.ok) throw 0; ODDS = await r.json(); ODDS._at = Date.now(); } catch(e){ ODDS = null; }
+  return ODDS;
+}
+function scoreFight(id, f){
+  const books = Object.entries(f.now || {}).filter(([, v]) => v && v[0] > 1 && v[1] > 1);
+  if(!books.length) return null;
+  const A = findFighter(f.a), B = findFighter(f.b), avg = (L, i) => L.reduce((s, [, v]) => s + v[i], 0) / L.length;
+  const mine = books.filter(([k]) => usableBook(k)); // best price only at books you use; the market % uses every book
+  const row = { id, f, A, B, t: new Date(f.t), pMkt: noVig(avg(books, 0), avg(books, 1)), noBook: !mine.length,
+    best: [0, 1].map(i => (mine.length ? mine : books).reduce((b, [k, v]) => v[i] > b.d ? { d: v[i], book: k } : b, { d: 0, book: "" })) };
+  row.name = [A ? A.name : f.a, B ? B.name : f.b];
+  if(!A || !B) return row; // debut / inactive / other promotion: priced, not scored
+  // a real fight is at ONE weight: the cross-division size prior is for fantasy matchups, so score both at the
+  // same division — but a fighter changing weight is outside what the model was tested on, so never a TAKE
+  row.xdiv = A.div !== B.div;
+  const Bs = row.xdiv ? { ...B, div: A.div } : B;
+  const ob = Object.entries(f.open || {}).filter(([, v]) => v), pOpen = ob.length ? noVig(avg(ob, 0), avg(ob, 1)) : null;
+  row.age = f.first ? (Date.now() - new Date(f.first)) / 36e5 : null; // hours since this line first appeared
+  row.early = row.age !== null && row.age <= 72 && pOpen !== null && Math.abs(row.pMkt - pOpen) <= 0.03;
+  if(!modelCache.has(id)){ const t = simulate(A, Bs, 3, 3000); modelCache.set(id, blend(t.A / (t.A + t.B), A, Bs)); }
+  row.pModel = modelCache.get(id);
+  const w = row.early ? W_OPEN : W_CUR;
+  row.pFair = sig(w[0] * logit(row.pMkt) + w[1] * logit(row.pModel));
+  row.side = [0, 1].map(i => { const p = i ? 1 - row.pFair : row.pFair, d = row.best[i].d, ev = p * d - 1; return { p, d, ev, kelly: ev / (d - 1), book: row.best[i].book }; });
+  row.thin = Math.min(A.w + A.l, B.w + B.l) < 4;
+  row.pick = row.side[0].ev >= row.side[1].ev ? 0 : 1;
+  const e = row.side[row.pick].ev;
+  row.take = e >= 0.03 && e <= 0.50 && !row.xdiv && !row.noBook; // same rule as the calculator (>50% = model error, not value)
+  row.stake = row.take ? Math.min(3, 25 * row.side[row.pick].kelly * (row.thin ? 0.5 : 1)) : 0;
+  return row;
+}
+async function openScan(){
+  $("wkcard").classList.remove("hidden");
+  $("wkinfo").textContent = "Loading lines…";
+  const O = await loadOdds();
+  if(!O){ $("wkinfo").textContent = "No odds feed yet — the \"Scan odds\" GitHub Action creates odds.json (needs the ODDS_API_KEY secret)."; $("wkbody").innerHTML = ""; renderSlip(); return; }
+  buildScan();
+}
+function buildScan(){
+  const O = ODDS; if(!O) return;
+  $("wkbooks").innerHTML = `<span class="sub">Your books:</span>` + Object.keys(O.books).sort((a, b) => bookName(a).localeCompare(bookName(b)))
+    .map(k => `<button class="mini-btn ${usableBook(k) ? "on" : ""}" data-book="${k}">${bookName(k)}</button>`).join("");
+  const now = Date.now(), soon = now + 45 * 864e5, past = now - 3 * 36e5;
+  scanRows = Object.entries(O.fights).filter(([, f]) => { const t = new Date(f.t).getTime(); return t > past && t < soon; })
+    .map(([id, f]) => scoreFight(id, f)).filter(r => r && (r.A || r.B))
+    .sort((a, b) => a.t.toDateString() === b.t.toDateString() ? (b.take - a.take) || (a.t - b.t) : a.t - b.t);
+  const h = (now - new Date(O.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + "h" : Math.round(h / 24) + " days";
+  const takes = scanRows.filter(r => r.take).length;
+  $("wkinfo").innerHTML = `<b>${takes} bet${takes === 1 ? "" : "s"}</b> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`;
+  renderScan(); renderSlip();
+}
+function renderScan(){
+  let html = "", lastDay = "";
+  const dayOf = r => r.t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  for(const r of scanRows){
+    const day = dayOf(r);
+    if(day !== lastDay){
+      html += `<tr class="dayrow"><td colspan="5">${day}</td></tr>`; lastDay = day;
+      const un = scanRows.filter(x => !x.side && dayOf(x) === day); // debut / inactive fighters: one compact line per card
+      if(un.length) html += `<tr class="unscored"><td colspan="5" class="sub">Not scored (debut or inactive fighter): ${un.map(x => `${x.name[0].split(" ").pop()}–${x.name[1].split(" ").pop()}`).join(", ")}</td></tr>`;
+    }
+    if(!r.side) continue;
+    const nm = i => `<span class="${i ? "b" : "r"}">${r.name[i]}</span>`;
+    const px = i => `<b>${decAm(r.best[i].d)}</b> <span class="bk">${bookName(r.best[i].book)}</span>`;
+    const k = r.pick, s = r.side[k], sur = i => r.name[i].split(" ").pop(), inSlip = slip.some(l => l.id === r.id);
+    const tip = r.early ? `Fresh line (first seen ${Math.round(r.age)}h ago, hasn't moved 3+ pts): opening-line weights, the backtested edge`
+      : "Line has been up a while or already moved: conservative fight-week weights";
+    html += `<tr class="${r.take ? "take" : ""}">
+      <td>${nm(0)} vs ${nm(1)} <span class="badge ${r.early ? "early" : ""}" title="${tip}">${r.early ? "EARLY" : "LATE"}</span></td>
+      <td><b>${sur(0)} ${pct(r.pFair)}</b><div class="sub">market ${pct(r.pMkt)} · model ${pct(r.pModel)}</div></td>
+      <td>${px(0)}<br>${px(1)}</td>
+      <td>${r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${r.stake.toFixed(1)}%${r.thin ? " (halved, thin data)" : ""}</div>`
+        : `<span class="dimtxt">pass</span><div class="sub">${r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.noBook ? "not offered at your books" : `best edge ${(s.ev * 100).toFixed(1)}% (${sur(k)})`}</div>`}</td>
+      <td class="acts"><button class="mini-btn" data-sim="${r.id}">Sim</button>${r.take ? `<button class="mini-btn" data-slip="${r.id}" ${inSlip ? "disabled" : ""}>${inSlip ? "In slip" : "+ Parlay"}</button><button class="mini-btn" data-log="${r.id}">Log bet</button>` : ""}</td>
+    </tr>`;
+  }
+  $("wkbody").innerHTML = html ? `<table class="scan"><thead><tr><th>Fight</th><th>Fair win %</th><th>Best price</th><th>Call</th><th></th></tr></thead><tbody>${html}</tbody></table>`
+    : `<p class="dimtxt">No UFC lines in the next 45 days.</p>`;
+}
+function slipLegs(){
+  return slip.map(l => { const r = scanRows.find(x => x.id === l.id); return r && r.side ? { r, k: l.k, p: r.side[l.k].p, name: r.name[l.k] } : null; }).filter(Boolean);
+}
+function slipOffers(legs){ // parlays settle at ONE book: payout = product of that book's prices for every leg
+  const P = legs.reduce((s, l) => s * l.p, 1);
+  return Object.keys((ODDS && ODDS.books) || {}).filter(b => usableBook(b) && legs.every(l => l.r.f.now[b]))
+    .map(b => { const D = legs.reduce((s, l) => s * l.r.f.now[b][l.k], 1); return { b, D, ev: P * D - 1 }; }).sort((x, y) => y.D - x.D);
+}
+function renderSlip(){
+  const legs = slipLegs();
+  if(!legs.length){ $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip</h4><p class="sub" style="line-height:1.5">Add TAKE rows, one per fight. Every leg needs its own edge — the book's cut multiplies across legs.</p>`; return; }
+  const P = legs.reduce((s, l) => s * l.p, 1), offers = slipOffers(legs), top = offers[0];
+  const stake = top ? Math.min(1, 25 * Math.max(0, (P * top.D - 1) / (top.D - 1))) : 0;
+  const weak = legs.filter(l => l.r.side[l.k].ev < 0.03);
+  $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip · ${legs.length} leg${legs.length === 1 ? "" : "s"}</h4>` +
+    legs.map((l, i) => `<div class="leg"><span>${l.name} <span class="sub">${pct(l.p)} fair</span></span><button class="mini-btn x" data-rm="${i}" aria-label="Remove">×</button></div>`).join("") +
+    `<div class="slipstat">Hits about <b>1 in ${(1 / P).toFixed(1)}</b> (${pct(P)})</div>` +
+    (top ? `<div class="slipstat">Best payout <b>${decAm(top.D)}</b> at ${bookName(top.b)} · EV <b class="${top.ev >= 0 ? "ok" : "miss"}">${top.ev >= 0 ? "+" : ""}${(top.ev * 100).toFixed(1)}%</b></div>` +
+      offers.slice(1, 3).map(o => `<div class="sub">${bookName(o.b)} ${decAm(o.D)} · EV ${(o.ev * 100).toFixed(1)}%</div>`).join("") +
+      `<div class="slipstat">Stake <b>${stake.toFixed(2)}%</b> of bankroll <div class="sub">¼-Kelly, capped at 1% — parlays swing hard</div></div>`
+      : `<div class="warnline">No single book offers all of these legs.</div>`) +
+    (weak.length ? `<div class="warnline">⚠ ${weak.map(l => l.name).join(", ")}: edge has dropped under 3% — this leg drags the parlay down.</div>` : "") +
+    `<div class="slipbtns"><button class="mini-btn" id="slipLog" ${top ? "" : "disabled"}>Log parlay</button><button class="mini-btn" id="slipClear">Clear</button></div>`;
+}
+function simFromScan(id){ // load the fight into the main dashboard with the best prices filled in
+  const r = scanRows.find(x => x.id === id); if(!r || !r.A || !r.B) return;
+  $("fa").value = r.A.name; $("fb").value = r.B.name;
+  $("wkcard").classList.add("hidden");
+  $("go").click();
+  $("lineTiming").value = r.early ? "open" : "current";
+  const ins = document.querySelectorAll("#calcBody .oddsin");
+  if(ins.length > 1){ ins[0].value = decAm(r.best[0].d); ins[1].value = decAm(r.best[1].d); ins[0].dispatchEvent(new Event("input")); }
+}
+$("wkbody").addEventListener("click", e => {
+  const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
+  if(b.dataset.sim) simFromScan(b.dataset.sim);
+  else if(b.dataset.slip){ const r = scanRows.find(x => x.id === b.dataset.slip); if(r && !slip.some(l => l.id === r.id)) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); }
+  else if(b.dataset.log){ const r = scanRows.find(x => x.id === b.dataset.log); if(!r) return; const s = r.side[r.pick];
+    logBet([{ fid: r.id, k: r.pick, name: r.name[r.pick], vs: r.name[1 - r.pick], t: r.f.t, price: s.d }], s.d, s.book, r.stake);
+    b.textContent = "Logged ✓"; b.disabled = true; }
+});
+$("slip").addEventListener("click", e => {
+  const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
+  if(b.dataset.rm !== undefined){ slip.splice(+b.dataset.rm, 1); renderScan(); renderSlip(); }
+  else if(b.id === "slipClear"){ slip = []; renderScan(); renderSlip(); }
+  else if(b.id === "slipLog"){ const legs = slipLegs(), top = slipOffers(legs)[0]; if(!top) return;
+    const P = legs.reduce((s, l) => s * l.p, 1), stake = Math.min(1, 25 * Math.max(0, (P * top.D - 1) / (top.D - 1)));
+    logBet(legs.map(l => ({ fid: l.r.id, k: l.k, name: l.name, vs: l.r.name[1 - l.k], t: l.r.f.t, price: l.r.f.now[top.b][l.k] })), top.D, top.b, stake);
+    b.textContent = "Logged ✓"; b.disabled = true; }
+});
+$("wk").onclick = openScan;
+$("wkbooks").addEventListener("click", e => { // toggle a sportsbook in/out of "your books"
+  const b = e.target && e.target.closest ? e.target.closest("button[data-book]") : null; if(!b || !ODDS) return;
+  const all = Object.keys(ODDS.books), cur = myBooks || all.slice(), k = b.dataset.book;
+  myBooks = cur.includes(k) ? cur.filter(x => x !== k) : cur.concat(k);
+  if(myBooks.length === all.length) myBooks = null;
+  try { if(myBooks) localStorage.setItem("ufcsim.books", JSON.stringify(myBooks)); else localStorage.removeItem("ufcsim.books"); } catch(err){}
+  buildScan();
+});
+
+// ---- MY BETS: local bet log with closing-line value (CLV). Beating the close proves an edge in ~50 bets;
+// win/loss needs hundreds. Stored in this browser; Export/Import moves it between computers.
+const BETS_KEY = "ufcsim.bets";
+let bets = (() => { try { return JSON.parse(localStorage.getItem(BETS_KEY)) || []; } catch(e){ return []; } })();
+const saveBets = () => { try { localStorage.setItem(BETS_KEY, JSON.stringify(bets)); } catch(e){} };
+function logBet(legs, price, book, stake){
+  bets.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), legs, price, book, stake: +(+stake).toFixed(2), result: null });
+  saveBets();
+}
+function legClose(l){ // de-vigged consensus for this leg's side: the closing line once the fight has started, else the live line
+  if(l.closeP) return { p: l.closeP, final: true };
+  const f = ODDS && ODDS.fights[l.fid]; if(!f) return null;
+  const v = Object.values(f.now || {}).filter(x => x && x[0] > 1 && x[1] > 1); if(!v.length) return null;
+  const p0 = noVig(v.reduce((s, x) => s + x[0], 0) / v.length, v.reduce((s, x) => s + x[1], 0) / v.length), p = l.k ? 1 - p0 : p0;
+  const final = new Date(f.t).getTime() <= Date.now();
+  if(final){ l.closeP = +p.toFixed(4); saveBets(); } // keep it: odds.json drops old fights after 45 days
+  return { p, final };
+}
+function renderBets(){
+  let n = 0, staked = 0, pl = 0, cN = 0, cSum = 0, cWin = 0;
+  const rows = bets.map((b, i) => {
+    const cl = b.legs.map(legClose), have = cl.every(Boolean), fin = have && cl.every(c => c.final);
+    const clv = have ? b.legs.reduce((s, l, j) => s * l.price * cl[j].p, 1) - 1 : null;
+    if(fin){ cN++; cSum += clv; if(clv > 0) cWin++; }
+    if(b.result){ n++; staked += b.stake; pl += b.result === "W" ? b.stake * (b.price - 1) : b.result === "L" ? -b.stake : 0; }
+    const what = b.legs.length > 1 ? `${b.legs.length}-leg parlay <span class="sub">${b.legs.map(l => l.name.split(" ").pop()).join(" + ")}</span>` : `${b.legs[0].name} <span class="sub">vs ${b.legs[0].vs}</span>`;
+    return `<tr><td>${new Date(b.legs[0].t || b.ts).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</td><td>${what}</td>
+      <td><input class="oddsin" data-price="${i}" value="${decAm(b.price)}" aria-label="Price"> <span class="bk">${bookName(b.book)}</span></td>
+      <td><input class="oddsin stakein" data-stake="${i}" value="${b.stake}" aria-label="Stake (units)"></td>
+      <td>${clv === null ? "—" : `<span class="${clv >= 0 ? "ok" : "miss"}">${clv >= 0 ? "+" : ""}${(clv * 100).toFixed(1)}%</span>${fin ? "" : ` <span class="sub">live</span>`}`}</td>
+      <td class="acts">${["W", "L", "P"].map(r => `<button class="mini-btn ${b.result === r ? "on" : ""}" data-res="${i}" data-r="${r}">${r}</button>`).join("")}<button class="mini-btn x" data-del="${i}" aria-label="Delete">×</button></td></tr>`;
+  }).join("");
+  const sg = x => (x >= 0 ? "+" : "") + x;
+  $("betsum").innerHTML = bets.length
+    ? `Settled <b>${n}</b> · P/L <b class="${pl >= 0 ? "ok" : "miss"}">${sg(pl.toFixed(2))}u</b>${staked ? ` · ROI <b>${sg((100 * pl / staked).toFixed(1))}%</b>` : ""} · beat the closing line <b>${cWin}/${cN}</b>${cN ? ` (${Math.round(100 * cWin / cN)}%, avg CLV ${sg((100 * cSum / cN).toFixed(1))}%)` : ""}`
+    : "";
+  $("betbody").innerHTML = bets.length ? `<table class="scan"><thead><tr><th>Fight</th><th>Bet</th><th>Price</th><th>Units</th><th>CLV</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<p class="dimtxt">No bets logged yet — use "Log bet" or "Log parlay" in This week.</p>`;
+}
+$("betbody").addEventListener("click", e => {
+  const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
+  if(b.dataset.res !== undefined){ const x = bets[+b.dataset.res]; x.result = x.result === b.dataset.r ? null : b.dataset.r; saveBets(); renderBets(); }
+  else if(b.dataset.del !== undefined && confirm("Delete this bet from your log?")){ bets.splice(+b.dataset.del, 1); saveBets(); renderBets(); }
+});
+$("betbody").addEventListener("change", e => {
+  const t = e.target; if(!t || !t.dataset) return;
+  if(t.dataset.price !== undefined){ const d = amToDec(t.value), x = bets[+t.dataset.price]; if(d && d > 1){ x.price = d; if(x.legs.length === 1) x.legs[0].price = d; saveBets(); } renderBets(); }
+  if(t.dataset.stake !== undefined){ const v = parseFloat(t.value); if(v >= 0){ bets[+t.dataset.stake].stake = v; saveBets(); } renderBets(); }
+});
+$("mb").onclick = async () => { $("betcard").classList.remove("hidden"); await loadOdds(); renderBets(); };
+$("betexp").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(bets, null, 1)], { type: "application/json" })); a.download = "ufc-sim-bets.json"; a.click(); };
+$("betimp").onclick = () => $("betfile").click();
+$("betfile").onchange = async e => {
+  const file = e.target.files && e.target.files[0]; if(!file) return;
+  try { const have = new Set(bets.map(b => b.id)); for(const b of JSON.parse(await file.text())) if(b && b.id && b.legs && !have.has(b.id)) bets.push(b);
+    bets.sort((x, y) => (y.ts > x.ts) - (y.ts < x.ts)); saveBets(); renderBets(); }
+  catch(err){ alert("Couldn't read that file — pick a ufc-sim-bets.json export."); }
+  e.target.value = "";
+};
+const closeModal = id => $(id).classList.add("hidden");
+$("wkclose").addEventListener("click", () => closeModal("wkcard"));
+$("betclose").addEventListener("click", () => closeModal("betcard"));
+["wkcard", "betcard"].forEach(id => $(id).addEventListener("click", e => { if(e.target && e.target.id === id) closeModal(id); }));
+if(document.addEventListener) document.addEventListener("keydown", e => { if(e.key === "Escape"){ closeModal("wkcard"); closeModal("betcard"); } });
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));

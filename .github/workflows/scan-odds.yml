@@ -1,0 +1,38 @@
+name: Scan odds
+
+# Pulls current MMA moneylines from US sportsbooks into odds.json for the app's "This week" scanner.
+# Twice a day catches new opening lines within ~12h (openers post a median 12 days before the fight).
+# Needs the repo secret ODDS_API_KEY (Settings > Secrets and variables > Actions). 2 API credits per run.
+on:
+  schedule:
+    - cron: "0 13 * * *"   # 13:00 UTC daily
+    - cron: "0 1 * * *"    # 01:00 UTC daily
+  workflow_dispatch: {}     # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write           # allow the action to commit odds.json
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Pull current lines
+        run: node odds-scan.mjs
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      - name: Commit if lines changed
+        run: |
+          git config user.name  "odds-scan-bot"
+          git config user.email "actions@github.com"
+          git add odds.json 2>/dev/null || exit 0
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Odds scan ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git pull --rebase -q
+            git push
+          fi

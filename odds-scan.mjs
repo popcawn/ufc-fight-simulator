@@ -1,0 +1,42 @@
+// Card scanner feed: pulls every MMA moneyline from US sportsbooks (The Odds API) into odds.json, which
+// the app's "This week" panel reads. Keeps, per fight and book, the FIRST price ever seen (so the app knows
+// how fresh a line is — the backtested edge lives at the opener) and the latest price (frozen once the fight
+// starts = the closing line, used by the bet log's CLV tracker).
+// Key: env ODDS_API_KEY (GitHub secret) or a local .odds-key file (gitignored). Each run costs 2 API credits.
+// Run: node odds-scan.mjs
+import { readFileSync, writeFileSync, existsSync } from "fs";
+
+const ROOT = import.meta.dirname.replace(/\\/g, "/"), OUT = ROOT + "/odds.json";
+const KEY = process.env.ODDS_API_KEY || (existsSync(ROOT + "/.odds-key") ? readFileSync(ROOT + "/.odds-key", "utf8").trim() : "");
+if (!KEY) { console.log("::warning::ODDS_API_KEY not set — add it under repo Settings > Secrets and variables > Actions"); process.exit(0); }
+
+const url = `https://api.the-odds-api.com/v4/sports/mma_mixed_martial_arts/odds?regions=us,us2&markets=h2h&oddsFormat=decimal&apiKey=${KEY}`;
+const res = await fetch(url);
+if (!res.ok) { console.log(`::error::Odds API ${res.status}: ${(await res.text()).slice(0, 200)}`); process.exit(1); }
+const feed = await res.json(), now = new Date().toISOString();
+
+const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : null;
+const fights = prev ? prev.fights : {};
+const seeding = !prev; // lines already posted before the first scan: their true opener is unknown
+let added = 0;
+for (const e of feed) {
+  const f = fights[e.id] || (added++, fights[e.id] = { a: e.home_team, b: e.away_team, t: e.commence_time, first: seeding ? null : now, open: {}, now: {} });
+  f.t = e.commence_time; f.seen = now;
+  for (const bk of e.bookmakers) {
+    const m = bk.markets.find(x => x.key === "h2h"); if (!m) continue;
+    const pa = m.outcomes.find(o => o.name === f.a), pb = m.outcomes.find(o => o.name === f.b);
+    if (!pa || !pb) continue;
+    const px = [pa.price, pb.price];
+    if (!(bk.key in f.open)) f.open[bk.key] = seeding ? null : px; // first price this book ever showed (null = posted before scanning began)
+    f.now[bk.key] = px;
+  }
+}
+// keep finished fights 45 days (closing lines for the bet log), then drop
+const cutoff = Date.now() - 45 * 864e5;
+for (const [id, f] of Object.entries(fights)) if (new Date(f.t).getTime() < cutoff) delete fights[id];
+
+const books = { ...(prev ? prev.books : {}) };
+for (const e of feed) for (const bk of e.bookmakers) books[bk.key] = bk.title;
+const credits = { remaining: +res.headers.get("x-requests-remaining"), used: +res.headers.get("x-requests-used") };
+writeFileSync(OUT, JSON.stringify({ updated: now, credits, books, fights }));
+console.log(`odds.json: ${feed.length} fights in feed, ${added} new, ${Object.keys(fights).length} stored · API credits left this month: ${credits.remaining}`);
