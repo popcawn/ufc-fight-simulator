@@ -5,7 +5,8 @@
 //   3) Betting: flat-stake the model's +EV sides at the opening line — what's the ROI?
 //   4) Does the model add information BEYOND the closing line (blend test)?
 // Odds source: github.com/lkirby195/FightNight data/bfo_lines.csv (first tick = open, last = close).
-// Run:  node eval.mjs --dump && node market-eval.mjs      (--cache reuses the downloaded lines)
+// Run:  node eval.mjs --dump && node market-eval.mjs --apply   (--apply refreshes the in-app track record;
+//       --cache reuses the downloaded lines)
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 
 const ROOT = import.meta.dirname.replace(/\\/g, "/"), DIR = ROOT + "/ufc-data/";
@@ -161,4 +162,34 @@ for (const [lo, hi, lab] of [[1,3,"less-experienced fighter has 1-3 UFC fights"]
     if (pm * o - 1 < 0.03) continue; n++; pnl += won ? o - 1 : -1; if (c < o) beat++;
   }
   console.log(`  ${lab.padEnd(46)} bets ${String(n).padStart(3)}  ROI ${(100*pnl/n).toFixed(1).padStart(5)}%  beat close ${(100*beat/n).toFixed(0)}%`);
+}
+
+// ---- 8) summary for the in-app "Model track record" card ----
+// `node market-eval.mjs --apply` writes it into index.html between the /*TRACK*/ markers.
+const betSim = (set, pk, when, minEV) => { let n = 0, pnl = 0, beat = 0;
+  for (const r of set) for (const side of ["a","b"]) {
+    const pm = side === "a" ? r[pk] : 1 - r[pk], won = side === "a" ? r.y === 1 : r.y === 0;
+    const o = side === "a" ? (when === "open" ? r.ao : r.ac) : (when === "open" ? r.bo : r.bc), c = side === "a" ? r.ac : r.bc;
+    if (pm * o - 1 < minEV) continue; n++; pnl += won ? o - 1 : -1; if (c < o) beat++;
+  }
+  return { n, roi: +(100*pnl/Math.max(1,n)).toFixed(1), clv: when === "open" ? Math.round(100*beat/Math.max(1,n)) : null };
+};
+const sc = k => { const s = score(J, k); return { acc: +s.acc.toFixed(1), ll: +s.ll.toFixed(4) }; };
+const S15 = J.filter(r => Math.abs(r.p - r.pOpen) >= 0.15);
+const TRACK = {
+  asOf: new Date().toISOString().slice(0,10), n: J.length, bFrom: String(years[1]), // first year of anchored bets (earlier years only fit the blend)
+  from: J.reduce((a,r) => r.date < a ? r.date : a, "9999"), to: J.reduce((a,r) => r.date > a ? r.date : a, ""),
+  model: sc("p"), open: sc("pOpen"), close: sc("pClose"),
+  toward15: Math.round(100 * S15.filter(r => Math.sign(r.pClose - r.pOpen) === Math.sign(r.p - r.pOpen)).length / S15.length),
+  rawOpen: betSim(J, "p", "open", 0), rawClose: betSim(J, "p", "close", 0),
+  anch3: betSim(OB, "pOB", "open", 0.03), anch5: betSim(OB, "pOB", "open", 0.05),
+  est: betSim(OB.filter(r => r.mf >= 4), "pOB", "open", 0.03), thin: betSim(OB.filter(r => r.mf < 4), "pOB", "open", 0.03),
+  byYear: years.slice(1).map(Y => ({ y: Y, ...betSim(OB.filter(r => +r.date.slice(0,4) === Y), "pOB", "open", 0.03) })),
+};
+console.log("\n=== 8) TRACK RECORD SUMMARY ===\n" + JSON.stringify(TRACK));
+if (process.argv.includes("--apply")) {
+  const ip = ROOT + "/index.html", html = readFileSync(ip, "utf8"), re = /\/\*TRACK\*\/[\s\S]*?\/\*END_TRACK\*\//;
+  if (!re.test(html)) { console.error("TRACK markers not found in index.html"); process.exit(1); }
+  writeFileSync(ip, html.replace(re, "/*TRACK*/" + JSON.stringify(TRACK) + "/*END_TRACK*/"));
+  console.log("wrote track record into index.html");
 }

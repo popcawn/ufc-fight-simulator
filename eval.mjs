@@ -13,6 +13,9 @@ const HTML_PATH = ROOT + "/index.html";
 const TRAIN_START = new Date("2019-01-01");
 const TEST_START = new Date("2025-01-01");
 const TODAY = new Date();
+// --shrink=K: pull per-minute rates toward league average as if K extra average minutes were fought.
+// Default 20: tames tiny-sample stat blowups (engine-alone logloss 0.754 -> 0.701); final model unchanged.
+const SH = +((process.argv.find(a => a.startsWith("--shrink=")) || "--shrink=20").split("=")[1]);
 const SIMS = 400;
 const HL = 730;   // stat recency half-life (days) — won grid search
 const ELO_K = 40; // won grid search
@@ -88,13 +91,14 @@ const snap = (n, s, date, div) => {
     name:n, div, age: dob && !isNaN(dob) ? Math.floor((date-dob)/31557600000) : 30,
     ht, reach, stance: /South/i.test(t.STANCE||"") ? "S" : /Switch/i.test(t.STANCE||"") ? "X" : "O",
     w:s.w, l:s.l, koW:s.koW, subW:s.subW, koL:s.koL, subL:s.subL,
+    ...(SH > 0 ? shrunk(s, d) : {
     slpm: s.sl*d/min, sapm: s.osl*d/min,
     acc: s.sa ? s.sl/s.sa : 0.45, def: s.osa ? 1 - s.osl/s.osa : 0.55,
     td15: s.td*d/min*15, tdAcc: s.tda ? s.td/s.tda : 0.40,
     tdDef: s.otda ? 1 - s.otd/s.otda : 0.55, sub15: s.sub*d/min*15,
-    elo: s.elo, form: s.res.slice(-5).reduce((x,y)=>x+y,0),
     kd15: s.kd*d/min*15, okd15: s.okd*d/min*15,
-    ctrlR: (s.ctrl/60)*d/min, octrlR: (s.octrl/60)*d/min,
+    ctrlR: (s.ctrl/60)*d/min, octrlR: (s.octrl/60)*d/min }),
+    elo: s.elo, form: s.res.slice(-5).reduce((x,y)=>x+y,0),
   });
 };
 const logit = p => Math.log(Math.max(1e-6, Math.min(1-1e-6, p)) / (1 - Math.max(1e-6, Math.min(1-1e-6, p))));
@@ -102,6 +106,16 @@ const logit = p => Math.log(Math.max(1e-6, Math.min(1-1e-6, p)) / (1 - Math.max(
 const streak = res => { let n = 0; for (let i = res.length-1; i >= 0; i--) { if (res[i] === 0) break; if (n === 0) n = res[i]; else if (Math.sign(res[i]) === Math.sign(n)) n += res[i]; else break; } return n; };
 const rows = [];
 const t0 = Date.now();
+// league-average priors (a prior on rates, not outcome info) for --shrink
+const P = (() => { let m=0,sl=0,sa=0,td=0,tda=0,sub=0,kd=0,ct=0;
+  for (const { r } of bouts) { const ba = boutAgg.get(r.EVENT.trim()+"|"+r.BOUT.trim()); if (!ba || ba.size !== 2) continue;
+    const mins = (Math.max(1,+r.ROUND||1)-1)*5 + (()=>{const t=(r.TIME||"0:00").split(":");return (+t[0]||0)+(+t[1]||0)/60;})();
+    for (const a of ba.values()) { m+=mins; sl+=a.sl; sa+=a.sa; td+=a.td; tda+=a.tda; sub+=a.sub; kd+=a.kd; ct+=a.ctrl/60; } }
+  return { sl:sl/m, sa:sa/m, acc:sl/sa, td:td/m, tda:tda/m, tdacc:td/tda, sub:sub/m, kd:kd/m, ctrl:ct/m }; })();
+const shrunk = (s, d) => { const M = s.time*d, r = (c, p) => (c + p*SH) / (M + SH), q = (k, n, p, n0) => (k + p*n0) / (n + n0);
+  return { slpm:r(s.sl*d,P.sl), sapm:r(s.osl*d,P.sl), acc:q(s.sl,s.sa,P.acc,SH*P.sa), def:1-q(s.osl,s.osa,P.acc,SH*P.sa),
+    td15:15*r(s.td*d,P.td), tdAcc:q(s.td,s.tda,P.tdacc,SH*P.tda), tdDef:1-q(s.otd,s.otda,P.tdacc,SH*P.tda), sub15:15*r(s.sub*d,P.sub),
+    kd15:15*r(s.kd*d,P.kd), okd15:15*r(s.okd*d,P.kd), ctrlR:r(s.ctrl/60*d,P.ctrl), octrlR:r(s.octrl/60*d,P.ctrl) }; };
 for (const { r, date } of bouts) {
   const names = r.BOUT.split(" vs. ").map(x=>x.trim());
   if (names.length !== 2) continue;
@@ -188,6 +202,18 @@ for (let it = 0; it < 3000; it++) {
 const FEAT = ["logit(pSim)","eloGap/100","youth/5","reach/5","form/3","rust/12","exp","winrate*4","ctrlDom"];
 console.log("\ncoefficients:"); FEAT.forEach((f,i)=>console.log("  " + f.padEnd(12), b[i].toFixed(4)));
 
+const fitRows = trainRows => {
+  const m = trainRows.flatMap(r => [r, { x: r.x.map(v=>-v), y: 1 - r.y }]);
+  const w = new Array(D).fill(0);
+  for (let it = 0; it < 3000; it++) {
+    const g = new Array(D).fill(0);
+    for (const r of m) { const e = sig(r.x.reduce((s,v,i)=>s+v*w[i],0)) - r.y; for (let i = 0; i < D; i++) g[i] += e * r.x[i]; }
+    for (let i = 0; i < D; i++) w[i] -= LR * (g[i]/m.length + L2*w[i]);
+  }
+  return w;
+};
+console.log("\nPRODUCTION B_COEF (fit on all " + rows.length + " rows, 2019->now):", JSON.stringify(fitRows(rows).map(v => +v.toFixed(4))));
+
 function evalSet(set, fn, label) {
   let hit = 0, ll = 0;
   for (const r of set) {
@@ -224,16 +250,7 @@ console.log("\ncoefficients saved to ufc-eval-coefs.json");
 // For each year Y (2021..now) fit the logistic head ONLY on fights before Y, then predict
 // every fight in Y. Every probability is genuinely pre-fight; nothing is fit on its own year.
 if (process.argv.includes("--dump")) {
-  const fitLogit = trainRows => {
-    const m = trainRows.flatMap(r => [r, { x: r.x.map(v=>-v), y: 1 - r.y }]);
-    const w = new Array(D).fill(0);
-    for (let it = 0; it < 3000; it++) {
-      const g = new Array(D).fill(0);
-      for (const r of m) { const e = sig(r.x.reduce((s,v,i)=>s+v*w[i],0)) - r.y; for (let i = 0; i < D; i++) g[i] += e * r.x[i]; }
-      for (let i = 0; i < D; i++) w[i] -= LR * (g[i]/m.length + L2*w[i]);
-    }
-    return w;
-  };
+  const fitLogit = fitRows;
   const out = [];
   for (let Y = 2021; Y <= TODAY.getFullYear(); Y++) {
     const cut = new Date(`${Y}-01-01`), next = new Date(`${Y+1}-01-01`);

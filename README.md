@@ -4,8 +4,10 @@ A self-contained UFC fight predictor. Pick any two active fighters and it runs a
 10,000-fight Monte Carlo simulation blended with a trained outcome model (Elo, age,
 reach, recent form, ring rust, experience, octagon control) to produce win
 probabilities, American odds, the likely method/round, and the stats that drove the
-pick. Validated at **65.8% accuracy** on 585 held-out real fights (Jan 2025–Jun 2026,
-no data leakage). All data and logic live in one file — `index.html` runs offline in
+pick. Picks ~66% of winners on 741 held-out real fights (Jan 2025 onward, no data
+leakage) — the betting market is sharper still, so the built-in odds calculator anchors
+the model to the moneyline; that anchored blend returned +9% ROI at opening lines in a
+walk-forward backtest against real BestFightOdds lines (`market-eval.mjs`). All data and logic live in one file — `index.html` runs offline in
 any browser.
 
 ## Use it right now (no setup)

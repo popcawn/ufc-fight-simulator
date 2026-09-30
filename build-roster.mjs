@@ -12,8 +12,8 @@ const ROOT = import.meta.dirname.replace(/\\/g, "/"); // repo folder, works on W
 const BASE = "https://raw.githubusercontent.com/Greco1899/scrape_ufc_stats/main/";
 const DIR = ROOT + "/ufc-data/";
 const HTML_PATH = ROOT + "/index.html";
-const CUTOFF = new Date("2024-06-01"); // "active" = fought in the last ~24 months
 const TODAY = new Date();
+const CUTOFF = new Date(TODAY.getTime() - 730*864e5); // "active" = fought in the last 24 months (rolling)
 const HL = 730, ELO_K = 40;
 
 // Fresh download by default so a stale cache can never silently produce a wrong roster.
@@ -91,6 +91,7 @@ for (const { r, date } of bouts) {
     }
     s.time += mins; s.last = date;
     if (wcM) s.div = wcM[0];
+    (s.opps ||= []).push(on);
   });
   if (out === "W/L" || out === "L/W") {
     const [win, lose] = out === "W/L" ? [sA,sB] : [sB,sA];
@@ -105,6 +106,22 @@ for (const { r, date } of bouts) {
   }
 }
 
+// ---- rate shrinkage (MUST match eval.mjs: SH=20, same league priors and formulas) ----
+// Pulls per-minute rates toward the league average as if SH extra average minutes were fought,
+// so a one-fight sample can't produce "30 sub attempts per 15". Validated in eval.mjs.
+const SH = 20;
+const P = (() => { let m=0,sl=0,sa=0,td=0,tda=0,sub=0,kd=0,ct=0;
+  for (const { r } of bouts) { const ba = boutAgg.get(r.EVENT.trim()+"|"+r.BOUT.trim()); if (!ba || ba.size !== 2) continue;
+    const mins = (Math.max(1,+r.ROUND||1)-1)*5 + (()=>{const t=(r.TIME||"0:00").split(":");return (+t[0]||0)+(+t[1]||0)/60;})();
+    for (const a of ba.values()) { m+=mins; sl+=a.sl; sa+=a.sa; td+=a.td; tda+=a.tda; sub+=a.sub; kd+=a.kd; ct+=a.ctrl/60; } }
+  return { sl:sl/m, sa:sa/m, acc:sl/sa, td:td/m, tda:tda/m, tdacc:td/tda, sub:sub/m, kd:kd/m, ctrl:ct/m }; })();
+const shrunk = (s, d) => { const M = s.time*d, r = (c, p) => (c + p*SH) / (M + SH), q = (k, n, p, n0) => (k + p*n0) / (n + n0);
+  return { slpm:r(s.sl*d,P.sl), sapm:r(s.osl*d,P.sl), acc:q(s.sl,s.sa,P.acc,SH*P.sa), def:1-q(s.osl,s.osa,P.acc,SH*P.sa),
+    td15:15*r(s.td*d,P.td), tdAcc:q(s.td,s.tda,P.tdacc,SH*P.tda), tdDef:1-q(s.otd,s.otda,P.tdacc,SH*P.tda), sub15:15*r(s.sub*d,P.sub),
+    kd15:15*r(s.kd*d,P.kd), okd15:15*r(s.okd*d,P.kd), ctrlR:r(s.ctrl/60*d,P.ctrl), octrlR:r(s.octrl/60*d,P.ctrl) }; };
+// catchweight-only fighters: take the division of their most recent opponent that has one
+const oppDiv = s => { for (let i = (s.opps||[]).length-1; i >= 0; i--) { const o = S.get(s.opps[i]); if (o && o.div) return o.div; } return null; };
+
 // ---- emit active roster ----
 const medHt = { "Heavyweight":75,"Light Heavyweight":75,"Middleweight":73,"Welterweight":71,"Lightweight":70,"Featherweight":68,"Bantamweight":67,"Flyweight":66,"Women's Featherweight":68,"Women's Bantamweight":66,"Women's Flyweight":65,"Women's Strawweight":64 };
 // current win/loss streak: consecutive same-sign results from the most recent fight (+N win, -N loss)
@@ -113,22 +130,20 @@ const rows = [];
 for (const [name, s] of S) {
   if (!s.last || s.last < CUTOFF) continue;
   const t = tape.get(name) || {};
-  const div = s.div || "Unknown";
+  const div = s.div || oppDiv(s) || "Unknown";
   const ht = inches(t.HEIGHT) || medHt[div] || 70;
   const reach = inches(t.REACH) || ht;
   const stance = /South/i.test(t.STANCE||"") ? "S" : /Switch/i.test(t.STANCE||"") ? "X" : "O";
   const dob = t.DOB && t.DOB !== "--" ? new Date(t.DOB) : null;
   const age = dob && !isNaN(dob) ? Math.floor((TODAY - dob)/31557600000) : 30;
-  const min = Math.max(1, s.time);
+  const sh = shrunk(s, decayTo(s, TODAY));
   rows.push([name, div, age, ht, reach, stance, s.w, s.l, s.koW, s.subW, s.koL, s.subL,
-    +(s.sl/min).toFixed(2), +(s.osl/min).toFixed(2),
-    s.sa ? +(s.sl/s.sa).toFixed(2) : 0.45, s.osa ? +(1-s.osl/s.osa).toFixed(2) : 0.55,
-    +(s.td/min*15).toFixed(2), s.tda ? +(s.td/s.tda).toFixed(2) : 0.40,
-    s.otda ? +(1-s.otd/s.otda).toFixed(2) : 0.55, +(s.sub/min*15).toFixed(2),
+    +sh.slpm.toFixed(2), +sh.sapm.toFixed(2), +sh.acc.toFixed(2), +sh.def.toFixed(2),
+    +sh.td15.toFixed(2), +sh.tdAcc.toFixed(2), +sh.tdDef.toFixed(2), +sh.sub15.toFixed(2),
     Math.round(s.elo), s.res.slice(-5).reduce((x,y)=>x+y,0),
     +((TODAY - s.last)/86400000/30.44).toFixed(1), streak(s.res),
-    +(s.kd/min*15).toFixed(3), +(s.okd/min*15).toFixed(3),     // knockdowns scored / absorbed per 15min
-    +((s.ctrl/60)/min).toFixed(3), +((s.octrl/60)/min).toFixed(3)]); // control min / fight min, for & against
+    +sh.kd15.toFixed(3), +sh.okd15.toFixed(3),                  // knockdowns scored / absorbed per 15min
+    +sh.ctrlR.toFixed(3), +sh.octrlR.toFixed(3)]);               // control min / fight min, for & against
 }
 rows.sort((x,y) => x[0].localeCompare(y[0]));
 console.log(`Active roster: ${rows.length} fighters (fought since ${CUTOFF.toISOString().slice(0,10)})`);
@@ -138,14 +153,10 @@ for (const n of ["Max Holloway","Merab Dvalishvili","Alex Pereira","Tom Aspinall
 }
 writeFileSync(ROOT + "/ufc-roster.json", JSON.stringify(rows));
 
-// ---- inject into HTML + verify backtest names ----
+// ---- inject into HTML ----
 let html = readFileSync(HTML_PATH, "utf8");
 const re = /const F = \[[\s\S]*?\n\];/;
 if (!re.test(html)) { console.error("FATAL: F array not found in HTML"); process.exit(1); }
 html = html.replace(re, "const F = [\n" + rows.map(r => JSON.stringify(r)).join(",\n") + "\n];");
 writeFileSync(HTML_PATH, html);
-const names = new Set(rows.map(r => r[0]));
-const btNames = [...html.matchAll(/^\["([^"]+)","([^"]+)","(?:KO|SUB|DEC)","\d{4}-\d{2}"\]/gm)].flatMap(m => [m[1], m[2]]);
-const missing = [...new Set(btNames.filter(n => !names.has(n)))];
-console.log(missing.length ? "BACKTEST NAMES MISSING: " + missing.join(", ") : "All backtest names resolve.");
 console.log("DONE — full roster injected.");
