@@ -52,7 +52,7 @@ automatically. To update on demand, go to the **Actions** tab → **Update stats
 
 ## Update the data manually (local)
 
-Requires [Node.js](https://nodejs.org) (v20+).
+Requires [Node.js](https://nodejs.org) (v20+; the Actions use v24).
 
 ```sh
 node build-roster.mjs    # always re-downloads current data, recomputes roster, rewrites index.html
