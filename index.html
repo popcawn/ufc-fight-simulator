@@ -1151,6 +1151,17 @@ const DIVW = { "Strawweight":115, "Women's Strawweight":115, "Flyweight":125, "W
   "Bantamweight":135, "Women's Bantamweight":135, "Featherweight":145, "Women's Featherweight":145,
   "Lightweight":155, "Welterweight":170, "Middleweight":185, "Light Heavyweight":205, "Heavyweight":245 };
 const divWt = f => DIVW[f.div] || 170;
+// Weight-class gap. One division apart is a routine real fight (someone moves up or down), and in real UFC
+// fights since 2021 movers UP won more than expected (57% vs 50% model / 51% betting line; movers down 44% vs
+// 48%) — so adjacent divisions get NO size adjustment. Only fantasy gaps of 2+ divisions are size-adjusted,
+// and only for the weight beyond one division's worth (e.g. flyweight vs heavyweight: the 80 lb beyond LHW).
+const LADDER = [...new Set(Object.values(DIVW))].sort((a, b) => a - b);
+const divSteps = (A, B) => Math.abs(LADDER.indexOf(divWt(A)) - LADDER.indexOf(divWt(B)));
+function sizeLogit(A, B){
+  const wa = divWt(A), wb = divWt(B), hi = Math.max(LADDER.indexOf(wa), LADDER.indexOf(wb));
+  if(divSteps(A, B) <= 1) return 0;
+  return 0.055 * Math.sign(wa - wb) * (LADDER[hi - 1] - Math.min(wa, wb));
+}
 function blend(pSim, A, B){
   const x = [
     logit(pSim),                                        // Monte Carlo engine
@@ -1163,8 +1174,7 @@ function blend(pSim, A, B){
     (wRate(A) - wRate(B))*4,                            // win rate
     (ctrlDom(A) - ctrlDom(B))*2,                        // net octagon-control dominance
   ];
-  const sizeLogit = 0.055 * (divWt(A) - divWt(B));      // cross-division size prior (0 for same division)
-  return sig(x.reduce((s,v,i)=>s+v*B_COEF[i],0) + sizeLogit);
+  return sig(x.reduce((s,v,i)=>s+v*B_COEF[i],0) + sizeLogit(A, B));
 }
 
 // ---- SIMULATION ENGINE ----
@@ -1551,7 +1561,8 @@ $("go").onclick = () => {
   $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b> (${pct(topMC)} of their wins)${rdTxt} &middot; ${confTxt}`;
   const womens = f => /^Women's/.test(f.div);
   $("xdiv").textContent = womens(A) !== womens(B) ? `⚠ Men's vs women's fantasy matchup — the model has no data for this and can't size-adjust across divisions of different genders. Entertainment only.`
-    : A.div !== B.div ? `⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — win % is adjusted for the ${Math.abs(divWt(A)-divWt(B))}lb weight-class gap, but the model is trained on same-division fights, so treat it as a rough estimate.` : "";
+    : A.div !== B.div && divSteps(A, B) <= 1 ? `ℹ One division apart (${A.div} vs ${B.div}) — no size adjustment. In real UFC fights since 2021, fighters moving UP a division won slightly more than expected (57% vs ~50%) and movers down slightly less, so a booked fight like this is scored straight up.`
+    : A.div !== B.div ? `⚠ Fantasy matchup ${divSteps(A, B)} divisions apart (${A.div} vs ${B.div}) — win % is adjusted for the ~${LADDER[Math.max(LADDER.indexOf(divWt(A)), LADDER.indexOf(divWt(B))) - 1] - Math.min(divWt(A), divWt(B))}lb of size beyond one division's worth. The model is trained on same-division fights, so treat it as a rough estimate.` : "";
 
   $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c)}</span></div>`).join("");
   const rdAll = {};
