@@ -265,7 +265,7 @@
         <thead><tr><th>Outcome</th><th>Fair %</th><th>Fair odds</th><th>Book odds</th><th>Mkt %</th><th>EV</th></tr></thead>
         <tbody id="calcBody"></tbody>
       </table></div>
-      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
+      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market; props are only judged once both distance prices (yes/no) are in too · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
     </div>
   </section>
 </main>
@@ -1337,6 +1337,24 @@ function propsFor(t, pA, A, B){
     [`${B.name} by KO/TKO or submission`, koB+subB], [`${B.name} by KO/TKO or decision`, koB+decB], [`${B.name} by submission or decision`, subB+decB],
   ];
 }
+// Re-balance the method props to two anchors: each fighter's win % (rows) and the market-anchored chance the
+// fight goes the distance (columns) — iterative proportional fitting on [finish, decision] x [A, B]; KO vs sub
+// keeps the model's split. Without this, the model's finish odds (calibrated on past fights, but blunter than
+// the books') make decision / distance props look like value whenever the books expect a finish.
+function reshapeProps(props, pA, pD){
+  const g = i => props[i][1];
+  const t = [[g(2) + g(3), g(4)], [g(5) + g(6), g(7)]];
+  for(let k = 0; k < 40; k++){
+    const rA = pA / (t[0][0] + t[0][1]), rB = (1 - pA) / (t[1][0] + t[1][1]);
+    t[0][0] *= rA; t[0][1] *= rA; t[1][0] *= rB; t[1][1] *= rB;
+    const cF = (1 - pD) / (t[0][0] + t[1][0]), cD = pD / (t[0][1] + t[1][1]);
+    t[0][0] *= cF; t[1][0] *= cF; t[0][1] *= cD; t[1][1] *= cD;
+  }
+  const split = (ko, sub, fin) => ko + sub > 0 ? [fin * ko / (ko + sub), fin * sub / (ko + sub)] : [fin / 2, fin / 2];
+  const [koA, subA] = split(g(2), g(3), t[0][0]), [koB, subB] = split(g(5), g(6), t[1][0]), decA = t[0][1], decB = t[1][1];
+  const v = [pA, 1 - pA, koA, subA, decA, koB, subB, decB, decA + decB, 1 - decA - decB, koA + subA, koA + decA, subA + decA, koB + subB, koB + decB, subB + decB];
+  return props.map((p, i) => [p[0], v[i]]);
+}
 let calcProps = [], calcA = null, calcB = null, calcT = null;
 // Double-chance rows (index 10+) collapse on shorter screens so the calculator fits without scrolling.
 let dcPicked = false; // true once the user has chosen (clicked the toggle, now or on a past visit)
@@ -1442,18 +1460,18 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
 // Anchored mode (moneyline or opening line entered) uses the backtested rule: TAKE at >=3% EV on the
 // market-anchored probability, half stake when a fighter has <4 UFC fights (edge positive but weaker). Anchoring replaces the old "heavy favorite disagreement" heuristic — the blend shrinks the
 // model toward the market automatically. Unanchored mode keeps the stricter 4% bar.
-function verdictFor(entered, A, B, pA, anchor){
+function verdictFor(entered, A, B, pA, anchor, propsOK){
   if(!entered.length) return { status:"none" };
   const minFights = Math.min(A.w + A.l, B.w + B.l);
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
   const lowData = minFights < 4;
-  const rel = i => ((i >= 2 && i <= 7) || i >= 10) ? 0.7 : 1.0; // method props + double-chance combos are the noisier part of the model
+  const rel = i => i >= 2 ? 0.7 : 1.0; // every prop (method, distance, double chance) is the noisier part of the model
   const TH = anchor ? 0.03 : 0.04;
 
   entered.forEach(e => {
     e.kelly = e.ev / (e.dec - 1);
     e.score = e.kelly * rel(e.i);
-    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < TH ? "thin" : "take";
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : (e.i >= 2 && !propsOK) ? "unanch" : e.ev < TH ? "thin" : "take";
   });
   const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
 
@@ -1469,6 +1487,9 @@ function verdictFor(entered, A, B, pA, anchor){
     return { status:"take", title: half ? "TAKE — HALF STAKE (THIN DATA)" : "TAKE THIS BET", bestIndex:best.i, body:
       `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly${half ? ", halved" : ""}, capped at 3%).${thinNote}${extra}${propNote}` };
   }
+  const un = entered.filter(e => e.tag === "unanch" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
+  if(un) return { status:"caution", title:"PROP NOT ANCHORED — NO BET YET", body:
+    `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines <b>and</b> both "Goes the distance" / "Inside the distance" prices. Unanchored, the model leans toward decisions compared with the books: its finish odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
   const tooGood = entered.find(e => e.tag === "toogood");
   if(tooGood) return { status:"pass", title:"PASS", body:
     `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
@@ -1488,11 +1509,15 @@ function computeVerdict(){
   const pModel = calcProps.length ? calcProps[0][1] : 0.5;
   const anchor = calcT ? anchorOf(decs) : null;
   const pStar = anchor ? sig(anchor.w[0]*logit(anchor.pMkt) + anchor.w[1]*logit(pModel)) : pModel;
-  const props = anchor ? propsFor(calcT, pStar, calcA, calcB) : calcProps; // method splits rescaled to the anchored win %
+  let props = anchor ? propsFor(calcT, pStar, calcA, calcB) : calcProps; // method splits rescaled to the anchored win %
+  // distance anchor: no prop-line history to fit weights, so it borrows the market-heavy fight-week moneyline blend
+  const dist = (decs[8] && decs[9]) ? { pMkt: noVig(decs[8], decs[9]), pModel: props[8][1] } : null;
+  if(dist){ dist.p = sig(W_CUR[0]*logit(dist.pMkt) + W_CUR[1]*logit(dist.pModel)); props = reshapeProps(props, props[0][1], dist.p); }
+  const propsOK = !!anchor && !!dist;
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
-  const v = verdictFor(entered, calcA, calcB, pStar, anchor);
+  const v = verdictFor(entered, calcA, calcB, pStar, anchor, propsOK);
   // anchor status line (one line; the backtest detail lives in the hover tooltip)
   const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
   an.title = !anchor ? "" : anchor.kind === "open"
@@ -1502,6 +1527,7 @@ function computeVerdict(){
     ? (entered.length ? `⚠ <b>Not anchored</b> — enter both moneylines (raw model edges lost money in backtesting).` : "")
     : `⚓ <b>${anchor.kind === "open" ? "Opening-line" : "Fight-week"} anchor</b> · ${calcA.name}: market ${(anchor.pMkt*100).toFixed(1)}% → blend <b>${(pStar*100).toFixed(1)}%</b> (raw model ${(pModel*100).toFixed(1)}%)`
       + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn(TRACK.anch3.roi)}% ROI` : "");
+  if(dist) an.innerHTML += ` · distance: market ${(dist.pMkt*100).toFixed(1)}% → <b>${(dist.p*100).toFixed(1)}%</b> (model ${(dist.pModel*100).toFixed(1)}%)`;
   // style every row, reconciled with the verdict
   calcProps.forEach((p,i) => {
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
@@ -1512,6 +1538,7 @@ function computeVerdict(){
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
+    else if(e.tag === "unanch"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ⚠ unanchored"; ev.className = "evcell suspect"; }
     else if(v.status === "take"){
       if(i === v.bestIndex){ ev.textContent = "★ BEST +"+(e.ev*100).toFixed(1)+"%"; ev.className = "evcell best"; } // the one to bet if you only bet one
       else { ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ✓ value"; ev.className = "evcell ok"; }
