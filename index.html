@@ -1159,15 +1159,19 @@ const pathTxt = f => f.path ? f.path.split("|").map(x => { const [d, n] = x.spli
 // Weight-class gap, measured from each fighter's ORIGINAL division (lightest with 2+ UFC fights), in real UFC
 // fights since 2021 (walk-forward model + closing line both checked):
 //   1 class apart: none. Movers up a class won MORE than expected (57% vs 50%), movers down less (44% vs 48%).
-//   2 classes: fighters 2+ classes above where they started won 36% vs 50% expected (small sample, n=25);
-//     fitted 0.011 logit per lb beyond one class (95% range up to 0.041) -> 0.02 used (slightly cautious).
-//   3+ classes: pure fantasy, no data -> 0.055 per lb beyond one class.
+//   2+ classes: fighters 2+ classes above where they started won 36% vs 50% expected (small sample, n=25);
+//     fitted 0.011 logit per lb beyond one class (95% up to 0.041) -> 0.02/lb, CAPPED at 0.6 logit. Checked on all
+//     2,391 held-out fights: improves accuracy and log loss (the 38 it changes: 57.9% -> 68.4%), anchored ROI
+//     8.9% -> 9.7%. An uncapped 0.055/lb was overconfident on the 3+ class real fights (log loss 0.69 -> 1.04).
+//   Past 45 lb beyond one class (the biggest gap any real UFC fight has had): fantasy -> +0.15/lb so a
+//     flyweight vs a heavyweight still reads as a mismatch. No data out there; real-fight range is untouched.
 const LADDER = [...new Set(Object.values(DIVW))].sort((a, b) => a - b);
 const divSteps = (A, B) => Math.abs(LADDER.indexOf(sizeWt(A)) - LADDER.indexOf(sizeWt(B)));
 const sizeExcess = (A, B) => { const hi = Math.max(LADDER.indexOf(sizeWt(A)), LADDER.indexOf(sizeWt(B))); return LADDER[hi - 1] - Math.min(sizeWt(A), sizeWt(B)); };
 function sizeLogit(A, B){
-  const st = divSteps(A, B); if(st <= 1) return 0;
-  return (st === 2 ? 0.02 : 0.055) * Math.sign(sizeWt(A) - sizeWt(B)) * sizeExcess(A, B);
+  if(divSteps(A, B) <= 1) return 0;
+  const ex = sizeExcess(A, B);
+  return Math.sign(sizeWt(A) - sizeWt(B)) * (Math.min(0.6, 0.02 * ex) + 0.15 * Math.max(0, ex - 45));
 }
 function blend(pSim, A, B){
   const x = [
@@ -1570,7 +1574,7 @@ $("go").onclick = () => {
   const womens = f => /^Women's/.test(f.div);
   const natTxt = f => `${f.name.split(" ").pop()}: ${pathTxt(f)}`;
   $("xdiv").textContent = womens(A) !== womens(B) ? `⚠ Men's vs women's fantasy matchup — the model has no data for this and can't size-adjust across divisions of different genders. Entertainment only.`
-    : divSteps(A, B) >= 3 ? `⚠ Fantasy matchup ${divSteps(A, B)} divisions apart (${natTxt(A)} vs ${natTxt(B)}) — win % is adjusted for the ~${sizeExcess(A, B)}lb of size beyond one division's worth. The model is trained on same-division fights, so treat it as a rough estimate.`
+    : divSteps(A, B) >= 3 ? `⚠ ${divSteps(A, B)} divisions apart by original weight class (${natTxt(A)} vs ${natTxt(B)}) — win % is trimmed for the ~${sizeExcess(A, B)}lb of size beyond one class${sizeExcess(A, B) > 45 ? " (a bigger gap than any real UFC fight — fantasy)" : ""}. The model is trained on same-division fights, so treat it as a rough estimate.`
     : divSteps(A, B) === 2 ? `⚠ Two divisions apart by original weight class (${natTxt(A)} vs ${natTxt(B)}). Fighters 2+ classes above where they started have won 36% vs 50% expected since 2021 (small sample), so win % is trimmed for the ~${sizeExcess(A, B)}lb beyond one class.`
     : divSteps(A, B) === 1 || A.div !== B.div ? `ℹ One division apart by original weight class (${natTxt(A)} vs ${natTxt(B)}) — no size adjustment. In real UFC fights since 2021, fighters moving UP a division won slightly more than expected (57% vs ~50%) and movers down slightly less, so a fight like this is scored straight up.` : "";
 
