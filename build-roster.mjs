@@ -90,7 +90,7 @@ for (const { r, date } of bouts) {
       s.kd+=mine.kd; s.okd+=theirs.kd; s.ctrl+=mine.ctrl; s.octrl+=theirs.ctrl;
     }
     s.time += mins; s.last = date;
-    if (wcM) s.div = wcM[0];
+    if (wcM) { s.div = wcM[0]; (s.divs ||= []).push(wcM[0]); }
     (s.opps ||= []).push(on);
   });
   if (out === "W/L" || out === "L/W") {
@@ -130,6 +130,10 @@ const streak = res => { let n = 0; for (let i = res.length-1; i >= 0; i--) { if 
 // tested as a model feature: more accurate raw picks, but no betting edge (books already price it) -> not in the model
 const ESPN = existsSync(ROOT + "/espn-history.json") ? JSON.parse(readFileSync(ROOT + "/espn-history.json", "utf8")) : {};
 const outside = n => { const h = ESPN[n]; if (!h || !h.f) return [-1, -1]; return [h.f.filter(x => x[1] === "W").length, h.f.filter(x => x[1] === "L").length]; };
+// natural division for SIZE purposes: most common division in the last 5 UFC fights (ties -> most recent).
+// The roster's div is the LAST fight's division; e.g. Topuria (3 of last 5 at featherweight) is a natural FW.
+const homeOf = s => { const L = (s.divs || []).slice(-5); if (!L.length) return null; const c = {}; L.forEach(d => c[d] = (c[d] || 0) + 1);
+  return L.slice().reverse().reduce((best, d) => c[d] > c[best] ? d : best, L[L.length - 1]); };
 const rows = [];
 for (const [name, s] of S) {
   if (!s.last || s.last < CUTOFF) continue;
@@ -148,7 +152,7 @@ for (const [name, s] of S) {
     +((TODAY - s.last)/86400000/30.44).toFixed(1), streak(s.res),
     +sh.kd15.toFixed(3), +sh.okd15.toFixed(3),                  // knockdowns scored / absorbed per 15min
     +sh.ctrlR.toFixed(3), +sh.octrlR.toFixed(3),                // control min / fight min, for & against
-    ...outside(name)]);                                          // outside-UFC wins, losses (-1 = unknown)
+    ...outside(name), homeOf(s) || s.div || oppDiv(s) || "Unknown"]);           // + natural division (size)                                          // outside-UFC wins, losses (-1 = unknown)
 }
 rows.sort((x,y) => x[0].localeCompare(y[0]));
 console.log(`Active roster: ${rows.length} fighters (fought since ${CUTOFF.toISOString().slice(0,10)})`);
