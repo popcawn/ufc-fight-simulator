@@ -1510,9 +1510,10 @@ function computeVerdict(){
   const anchor = calcT ? anchorOf(decs) : null;
   const pStar = anchor ? sig(anchor.w[0]*logit(anchor.pMkt) + anchor.w[1]*logit(pModel)) : pModel;
   let props = anchor ? propsFor(calcT, pStar, calcA, calcB) : calcProps; // method splits rescaled to the anchored win %
-  // distance anchor: no prop-line history to fit weights, so it borrows the market-heavy fight-week moneyline blend
+  // distance anchor: no prop-line history to fit weights, so a plain market-heavy blend (80/20) that always lands
+  // between market and model — the moneyline weights (sum > 1, fit to the favorite-longshot bias) don't transfer
   const dist = (decs[8] && decs[9]) ? { pMkt: noVig(decs[8], decs[9]), pModel: props[8][1] } : null;
-  if(dist){ dist.p = sig(W_CUR[0]*logit(dist.pMkt) + W_CUR[1]*logit(dist.pModel)); props = reshapeProps(props, props[0][1], dist.p); }
+  if(dist){ dist.p = sig(0.8*logit(dist.pMkt) + 0.2*logit(dist.pModel)); props = reshapeProps(props, props[0][1], dist.p); }
   const propsOK = !!anchor && !!dist;
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
