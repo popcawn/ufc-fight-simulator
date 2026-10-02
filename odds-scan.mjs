@@ -13,7 +13,10 @@ if (!KEY) { console.log("::warning::ODDS_API_KEY not set — add it under repo S
 
 const url = `https://api.the-odds-api.com/v4/sports/mma_mixed_martial_arts/odds?regions=us,us2&markets=h2h,totals&oddsFormat=decimal&apiKey=${KEY}`;
 const res = await fetch(url);
-if (!res.ok) { console.log(`::error::Odds API ${res.status}: ${(await res.text()).slice(0, 200)}`); process.exit(1); }
+if (!res.ok) { // out of monthly credits / bad key: warn instead of failing every run; the app flags odds older than 36h
+  const msg = (await res.text()).slice(0, 200);
+  if (res.status === 401 || res.status === 429) { console.log(`::warning::Odds API ${res.status}: ${msg}`); process.exit(0); }
+  console.log(`::error::Odds API ${res.status}: ${msg}`); process.exit(1); }
 const feed = await res.json(), now = new Date().toISOString();
 
 const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : null;
@@ -39,8 +42,8 @@ for (const e of feed) {
     for (const [pt, v] of Object.entries(t)) if (v[0] > 1 && v[1] > 1) (f.tot[bk.key] ||= {})[pt] = v;
   }
 }
-// keep finished fights 45 days (closing lines for the bet log), then drop
-const cutoff = Date.now() - 45 * 864e5;
+// keep finished fights 60 days (closing lines for the bet log), then drop
+const cutoff = Date.now() - 60 * 864e5;
 for (const [id, f] of Object.entries(fights)) if (new Date(f.t).getTime() < cutoff) delete fights[id];
 
 const books = { ...(prev ? prev.books : {}) };

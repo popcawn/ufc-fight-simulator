@@ -18,10 +18,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
-      - name: Fetch pro histories for new fighters (ESPN, cached)
-        run: node espn-history.mjs
-      - name: Rebuild roster from latest UFCStats data
+      - name: Rebuild roster from latest UFCStats data (downloads the CSVs)
         run: node build-roster.mjs
+      - name: Fetch pro histories for new fighters (ESPN, cached; never blocks the roster update)
+        run: node espn-history.mjs || echo "::warning::ESPN history step failed — roster still updates, pro records catch up next week"
+      - name: Re-inject the roster with any new pro histories (reuses the downloaded CSVs)
+        run: node build-roster.mjs --cache
       - name: Commit if the roster changed
         run: |
           git config user.name  "ufc-stats-bot"
@@ -31,5 +33,6 @@ jobs:
             echo "No changes — roster already current."
           else
             git commit -m "Auto-update roster ($(date -u +%Y-%m-%d))"
+            git pull --rebase -q   # the odds bot commits twice a day; don't let its push race ours
             git push
           fi

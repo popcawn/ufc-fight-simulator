@@ -2,11 +2,12 @@ name: Scan odds
 
 # Pulls current MMA moneylines from US sportsbooks into odds.json for the app's "This week" scanner.
 # Twice a day catches new opening lines within ~12h (openers post a median 12 days before the fight).
-# Needs the repo secret ODDS_API_KEY (Settings > Secrets and variables > Actions). 4 API credits per run (~240/month).
+# Needs the repo secret ODDS_API_KEY (Settings > Secrets and variables > Actions). 4 API credits per run, 3 runs/day (~370 of the free 500/month).
 on:
   schedule:
     - cron: "0 13 * * *"   # 13:00 UTC daily
     - cron: "0 1 * * *"    # 01:00 UTC daily
+    - cron: "0 19 * * *"   # 19:00 UTC daily (GitHub often runs schedules hours late; 3 runs keep lines fresh, ~370 credits/month)
   workflow_dispatch: {}     # "Run workflow" button on the Actions tab
 
 permissions:
