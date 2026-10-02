@@ -265,7 +265,7 @@
         <thead><tr><th>Outcome</th><th>Fair %</th><th>Fair odds</th><th>Book odds</th><th>Mkt %</th><th>EV</th></tr></thead>
         <tbody id="calcBody"></tbody>
       </table></div>
-      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market; props are only judged once both distance prices (yes/no) are in too · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
+      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market; props are only judged once both distance prices and all three of that fighter's method prices are in too · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
     </div>
   </section>
 </main>
@@ -1460,7 +1460,7 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
 // Anchored mode (moneyline or opening line entered) uses the backtested rule: TAKE at >=3% EV on the
 // market-anchored probability, half stake when a fighter has <4 UFC fights (edge positive but weaker). Anchoring replaces the old "heavy favorite disagreement" heuristic — the blend shrinks the
 // model toward the market automatically. Unanchored mode keeps the stricter 4% bar.
-function verdictFor(entered, A, B, pA, anchor, propsOK){
+function verdictFor(entered, A, B, pA, anchor, eligible){
   if(!entered.length) return { status:"none" };
   const minFights = Math.min(A.w + A.l, B.w + B.l);
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
@@ -1471,7 +1471,7 @@ function verdictFor(entered, A, B, pA, anchor, propsOK){
   entered.forEach(e => {
     e.kelly = e.ev / (e.dec - 1);
     e.score = e.kelly * rel(e.i);
-    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : (e.i >= 2 && !propsOK) ? "unanch" : e.ev < TH ? "thin" : "take";
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
   });
   const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
 
@@ -1489,7 +1489,7 @@ function verdictFor(entered, A, B, pA, anchor, propsOK){
   }
   const un = entered.filter(e => e.tag === "unanch" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
   if(un) return { status:"caution", title:"PROP NOT ANCHORED — NO BET YET", body:
-    `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines <b>and</b> both "Goes the distance" / "Inside the distance" prices. Unanchored, the model leans toward decisions compared with the books: its finish odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
+    `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines, both "Goes the distance" / "Inside the distance" prices, <b>and all three of that fighter's method prices</b> (KO/TKO, sub, decision). Unanchored, the model's finish and method odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
   const tooGood = entered.find(e => e.tag === "toogood");
   if(tooGood) return { status:"pass", title:"PASS", body:
     `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
@@ -1510,15 +1510,28 @@ function computeVerdict(){
   const anchor = calcT ? anchorOf(decs) : null;
   const pStar = anchor ? sig(anchor.w[0]*logit(anchor.pMkt) + anchor.w[1]*logit(pModel)) : pModel;
   let props = anchor ? propsFor(calcT, pStar, calcA, calcB) : calcProps; // method splits rescaled to the anchored win %
+  // method-split anchor: with all three of a fighter's method prices in (KO/TKO, sub, decision), de-vig them into
+  // the books' split of HIS wins and blend it 80/20 (geometric) with the model's. The split is the least reliable part
+  // of the model (no prop-line history), so his method / double-chance rows are only judged once it's anchored.
+  const splitOK = [0, 1].map(s => {
+    const r = s ? [5, 6, 7] : [2, 3, 4]; if(!r.every(i => decs[i])) return false;
+    const pX = s ? 1 - props[0][1] : props[0][1], q = r.map(i => 1 / decs[i]), qs = q[0] + q[1] + q[2];
+    const w = r.map((i, k) => Math.exp(0.8 * Math.log(q[k] / qs) + 0.2 * Math.log(Math.max(1e-4, props[i][1] / pX)))), ws = w[0] + w[1] + w[2];
+    props = props.map((p, i) => r.includes(i) ? [p[0], pX * w[r.indexOf(i)] / ws] : p);
+    return true;
+  });
+  if(splitOK[0] || splitOK[1]) props = reshapeProps(props, props[0][1], props[4][1] + props[7][1]); // rebuild distance + double-chance rows
   // distance anchor: no prop-line history to fit weights, so a plain market-heavy blend (80/20) that always lands
   // between market and model — the moneyline weights (sum > 1, fit to the favorite-longshot bias) don't transfer
   const dist = (decs[8] && decs[9]) ? { pMkt: noVig(decs[8], decs[9]), pModel: props[8][1] } : null;
   if(dist){ dist.p = sig(0.8*logit(dist.pMkt) + 0.2*logit(dist.pModel)); props = reshapeProps(props, props[0][1], dist.p); }
-  const propsOK = !!anchor && !!dist;
+  // a prop row can be a bet only when every anchor it depends on is in: moneyline + distance, plus that fighter's
+  // method split for his method and double-chance rows
+  const eligible = i => i < 2 || (!!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1])));
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
-  const v = verdictFor(entered, calcA, calcB, pStar, anchor, propsOK);
+  const v = verdictFor(entered, calcA, calcB, pStar, anchor, eligible);
   // anchor status line (one line; the backtest detail lives in the hover tooltip)
   const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
   an.title = !anchor ? "" : anchor.kind === "open"
@@ -1529,6 +1542,7 @@ function computeVerdict(){
     : `⚓ <b>${anchor.kind === "open" ? "Opening-line" : "Fight-week"} anchor</b> · ${calcA.name}: market ${(anchor.pMkt*100).toFixed(1)}% → blend <b>${(pStar*100).toFixed(1)}%</b> (raw model ${(pModel*100).toFixed(1)}%)`
       + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn(TRACK.anch3.roi)}% ROI` : "");
   if(dist) an.innerHTML += ` · distance: market ${(dist.pMkt*100).toFixed(1)}% → <b>${(dist.p*100).toFixed(1)}%</b> (model ${(dist.pModel*100).toFixed(1)}%)`;
+  [calcA, calcB].forEach((f, s) => { if(splitOK[s]) an.innerHTML += ` · ${f.name.split(" ").pop()} method split ✓`; });
   // style every row, reconciled with the verdict
   calcProps.forEach((p,i) => {
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
