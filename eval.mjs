@@ -25,6 +25,9 @@ const html = readFileSync(HTML_PATH, "utf8");
 const scr = html.match(/<script>([\s\S]*)<\/script>/)[1];
 const el = () => new Proxy({ classList:{add(){},remove(){}}, style:{}, addEventListener(){}, appendChild(){}, scrollIntoView(){} }, { get(t,k){ return k in t ? t[k] : (t[k]=""); }, set(t,k,v){ t[k]=v; return true; } });
 globalThis.document = { getElementById: el, createElement: () => el() };
+// --seed=N: deterministic simulations (identical random draws every run) for exact with/without comparisons
+const SEED = (process.argv.find(a => a.startsWith("--seed=")) || "").slice(7);
+if (SEED) { let s = (+SEED >>> 0) || 1; Math.random = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const { simulate, derive } = new Function(scr + "; return {simulate, derive};")();
 
 // ---- data ---- (fresh download by default; --cache reuses local snapshot for fast dev)
@@ -109,6 +112,7 @@ const t0 = Date.now();
 // --pre: pre-UFC / outside-the-UFC pro record (regional + Contender Series) from espn-history.json, counted
 // only from fights BEFORE each bout's date (no look-ahead). --pre=thin weights it toward low-UFC-experience fights.
 const PRE = (process.argv.find(a => a.startsWith("--pre")) || "").replace(/^--pre=?/, "") || (process.argv.includes("--pre") ? "on" : "");
+const KOF = process.argv.includes("--kofeat"); // test: "lost his last fight by KO" as a model input
 const ESPN = PRE && existsSync(ROOT + "/espn-history.json") ? JSON.parse(readFileSync(ROOT + "/espn-history.json", "utf8")) : {};
 const outRec = (n, date) => { const hh = ESPN[n], d = date.toISOString().slice(0, 10); let w = 0, l = 0, fin = 0;
   if (hh && hh.f) for (const [dt, r, , m] of hh.f) { if (dt >= d) break; if (r === "W") { w++; if (m === "K" || m === "S") fin++; } else if (r === "L") l++; }
@@ -155,6 +159,7 @@ for (const { r, date } of bouts) {
           const th = PRE === "thin" ? 3 / (3 + Math.min(sA.w + sA.l, sB.w + sB.l)) : 1;
           return [ (sw(oA) - sw(oB)) * 4 * th,                                                          // 9 outside win-rate edge
                    (Math.sqrt(sA.w + sA.l + oA.w + oA.l) - Math.sqrt(sB.w + sB.l + oB.w + oB.l)) / 2 * th ]; })() : []), // 10 total pro experience edge
+        ...(KOF ? [(sB.lastLossKO ? 1 : 0) - (sA.lastLossKO ? 1 : 0)] : []), // opponent coming off a KO loss (+) / me (-)
         // NOTE: net knockdown differential tested as a 10th feature — coefficient ~0.01,
         // redundant with the sim's power/KO model, no accuracy gain. Dropped.
         // NOTE: current streak tested as a feature — redundant with form (#4),
@@ -169,6 +174,12 @@ for (const { r, date } of bouts) {
       sh: [t.mA.KO/Math.max(1,t.A), t.mA.SUB/Math.max(1,t.A), t.mA.DEC/Math.max(1,t.A), t.mB.KO/Math.max(1,t.B), t.mB.SUB/Math.max(1,t.B), t.mB.DEC/Math.max(1,t.B)],
       tend: [[sA.koW, sA.subW, sA.w, sA.koL, sA.subL, sA.l], [sB.koW, sB.subW, sB.w, sB.koL, sB.subL, sB.l]], // career finish/finished mix at fight time
       snap: nR === 5 ? [A, B] : null,         // 5-round snapshots for format tuning
+      // fighter profiles at fight time, for bias checks (output only — not model inputs)
+      at: { ageA: A.age, ageB: B.age, reachA: A.reach, reachB: B.reach, htA: A.ht, htB: B.ht, layA: +layoff(sA).toFixed(1), layB: +layoff(sB).toFixed(1),
+            stA: A.stance, stB: B.stance, td15A: +A.td15.toFixed(2), td15B: +B.td15.toFixed(2), slpmA: +A.slpm.toFixed(2), slpmB: +B.slpm.toFixed(2),
+            sapmA: +A.sapm.toFixed(2), sapmB: +B.sapm.toFixed(2), sub15A: +A.sub15.toFixed(2), sub15B: +B.sub15.toFixed(2),
+            eloA: Math.round(sA.elo), eloB: Math.round(sB.elo), wA: sA.w, lA: sA.l, wB: sB.w, lB: sB.l, koWA: sA.koW, koWB: sB.koW, koLA: sA.koL, koLB: sB.koL,
+            strA: streak(sA.res), strB: streak(sB.res), koLastA: sA.lastLossKO ? 1 : 0, koLastB: sB.lastLossKO ? 1 : 0 },
       rdp: [1, 2, 3, 4, 5].slice(0, nR).map(k => ((t.rdA[k] || 0) + (t.rdB[k] || 0)) / (t.A + t.B)), // sim finish chance by round
       tm: (Math.max(1, +r.ROUND || 1) - 1) * 5 + (() => { const q = (r.TIME || "0:00").split(":"); return (+q[0] || 0) + (+q[1] || 0) / 60; })(), // minutes elapsed at the end
     });
@@ -191,7 +202,7 @@ for (const { r, date } of bouts) {
     const [win, lose] = out === "W/L" ? [sA,sB] : [sB,sA];
     win.w++; lose.l++;
     if (isKO) { win.koW++; lose.koL++; } if (isSub) { win.subW++; lose.subL++; }
-    win.res.push(1); lose.res.push(-1);
+    win.res.push(1); lose.res.push(-1); win.lastLossKO = false; lose.lastLossKO = isKO;
     const e = eloP(win.elo, lose.elo);
     win.elo += ELO_K*(1-e); lose.elo -= ELO_K*(1-e);
   } else if (out === "D/D") {
@@ -218,7 +229,7 @@ for (let it = 0; it < 3000; it++) {
   }
   for (let i = 0; i < D; i++) b[i] -= LR * (g[i]/tr.length + L2*b[i]);
 }
-const FEAT = ["logit(pSim)","eloGap/100","youth/5","reach/5","form/3","rust/12","exp","winrate*4","ctrlDom","outsideWR","proExp"];
+const FEAT = ["logit(pSim)","eloGap/100","youth/5","reach/5","form/3","rust/12","exp","winrate*4","ctrlDom", ...(PRE ? ["outsideWR","proExp"] : []), ...(KOF ? ["koLast"] : [])];
 console.log("\ncoefficients:"); FEAT.slice(0, b.length).forEach((f,i)=>console.log("  " + f.padEnd(12), b[i].toFixed(4)));
 
 const fitRows = trainRows => {
@@ -276,7 +287,7 @@ if (process.argv.includes("--dump")) {
     const w = fitLogit(rows.filter(r => r.date < cut));
     for (const r of rows.filter(r => r.date >= cut && r.date < next))
       out.push({ date: r.date.toISOString().slice(0,10), a: r.fa, b: r.fb, p: +sig(r.x.reduce((s,v,i)=>s+v*w[i],0)).toFixed(4), y: r.y, mf: r.mf,
-        nR: r.nR, div: r.div, rd: r.rd, oc: Number.isNaN(r.oc) ? -1 : r.oc, sh: r.sh.map(v => +v.toFixed(3)), tend: r.tend, rdp: r.rdp.map(v => +v.toFixed(4)), tm: +r.tm.toFixed(2) });
+        nR: r.nR, div: r.div, rd: r.rd, oc: Number.isNaN(r.oc) ? -1 : r.oc, sh: r.sh.map(v => +v.toFixed(3)), tend: r.tend, rdp: r.rdp.map(v => +v.toFixed(4)), tm: +r.tm.toFixed(2), at: r.at });
   }
   writeFileSync(ROOT + "/ufc-eval-preds.json", JSON.stringify(out));
   // 5-round fighter snapshots (all years) so the 5-round engine can be tuned without re-running everything

@@ -6,7 +6,7 @@ reach, recent form, ring rust, experience, octagon control) to produce win
 probabilities, American odds, the likely method/round, and the stats that drove the
 pick. Picks ~66% of winners on 741 held-out real fights (Jan 2025 onward, no data
 leakage) — the betting market is sharper still, so the built-in odds calculator anchors
-the model to the moneyline; that anchored blend returned +9% ROI at opening lines in a
+the model to the moneyline; betting that anchored blend at opening lines when its edge is 5–20% returned +15% ROI (573 bets, every year 2022–26 positive) in a
 walk-forward backtest against real BestFightOdds lines (`market-eval.mjs`). All data and logic live in one file — `index.html` runs offline in
 any browser.
 

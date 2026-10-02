@@ -63,21 +63,34 @@ for (const r of F) {
 }
 // ---- calibrated method head (must match methodShares() in index.html) ----
 const BASE = { 3: [0.31, 0.185, 0.505], 5: [0.40, 0.15, 0.45] }, K = 5, FL = 0.01;
+// variants tested 2026-10-02 (bias hunt: women's fights got 24.5% KO odds vs 13.7% real):
+//   --divbase     shrink each career mix toward its division+gender's own mix (earlier years only)
+//   --genderbase  shrink toward the men's / women's mix (earlier years only)
+//   --womenbias   two extra numbers: KO and submission offsets for women's fights
+// ADOPTED: gender base (improved every log loss in both 2022-23 and 2024-26; women's KO odds 24.5% -> 16.7% vs 13.7% real).
+// --formatbase restores the old single league-wide average.
+const DIVB = process.argv.includes("--divbase"), GENB = !process.argv.includes("--formatbase") && !DIVB, WB = process.argv.includes("--womenbias");
+const isW = r => /Women/.test(r.div || ""), NP = WB ? 9 : 7;
+const genderSplit = (year, w, f) => { const key = `g|${year}|${w}|${f}`; if (splitCache.has(key)) return splitCache.get(key);
+  const c = [1, 1, 1]; for (const h of hist) if (h.y < year && h.f === f && /Women/.test(h.div) === w) c[h.k]++;
+  const n = c[0] + c[1] + c[2], s = c.map(x => x / n); splitCache.set(key, s); return s; };
+const baseOf = r => DIVB ? divSplit(+r.date.slice(0, 4), r.div, r.nR) : GENB ? genderSplit(+r.date.slice(0, 4), isW(r), r.nR) : BASE[r.nR];
 const mixOf = (k1, k2, n, b) => { const d = Math.max(0, n - k1 - k2); return [(k1 + K*b[0])/(n+K), (k2 + K*b[1])/(n+K), (d + K*b[2])/(n+K)]; };
-const feats = (sh, tW, tL, f) => { const b = BASE[f], w = mixOf(tW[0], tW[1], tW[2], b), l = mixOf(tL[3], tL[4], tL[5], b);
+const feats = (sh, tW, tL, b) => { const w = mixOf(tW[0], tW[1], tW[2], b), l = mixOf(tL[3], tL[4], tL[5], b);
   return [0, 1, 2].map(m => [Math.log(Math.max(FL, sh[m])), Math.log(w[m]), Math.log(l[m])]); };
 const softmax = z => { const mx = Math.max(...z), e = z.map(v => Math.exp(v - mx)), s = e.reduce((a, b) => a + b, 0); return e.map(v => v / s); };
-const headShares = (th, Fm, f) => softmax([0, 1, 2].map(m => th[0]*Fm[m][0] + th[1]*Fm[m][1] + th[2]*Fm[m][2] + (m < 2 ? th[f === 5 ? 5 + m : 3 + m] : 0)));
-const sideFeats = (r, side) => side === 0 ? feats(r.sh.slice(0, 3), r.tend[0], r.tend[1], r.nR) : feats(r.sh.slice(3), r.tend[1], r.tend[0], r.nR);
+const headShares = (th, Fm, f, w) => softmax([0, 1, 2].map(m => th[0]*Fm[m][0] + th[1]*Fm[m][1] + th[2]*Fm[m][2] + (m < 2 ? th[f === 5 ? 5 + m : 3 + m] + (w && NP > 7 ? th[7 + m] : 0) : 0)));
+const sideFeats = (r, side) => side === 0 ? feats(r.sh.slice(0, 3), r.tend[0], r.tend[1], baseOf(r)) : feats(r.sh.slice(3), r.tend[1], r.tend[0], baseOf(r));
 function fitHead(S) { // conditional on the actual winner: which method did they win by?
-  const ex = S.map(r => ({ Fm: sideFeats(r, r.oc < 3 ? 0 : 1), f: r.nR, m: r.oc % 3 }));
-  const th = [1, 0, 0, 0, 0, 0, 0];
+  const ex = S.map(r => ({ Fm: sideFeats(r, r.oc < 3 ? 0 : 1), f: r.nR, m: r.oc % 3, w: isW(r) }));
+  const th = new Array(NP).fill(0); th[0] = 1;
   for (let it = 0; it < 2500; it++) {
-    const g = new Array(7).fill(0);
-    for (const e of ex) { const p = headShares(th, e.Fm, e.f);
+    const g = new Array(NP).fill(0);
+    for (const e of ex) { const p = headShares(th, e.Fm, e.f, e.w);
       for (let m = 0; m < 3; m++) { const d = p[m] - (m === e.m ? 1 : 0);
-        g[0] += d*e.Fm[m][0]; g[1] += d*e.Fm[m][1]; g[2] += d*e.Fm[m][2]; if (m < 2) g[e.f === 5 ? 5 + m : 3 + m] += d; } }
-    for (let k = 0; k < 7; k++) th[k] -= 0.8 * g[k] / ex.length;
+        g[0] += d*e.Fm[m][0]; g[1] += d*e.Fm[m][1]; g[2] += d*e.Fm[m][2];
+        if (m < 2) { g[e.f === 5 ? 5 + m : 3 + m] += d; if (e.w && NP > 7) g[7 + m] += d; } } }
+    for (let k = 0; k < NP; k++) th[k] -= 0.8 * g[k] / ex.length;
   }
   return th.map(v => +v.toFixed(4));
 }
@@ -85,9 +98,11 @@ const years = [...new Set(F.map(r => +r.date.slice(0, 4)))].sort();
 for (const Y of years.slice(1)) {
   const th = fitHead(F.filter(r => +r.date.slice(0, 4) < Y));
   for (const r of F.filter(r => +r.date.slice(0, 4) === Y))
-    r.P.head = six(r.p, headShares(th, sideFeats(r, 0), r.nR), headShares(th, sideFeats(r, 1), r.nR));
+    r.P.head = six(r.p, headShares(th, sideFeats(r, 0), r.nR, isW(r)), headShares(th, sideFeats(r, 1), r.nR, isW(r)));
 }
 F = F.filter(r => r.P.head);   // score every model on the same walk-forward years
+const YR = (process.argv.find(a => a.startsWith("--years=")) || "").slice(8).split("-").map(Number); // e.g. --years=2022-2023
+if (YR.length === 2 && YR[0]) F = F.filter(r => +r.date.slice(0, 4) >= YR[0] && +r.date.slice(0, 4) <= YR[1]);
 
 const ll = (S, k, f) => S.reduce((s, r) => s - Math.log(f(r.P[k], r)), 0) / S.length;
 const oc6 = (P, r) => P[r.oc];                                           // exact: winner + method
@@ -102,6 +117,16 @@ for (const [lab, f] of [["winner + method (6-way)", oc6], ["method only (KO/SUB/
     const S = F.filter(r => r.nR === fmt);
     console.log(`  ${lab.padEnd(26)} ${fmt}-rd n=${String(S.length).padStart(4)}  ` + kinds.map(k => `${k} ${ll(S, k, f).toFixed(4)}`).join("   "));
   }
+}
+// trouble spots found by the bias hunt: predicted vs actual for the calibrated head
+{ const G = (lab, S, m) => { if (S.length < 40) return; const pr = S.reduce((s, r) => s + (m === 2 ? r.P.head[2] + r.P.head[5] : r.P.head[m] + r.P.head[m + 3]), 0) / S.length, ac = S.filter(r => r.oc % 3 === m).length / S.length;
+    const se = Math.sqrt(S.reduce((s, r) => { const q = m === 2 ? r.P.head[2] + r.P.head[5] : r.P.head[m] + r.P.head[m + 3]; return s + q*(1-q); }, 0)) / S.length;
+    console.log(`  ${lab.padEnd(34)} n=${String(S.length).padStart(4)} predicted ${(100*pr).toFixed(1)}% actual ${(100*ac).toFixed(1)}% (z ${((ac-pr)/se).toFixed(1)})`); };
+  console.log("\nTROUBLE SPOTS (calibrated head):");
+  const W = F.filter(r => /Women/.test(r.div)), M = F.filter(r => !/Women/.test(r.div));
+  G("women's: ends by KO/TKO", W, 0); G("women's: goes the distance", W, 2); G("men's: ends by KO/TKO", M, 0); G("men's: goes the distance", M, 2);
+  for (const dv of ["Heavyweight", "Light Heavyweight", "Middleweight", "Welterweight", "Lightweight", "Featherweight", "Bantamweight", "Flyweight"]) {
+    const S = F.filter(r => r.div === dv); G(`${dv}: ends by KO/TKO`, S, 0); G(`${dv}: goes the distance`, S, 2); }
 }
 // calibration: every outcome probability the sim assigned vs how often it happened
 const bands = [[0, .05], [.05, .10], [.10, .15], [.15, .20], [.20, .30], [.30, .45], [.45, 1]], names = ["KO", "SUB", "DEC"];
@@ -144,6 +169,10 @@ console.log(`\nPRODUCTION M_COEF (all years): ${JSON.stringify(PROD)}   [sim, wi
 if (process.argv.includes("--apply")) {
   const idx = ROOT + "/index.html", src = readFileSync(idx, "utf8"), re = /\/\*MCOEF\*\/[\s\S]*?\/\*END_MCOEF\*\//;
   if (!re.test(src)) { console.log("index.html has no /*MCOEF*/ marker"); process.exit(1); }
-  writeFileSync(idx, src.replace(re, `/*MCOEF*/${JSON.stringify(PROD)}/*END_MCOEF*/`));
-  console.log("M_COEF written to index.html");
+  let out = src.replace(re, `/*MCOEF*/${JSON.stringify(PROD)}/*END_MCOEF*/`);
+  const GB = {}; for (const w of [false, true]) for (const f of [3, 5]) GB[(w ? "W" : "M") + f] = genderSplit(9999, w, f).map(v => +v.toFixed(4));
+  const gre = /\/\*GBASE\*\/[\s\S]*?\/\*END_GBASE\*\//; if (!gre.test(out)) { console.log("index.html has no /*GBASE*/ marker"); process.exit(1); }
+  out = out.replace(gre, `/*GBASE*/${JSON.stringify(GB)}/*END_GBASE*/`);
+  writeFileSync(idx, out);
+  console.log("M_COEF + GBASE written to index.html", JSON.stringify(GB));
 }

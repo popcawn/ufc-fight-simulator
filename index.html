@@ -208,7 +208,7 @@
       <div class="tblwrap" id="wkbody"></div>
       <div class="slip" id="slip"></div>
     </div>
-    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 3%+. <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. The model's round timing is calibrated on ~2,000 past fights but much blunter than the books, and there's no prop-line history to prove an edge, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
+    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. The model's round timing is calibrated on ~2,000 past fights but much blunter than the books, and there's no prop-line history to prove an edge, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
   </div>
 </div>
 <div class="modal hidden" id="betcard" role="dialog" aria-modal="true" aria-label="My bets">
@@ -1311,9 +1311,12 @@ const evAt = (prob, am) => { const d = amToDec(am); return d===null ? null : pro
 // own record predicts HOW he wins better. A 7-number softmax blends the sim's split with the winner's career
 // finishing mix and the loser's career history of being finished, per format. Validated walk-forward on
 // ~2,000 held-out fights. Refit: node eval.mjs --dump && node prop-eval.mjs --apply
-const M_COEF = /*MCOEF*/[0.1321,0.8343,0.504,0.1559,0.4126,-0.0837,0.2207]/*END_MCOEF*/;
+const M_COEF = /*MCOEF*/[0.1482,0.7512,0.4151,0.1287,0.2601,-0.3153,-0.0958]/*END_MCOEF*/;
+// men's / women's KO-SUB-DEC mix per format, the shrink target for short careers (women's fights finish by KO far
+// less often: one league-wide average gave them 24.5% KO odds vs 13.7% real). Written by prop-eval.mjs --apply.
+const GBASE = /*GBASE*/{"M3":[0.3325,0.1854,0.4821],"M5":[0.4638,0.1546,0.3816],"W3":[0.1673,0.1932,0.6396],"W5":[0.2637,0.2088,0.5275]}/*END_GBASE*/;
 function methodShares(t, side, W, L){ // share of W's wins that come by [KO, SUB, DEC]
-  const base = t.nR === 5 ? [0.40, 0.15, 0.45] : [0.31, 0.185, 0.505], K = 5, c = M_COEF;
+  const base = GBASE[(/^Women's/.test(W.div) ? "W" : "M") + (t.nR === 5 ? 5 : 3)], K = 5, c = M_COEF;
   const n = side === "A" ? t.A : t.B, m = side === "A" ? t.mA : t.mB;
   const sim = [m.KO, m.SUB, m.DEC].map(x => Math.log(Math.max(0.01, n ? x/n : 0)));
   const mix = (k1, k2, tot) => { const d = Math.max(0, tot - k1 - k2); return [(k1 + K*base[0])/(tot+K), (k2 + K*base[1])/(tot+K), (d + K*base[2])/(tot+K)]; };
@@ -1466,12 +1469,12 @@ function verdictFor(entered, A, B, pA, anchor, eligible){
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
   const lowData = minFights < 4;
   const rel = i => i >= 2 ? 0.7 : 1.0; // every prop (method, distance, double chance) is the noisier part of the model
-  const TH = anchor ? 0.03 : 0.04;
+  const TH = 0.05; // the rule: 5-20% edges (3-5% lost money in the backtest; 20%+ lost too)
 
   entered.forEach(e => {
     e.kelly = e.ev / (e.dec - 1);
     e.score = e.kelly * rel(e.i);
-    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.20 ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
   });
   const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
 
@@ -1488,11 +1491,12 @@ function verdictFor(entered, A, B, pA, anchor, eligible){
       `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly${half ? ", halved" : ""}, capped at 3%).${thinNote}${extra}${propNote}` };
   }
   const un = entered.filter(e => e.tag === "unanch" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
-  if(un) return { status:"caution", title:"PROP NOT ANCHORED — NO BET YET", body:
-    `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines, both "Goes the distance" / "Inside the distance" prices, <b>and all three of that fighter's method prices</b> (KO/TKO, sub, decision). Unanchored, the model's finish and method odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
+  if(un) return { status:"caution", title: un.i < 2 ? "NOT ANCHORED — NO BET YET" : "PROP NOT ANCHORED — NO BET YET", body: un.i < 2
+    ? `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but that's the raw model alone — enter <b>both</b> moneylines so it's anchored to the market. Raw model edges lost money in every backtest.`
+    : `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines, both "Goes the distance" / "Inside the distance" prices, <b>and all three of that fighter's method prices</b> (KO/TKO, sub, decision). Unanchored, the model's finish and method odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
   const tooGood = entered.find(e => e.tag === "toogood");
   if(tooGood) return { status:"pass", title:"PASS", body:
-    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
+    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is over 20% — in the backtest, edges that big lost money: it's usually the model being wrong, not free money. Pass.` };
   if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", body:
     `Only razor-thin edges (under ${TH*100}%) — inside the margin of error. Not worth a bet.` };
   return { status:"pass", title:"PASS", body: anchor
@@ -1527,7 +1531,7 @@ function computeVerdict(){
   if(dist){ dist.p = sig(0.8*logit(dist.pMkt) + 0.2*logit(dist.pModel)); props = reshapeProps(props, props[0][1], dist.p); }
   // a prop row can be a bet only when every anchor it depends on is in: moneyline + distance, plus that fighter's
   // method split for his method and double-chance rows
-  const eligible = i => i < 2 || (!!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1])));
+  const eligible = i => i < 2 ? !!anchor : (!!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1]))); // raw (unanchored) edges lost money in every backtest
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
@@ -1535,12 +1539,12 @@ function computeVerdict(){
   // anchor status line (one line; the backtest detail lives in the hover tooltip)
   const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
   an.title = !anchor ? "" : anchor.kind === "open"
-    ? (TRACK ? `Backtested rule: ${sgn(TRACK.anch3.roi)}% ROI on ≥3% edges at the open, beating the closing line ${TRACK.anch3.clv}% of the time (${TRACK.bFrom || TRACK.from.slice(0,4)}–${TRACK.to.slice(0,4)}).` : "Backtested rule.")
+    ? (TRACK ? `Backtested rule: ${sgn((TRACK.rule || TRACK.anch3).roi)}% ROI on 5–20% edges at the open, beating the closing line ${(TRACK.rule || TRACK.anch3).clv}% of the time (${TRACK.bFrom || TRACK.from.slice(0,4)}–${TRACK.to.slice(0,4)}).` : "Backtested rule.")
     : "Conservative blend (the model barely moves a fight-week line). Betting early at the opener? Switch the timing above for the stronger, backtested version.";
   an.innerHTML = !anchor
     ? (entered.length ? `⚠ <b>Not anchored</b> — enter both moneylines (raw model edges lost money in backtesting).` : "")
     : `⚓ <b>${anchor.kind === "open" ? "Opening-line" : "Fight-week"} anchor</b> · ${calcA.name}: market ${(anchor.pMkt*100).toFixed(1)}% → blend <b>${(pStar*100).toFixed(1)}%</b> (raw model ${(pModel*100).toFixed(1)}%)`
-      + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn(TRACK.anch3.roi)}% ROI` : "");
+      + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn((TRACK.rule || TRACK.anch3).roi)}% ROI` : "");
   if(dist) an.innerHTML += ` · distance: market ${(dist.pMkt*100).toFixed(1)}% → <b>${(dist.p*100).toFixed(1)}%</b> (model ${(dist.pModel*100).toFixed(1)}%)`;
   [calcA, calcB].forEach((f, s) => { if(splitOK[s]) an.innerHTML += ` · ${f.name.split(" ").pop()} method split ✓`; });
   // style every row, reconciled with the verdict
@@ -1687,7 +1691,7 @@ $("go").onclick = () => {
 };
 
 // ---- TRACK RECORD (written by `node market-eval.mjs --apply` — do not edit by hand) ----
-const TRACK = /*TRACK*/{"asOf":"2026-09-30","n":2202,"bFrom":"2022","from":"2021-01-16","to":"2026-09-19","model":{"acc":62.4,"ll":0.6461},"open":{"acc":65.8,"ll":0.6197},"close":{"acc":68.7,"ll":0.5907},"toward15":64,"rawOpen":{"n":1945,"roi":-3.1,"clv":54},"rawClose":{"n":1981,"roi":-11.9,"clv":null},"anch3":{"n":854,"roi":8.6,"clv":70},"anch5":{"n":632,"roi":11.2,"clv":71},"est":{"n":513,"roi":11.6,"clv":69},"thin":{"n":341,"roi":4,"clv":72},"byYear":[{"y":2022,"n":220,"roi":-3.5,"clv":69},{"y":2023,"n":134,"roi":10.7,"clv":63},{"y":2024,"n":176,"roi":8.9,"clv":74},{"y":2025,"n":151,"roi":23.2,"clv":74},{"y":2026,"n":173,"roi":9.2,"clv":69}]}/*END_TRACK*/;
+const TRACK = /*TRACK*/{"asOf":"2026-10-02","n":2202,"bFrom":"2022","from":"2021-01-16","to":"2026-09-19","model":{"acc":62,"ll":0.6461},"open":{"acc":65.8,"ll":0.6197},"close":{"acc":68.7,"ll":0.5907},"toward15":63,"rawOpen":{"n":1942,"roi":-2.8,"clv":54},"rawClose":{"n":1977,"roi":-12.2,"clv":null},"rule":{"n":573,"roi":14.8,"clv":72},"anch3":{"n":858,"roi":8.5,"clv":70},"anch5":{"n":638,"roi":12,"clv":71},"est":{"n":342,"roi":16.4,"clv":72},"thin":{"n":231,"roi":12.4,"clv":72},"byYear":[{"y":2022,"n":151,"roi":7.5,"clv":72},{"y":2023,"n":89,"roi":16.1,"clv":65},{"y":2024,"n":108,"roi":10.1,"clv":79},{"y":2025,"n":103,"roi":26,"clv":70},{"y":2026,"n":122,"roi":17.6,"clv":71}]}/*END_TRACK*/;
 $("bt").onclick = () => {
   const T = TRACK;
   if(!T){ $("btacc").textContent = "No track record yet"; $("btsum").textContent = "Run: node eval.mjs --dump && node market-eval.mjs --apply"; $("btbody").innerHTML = ""; $("btyear").innerHTML = ""; }
@@ -1695,18 +1699,19 @@ $("bt").onclick = () => {
     const f = x => (x >= 0 ? "+" : "") + x + "%";
     const row = (lab, a, b) => `<tr><td>${lab}</td><td>${a}</td><td>${b}</td></tr>`;
     const bet = (lab, s) => `<tr><td>${lab}</td><td>${s.n}</td><td class="${s.roi >= 0 ? "ok" : "miss"}">${f(s.roi)}</td><td>${s.clv != null ? s.clv + "%" : "—"}</td></tr>`;
-    $("btacc").innerHTML = `${f(T.anch3.roi)} ROI <span style="font-size:16px;color:var(--dim)">on market-anchored edges</span>`;
-    $("btsum").innerHTML = `${T.anch3.n} bets at the opening line (edge ≥3%), ${T.bFrom || T.from.slice(0,4)}–${T.to.slice(0,4)} · beat the closing line ${T.anch3.clv}% of the time · ${T.n} fights matched to real BestFightOdds lines · updated ${T.asOf}`;
+    const RU = T.rule || T.anch3;
+    $("btacc").innerHTML = `${f(RU.roi)} ROI <span style="font-size:16px;color:var(--dim)">on market-anchored edges</span>`;
+    $("btsum").innerHTML = `${RU.n} bets at the opening line (edge 5–20%), ${T.bFrom || T.from.slice(0,4)}–${T.to.slice(0,4)} · beat the closing line ${RU.clv}% of the time · ${T.n} fights matched to real BestFightOdds lines · updated ${T.asOf}`;
     $("btbody").innerHTML =
       `<h4 class="bth">Who predicts winners better?</h4><table><thead><tr><th></th><th>Accuracy</th><th>Log loss (lower = better)</th></tr></thead><tbody>` +
       row("This model (raw)", T.model.acc + "%", T.model.ll) + row("Opening line", T.open.acc + "%", T.open.ll) + row("Closing line", T.close.acc + "%", T.close.ll) +
       `</tbody></table><p class="note">The books win head-to-head — but when the model disagrees with the opener by 15+ points, the line moves its way ${T.toward15}% of the time before fight night.</p>` +
       `<h4 class="bth">Betting results (flat 1 unit, cross-book average line)</h4><table><thead><tr><th>Strategy</th><th>Bets</th><th>ROI</th><th>Beat close</th></tr></thead><tbody>` +
       bet("Raw model edges, bet at the close", T.rawClose) + bet("Raw model edges, bet at the open", T.rawOpen) +
-      bet("<b>Anchored edges ≥3%, at the open</b>", T.anch3) + bet("Anchored edges ≥5%, at the open", T.anch5) +
+      (T.rule ? bet("<b>Anchored edges 5–20%, at the open (the rule)</b>", T.rule) : "") + bet("Anchored edges ≥3%, at the open (old rule)", T.anch3) + bet("Anchored edges ≥5%, at the open", T.anch5) +
       bet("…both fighters 4+ UFC fights", T.est) + bet("…a fighter with 1–3 UFC fights", T.thin) +
       `</tbody></table>`;
-    $("btyear").innerHTML = `<h4 class="bth">Anchored edges ≥3% by year</h4><table><thead><tr><th>Year</th><th>Bets</th><th>ROI</th><th>Beat close</th></tr></thead><tbody>` +
+    $("btyear").innerHTML = `<h4 class="bth">The rule (5–20% edges) by year</h4><table><thead><tr><th>Year</th><th>Bets</th><th>ROI</th><th>Beat close</th></tr></thead><tbody>` +
       T.byYear.map(y => bet(String(y.y), y)).join("") + `</tbody></table>`;
   }
   $("btcard").classList.remove("hidden");
@@ -1798,7 +1803,7 @@ function scoreFight(id, f){
   row.thin = Math.min(A.w + A.l, B.w + B.l) < 4;
   row.pick = row.side[0].ev >= row.side[1].ev ? 0 : 1;
   const e = row.side[row.pick].ev;
-  row.take = e >= 0.03 && e <= 0.50 && !row.xdiv && !row.noBook; // same rule as the calculator (>50% = model error, not value)
+  row.take = e >= 0.05 && e <= 0.20 && !row.xdiv && !row.noBook; // same rule as the calculator: 5-20% edges
   row.stake = row.take ? Math.min(3, 25 * row.side[row.pick].kelly * (row.thin ? 0.5 : 1)) : 0;
   row.totals = totalsFor(row, A, Bs, id);
   return row;
