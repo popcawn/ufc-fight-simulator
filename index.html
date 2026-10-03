@@ -134,6 +134,12 @@
   .note{font-size:12px; color:var(--dim); margin-top:8px; line-height:1.55;} .note b{color:var(--text);}
 
 
+  /* ---- Classic sim: the frozen Sept 28 version, full-screen inside the new sim ---- */
+  .classic{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column;}
+  .classic-bar{display:flex; align-items:center; gap:12px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; flex:none;}
+  .classic-title{font-weight:800; letter-spacing:1px; color:var(--gold); font-size:14px;} .classic-title .sub{letter-spacing:0; margin-left:6px; font-weight:400;}
+  #classicOpen{margin-left:auto; color:var(--dim); font-size:12px; text-decoration:none;} #classicOpen:hover{color:var(--text);}
+  .classic iframe{flex:1; width:100%; border:0; background:var(--bg);}
   /* ---- This week (card scanner) · parlay slip · My bets ---- */
   .modal-box.wide{max-width:1400px;}
   .wkgrid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; margin-top:10px; align-items:start;}
@@ -194,10 +200,19 @@
   <button id="go">SIMULATE</button>
   <button id="wk" class="secondary" title="Every UFC line from US sportsbooks, scanned with the backtested rule">This week</button>
   <button id="mb" class="secondary" title="Your logged bets and closing-line value">My bets</button>
+  <button id="classicBtn" class="secondary" title="The original sim, frozen as of Sept 28: raw-model calculator, no market anchoring">Classic</button>
   <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
   <div class="err" id="err"></div>
 </header>
 
+<div class="classic hidden" id="classicView" role="dialog" aria-modal="true" aria-label="Classic sim">
+  <div class="classic-bar">
+    <button class="secondary" id="classicBack">← Back to new sim</button>
+    <span class="classic-title">CLASSIC SIM <span class="sub">frozen Sept 28 version · raw-model calculator, no market anchoring · fighter stats as of Sept 28</span></span>
+    <a id="classicOpen" href="classic.html" target="_blank" rel="noopener">Open in new tab ↗</a>
+  </div>
+  <iframe id="classicFrame" title="Classic UFC sim"></iframe>
+</div>
 <div class="modal hidden" id="wkcard" role="dialog" aria-modal="true" aria-label="This week's UFC lines">
   <div class="modal-box wide">
     <button class="close" id="wkclose" aria-label="Close">×</button>
@@ -2027,6 +2042,13 @@ function attachSearch(id){
   inp.addEventListener("blur", () => setTimeout(close, 100));
 }
 attachSearch("fa"); attachSearch("fb");
+
+// ---- CLASSIC SIM: the original version frozen as of Sept 28 (classic.html, never rebuilt by the weekly bot) ----
+const CLASSIC_URL = typeof location !== "undefined" && location.protocol === "file:" ? "https://popcawn.github.io/ufc-fight-simulator/classic.html" : "classic.html";
+$("classicOpen").href = CLASSIC_URL;
+$("classicBtn").onclick = () => { const fr = $("classicFrame"); if(!fr.getAttribute("src")) fr.setAttribute("src", CLASSIC_URL); $("classicView").classList.remove("hidden"); };
+$("classicBack").addEventListener("click", () => $("classicView").classList.add("hidden"));
+if(document.addEventListener) document.addEventListener("keydown", e => { if(e.key === "Escape") $("classicView").classList.add("hidden"); });
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));

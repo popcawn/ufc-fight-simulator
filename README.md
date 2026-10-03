@@ -67,6 +67,7 @@ If hosting online, commit and push afterward (`git add -A && git commit -m "upda
 | File | Purpose |
 |------|---------|
 | `index.html` | The app. Self-contained — open in a browser. |
+| `classic.html` | The original sim frozen as of Sept 28 (raw-model calculator, no market anchoring), opened from the **Classic** button. Never rebuilt by the weekly bot. |
 | `build-roster.mjs` | Downloads latest UFCStats data, recomputes all fighter stats, injects them into `index.html`. |
 | `eval.mjs` | Re-validates model accuracy on held-out fights and retrains the coefficients. |
 | `calibrate.mjs` | Checks the engine's method/round finish mix against real UFC distributions. |
