@@ -29,7 +29,7 @@ jobs:
         run: |
           git config user.name  "odds-scan-bot"
           git config user.email "actions@github.com"
-          git add odds.json 2>/dev/null || exit 0
+          git add odds.json odds-archive.json 2>/dev/null || exit 0
           if git diff --cached --quiet; then
             echo "No changes."
           else

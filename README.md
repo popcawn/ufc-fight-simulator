@@ -72,6 +72,7 @@ If hosting online, commit and push afterward (`git add -A && git commit -m "upda
 | `eval.mjs` | Re-validates model accuracy on held-out fights and retrains the coefficients. |
 | `calibrate.mjs` | Checks the engine's method/round finish mix against real UFC distributions. |
 | `prop-eval.mjs` | Validates the KO/SUB/decision odds fight by fight on held-out fights and fits the calibration layer the app uses (`--apply`). |
+| `totals-history.mjs` | Pulls historical UFC total-rounds lines (paid Odds API key, `ODDS_HIST_KEY`) into `ufc-data/totals-history.json`; `prop-eval.mjs` then backtests prop bets against them. Result (1,787 fights, 2021–26): the books price rounds better than the model, so props are reference-only in the app. |
 | `odds-scan.mjs` | Pulls current sportsbook lines (moneylines + total rounds) into `odds.json` for the This week scanner. |
 | `espn-history.mjs` | Fetches every fighter's full pro history (regional + Contender Series) from ESPN into `espn-history.json` (cached; the weekly Action adds new fighters). Shown as "Pro record" in the tale of the tape. Tested as a model feature with `node eval.mjs --pre`: more accurate raw picks, but no betting edge because the books already price it, so it's display-only. |
 | `market-eval.mjs` | Model vs the betting market: joins walk-forward predictions (`node eval.mjs --dump`) to BestFightOdds opening/closing lines; source of the calculator's market-anchor weights. |

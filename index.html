@@ -225,7 +225,7 @@
       <div class="tblwrap" id="wkbody"></div>
       <div class="slip" id="slip"></div>
     </div>
-    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>Grayed names</b> with a "2 UFC"-style badge have under 4 UFC fights (thin data): moneyline stakes are halved and props aren't judged. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. The model's round timing is calibrated on ~2,000 past fights but much blunter than the books, and there's no prop-line history to prove an edge, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
+    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>Grayed names</b> with a "2 UFC"-style badge have under 4 UFC fights (thin data): moneyline stakes are halved and props aren't judged. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. Backtested on 1,787 real UFC round lines (2021–26): the books priced rounds better than the model and betting its edges lost money, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
   </div>
 </div>
 <div class="modal hidden" id="betcard" role="dialog" aria-modal="true" aria-label="My bets">
@@ -282,7 +282,7 @@
         <thead><tr><th>Outcome</th><th>Fair %</th><th>Fair odds</th><th>Book odds</th><th>Mkt %</th><th>EV</th></tr></thead>
         <tbody id="calcBody"></tbody>
       </table></div>
-      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market; props are only judged once both distance prices and all three of that fighter's method prices are in too · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
+      <p class="legend"><span class="ok">Green</span> = +EV · <span style="color:var(--gold)">★</span> = best single bet · <span style="color:var(--gold)">⚠</span> = the verdict says pass · Fair % turns gold once both moneylines anchor it to the market; props (method, distance, double chance) are reference only — on 1,787 real round lines the books beat the model · hover the ⚓ line for the backtest · details under <b>Track record ⓘ</b></p>
     </div>
   </section>
 </main>
@@ -1484,7 +1484,7 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
 // Anchored mode (moneyline or opening line entered) uses the backtested rule: TAKE at >=3% EV on the
 // market-anchored probability, half stake when a fighter has <4 UFC fights (edge positive but weaker). Anchoring replaces the old "heavy favorite disagreement" heuristic — the blend shrinks the
 // model toward the market automatically. Unanchored mode keeps the stricter 4% bar.
-function verdictFor(entered, A, B, pA, anchor, eligible){
+function verdictFor(entered, A, B, pA, anchor, eligible, xdiv){
   if(!entered.length) return { status:"none" };
   const minFights = Math.min(A.w + A.l, B.w + B.l);
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
@@ -1495,7 +1495,9 @@ function verdictFor(entered, A, B, pA, anchor, eligible){
   entered.forEach(e => {
     e.kelly = e.ev / (e.dec - 1);
     e.score = e.kelly * rel(e.i);
-    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.20 ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
+    // props (method, distance, double chance) are reference only: on 1,787 real round lines (2021-26) the books beat the
+    // model (log loss 0.6548 vs 0.6751), raw model edges lost 3.1% and blending made it worse (prop-eval, totals-history)
+    e.tag = e.ev <= 0 ? "noev" : (e.i >= 2 && !xdiv) ? "info" : e.ev > 0.20 ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
   });
   const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
 
@@ -1512,11 +1514,16 @@ function verdictFor(entered, A, B, pA, anchor, eligible){
       `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly${half ? ", halved" : ""}, capped at 3%).${thinNote}${extra}${propNote}` };
   }
   const un = entered.filter(e => e.tag === "unanch" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
+  if(un && xdiv) return { status:"caution", title:"NO BET — WEIGHT-CLASS CHANGE", body:
+    `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but these fighters come from different weight classes (${A.div} vs ${B.div}). The model is trained on same-division fights and is miscalibrated for fighters changing weight, so nothing here is judged — same rule as This week.` };
   if(un && un.i >= 2 && lowData) return { status:"caution", title:"NO PROP BET — THIN DATA", body:
     `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}. In fights like this the model's finish and method odds barely beat a simple division average (backtest), so a prop "edge" here is mostly noise — props aren't judged. The moneyline still is, at 5–20% edges.` };
   if(un) return { status:"caution", title: un.i < 2 ? "NOT ANCHORED — NO BET YET" : "PROP NOT ANCHORED — NO BET YET", body: un.i < 2
     ? `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but that's the raw model alone — enter <b>both</b> moneylines so it's anchored to the market. Raw model edges lost money in every backtest.`
     : `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines, both "Goes the distance" / "Inside the distance" prices, <b>and all three of that fighter's method prices</b> (KO/TKO, sub, decision). Unanchored, the model's finish and method odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
+  const info = entered.filter(e => e.tag === "info" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
+  if(info) return { status:"pass", title:"PASS — PROPS ARE REFERENCE ONLY", body:
+    `<b>${info.label}</b> shows +${(info.ev*100).toFixed(1)}% EV against your price, but props aren't bets here: tested on 1,787 real UFC round lines (2021–26), the books priced finishes and rounds better than the model, and betting the model's prop edges lost money (−3.1%). Use the fair odds as a reference — only the moneyline rule is proven.` };
   const tooGood = entered.find(e => e.tag === "toogood");
   if(tooGood) return { status:"pass", title:"PASS", body:
     `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is over 20% — in the backtest, edges that big lost money: it's usually the model being wrong, not free money. Pass.` };
@@ -1557,11 +1564,12 @@ function computeVerdict(){
   // props also need both fighters to have 4+ UFC fights: in thinner fights the method/distance odds barely beat a
   // simple division average (prop-eval --thin: distance log loss 0.6837 vs 0.6907, vs 0.6549 vs 0.6819 established)
   const thinFight = Math.min(calcA.w + calcA.l, calcB.w + calcB.l) < 4;
-  const eligible = i => i < 2 ? !!anchor : (!thinFight && !!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1]))); // raw (unanchored) edges lost money in every backtest
+  const xdivFight = calcA.div !== calcB.div || divSteps(calcA, calcB) >= 2; // weight-class change: same no-bet rule as This week
+  const eligible = i => xdivFight ? false : i < 2 ? !!anchor : (!thinFight && !!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1]))); // raw (unanchored) edges lost money in every backtest
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
-  const v = verdictFor(entered, calcA, calcB, pStar, anchor, eligible);
+  const v = verdictFor(entered, calcA, calcB, pStar, anchor, eligible, xdivFight);
   // anchor status line (one line; the backtest detail lives in the hover tooltip)
   const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
   an.title = !anchor ? "" : anchor.kind === "open"
@@ -1583,7 +1591,8 @@ function computeVerdict(){
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
-    else if(e.tag === "unanch"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+(thinFight && i >= 2 ? "% ⚠ thin data" : "% ⚠ unanchored"); ev.className = "evcell suspect"; }
+    else if(e.tag === "unanch"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+(xdivFight ? "% ⚠ weight change" : thinFight && i >= 2 ? "% ⚠ thin data" : "% ⚠ unanchored"); ev.className = "evcell suspect"; }
+    else if(e.tag === "info"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% · info only"; ev.className = "evcell"; } // props: reference only
     else if(e.tag === "thin"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% · under 5%"; ev.className = "evcell"; }      // below the rule: not a bet
     else if(e.tag === "toogood"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ⚠ over 20%"; ev.className = "evcell suspect"; } // usually model error
     else if(v.status === "take"){

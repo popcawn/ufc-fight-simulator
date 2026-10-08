@@ -165,6 +165,46 @@ if (F[0].rdp) {
     console.log(`  ${f}-rd under ${L}: n=${S.length} logloss model ${ll(r => underP(r, L)).toFixed(4)}  raw sim ${ll(r => underP(r, L, true)).toFixed(4)}  baseline ${ll(() => bu).toFixed(4)} · calibration ${cal.join("  ")}`);
   }
 }
+// ---- TOTAL ROUNDS vs REAL BETTING LINES (ufc-data/totals-history.json from totals-history.mjs, paid key) ----
+// Joins near-close round lines to the walk-forward predictions and bets them: raw model vs market-anchored
+// (blend fit on earlier years only), split by how far the model and the books disagree.
+if (F[0].rdp && existsSync(DIR + "totals-history.json")) {
+  const TH_ = JSON.parse(readFileSync(DIR + "totals-history.json", "utf8"));
+  const pre = hist.filter(h => h.y < 2021 && h.k < 2), HALF = pre.filter(h => (h.tm % 5) < 2.5).length / pre.length;
+  const underP = (r, L) => { const tot = r.rdp.reduce((a, b) => a + b, 0), sc = tot ? (1 - r.P.head[2] - r.P.head[5]) / tot : 0, X = Math.floor(L);
+    let u = 0; for (let k = 1; k <= X; k++) u += (r.rdp[k - 1] || 0) * sc; return u + HALF * (r.rdp[X] || 0) * sc; };
+  const nm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim(), ln = s => nm(s).split(" ").pop();
+  const byDay = new Map(); for (const [d, c] of Object.entries(TH_)) for (const f of c.fights) (byDay.get(d) || byDay.set(d, []).get(d)).push(f);
+  const lg = p => Math.log(Math.min(.99, Math.max(.01, p)) / (1 - Math.min(.99, Math.max(.01, p)))), sg = z => 1 / (1 + Math.exp(-z));
+  const X = [];
+  for (const r of F) { const t = new Date(r.date).getTime(), A = nm(r.a), B = nm(r.b); let m = null;
+    for (let k = -1; k <= 1 && !m; k++) { const L2 = byDay.get(new Date(t + k * 864e5).toISOString().slice(0, 10)) || [];
+      m = L2.find(f => (nm(f.a) === A && nm(f.b) === B) || (nm(f.a) === B && nm(f.b) === A)) || L2.find(f => (ln(f.a) === ln(r.a) && ln(f.b) === ln(r.b)) || (ln(f.a) === ln(r.b) && ln(f.b) === ln(r.a))); }
+    if (!m) continue;
+    const pts = {}; for (const b of Object.values(m.tot)) for (const [pt, v] of Object.entries(b)) if (v[0] > 1 && v[1] > 1) (pts[pt] ||= []).push(v);
+    const main = Object.entries(pts).sort((a, b) => b[1].length - a[1].length)[0]; if (!main) continue;
+    const L = +main[0], v = main[1], mo = v.reduce((s, x) => s + x[0], 0) / v.length, mu = v.reduce((s, x) => s + x[1], 0) / v.length;
+    const mktU = (1 / mu) / (1 / mo + 1 / mu), modU = underP(r, L), y = r.tm < L * 5 ? 1 : 0;
+    X.push({ r, L, mo, mu, mktU, modU, y, yr: +r.date.slice(0, 4), gap: Math.abs(lg(modU) - lg(mktU)) });
+  }
+  const ll = (k) => (X.reduce((s, x) => s - Math.log(x.y ? Math.min(.99, Math.max(.01, x[k])) : 1 - Math.min(.99, Math.max(.01, x[k]))), 0) / X.length).toFixed(4);
+  console.log(`\nTOTAL ROUNDS vs REAL LINES — ${X.length} fights matched (near-close, mean price across books)`);
+  console.log(`  who predicts rounds better (log loss): market ${ll("mktU")} · model ${ll("modU")}`);
+  // anchored blend fit on earlier years only (same idea as the moneyline anchor)
+  const fit = S => { let a = 1, b = 0; for (let it = 0; it < 3000; it++) { let ga = 0, gb = 0; for (const x of S) { const e = sg(a * lg(x.mktU) + b * lg(x.modU)) - x.y; ga += e * lg(x.mktU); gb += e * lg(x.modU); } a -= 0.5 * ga / S.length; b -= 0.5 * gb / S.length; } return [a, b]; };
+  const yrs = [...new Set(X.map(x => x.yr))].sort(); let lastW = null;
+  for (const Y of yrs.slice(1)) { const w = fit(X.filter(x => x.yr < Y)); lastW = w; for (const x of X.filter(x => x.yr === Y)) x.ancU = sg(w[0] * lg(x.mktU) + w[1] * lg(x.modU)); }
+  const XA = X.filter(x => x.ancU != null);
+  console.log(`  anchored blend (walk-forward ${yrs[1]}+): latest weights market ${lastW[0].toFixed(2)} / model ${lastW[1].toFixed(2)} · log loss market ${(XA.reduce((s, x) => s - Math.log(x.y ? x.mktU : 1 - x.mktU), 0) / XA.length).toFixed(4)} vs blend ${(XA.reduce((s, x) => s - Math.log(x.y ? x.ancU : 1 - x.ancU), 0) / XA.length).toFixed(4)}`);
+  const bets = (k, lo, hi, S = XA) => { const out = []; for (const x of S) for (const [p, o, won] of [[x[k], x.mu, x.y === 1], [1 - x[k], x.mo, x.y === 0]]) { const ev = p * o - 1; if (ev >= lo && ev < hi) out.push({ x, pnl: won ? o - 1 : -1 }); } return out; };
+  const st = B => { const pl = B.reduce((s, b) => s + b.pnl, 0); return B.length ? `${String(B.length).padStart(4)} bets ROI ${(100 * pl / B.length >= 0 ? "+" : "") + (100 * pl / B.length).toFixed(1)}% (${pl >= 0 ? "+" : ""}${pl.toFixed(0)}u)` : "   0 bets"; };
+  console.log(`  BETTING at the mean near-close price (flat 1u):`);
+  console.log(`    raw model, edge 5-20%            ${st(bets("modU", .05, .20))}   |   raw model, any edge 5%+ ${st(bets("modU", .05, 9))}`);
+  console.log(`    market-anchored, edge 5-20%      ${st(bets("ancU", .05, .20))}   |   anchored, edge 3%+ ${st(bets("ancU", .03, 9))}`);
+  for (const [lab, lo, hi] of [["model & books close (gap < 0.4)", 0, .4], ["moderate gap (0.4-0.75)", .4, .75], ["big gap (> 0.75, ~2x odds)", .75, 99]]) {
+    const S2 = XA.filter(x => x.gap >= lo && x.gap < hi); console.log(`    ${lab.padEnd(34)} n=${String(S2.length).padStart(4)} · raw 5-20% ${st(bets("modU", .05, .20, S2))} · anchored 5-20% ${st(bets("ancU", .05, .20, S2))}`); }
+  const D5 = XA.filter(x => x.r.nR === 5 && x.L === 4.5); console.log(`    5-round fights, 4.5-round line (≈ goes the distance) n=${D5.length} · raw ${st(bets("modU", .05, .20, D5))} · anchored ${st(bets("ancU", .05, .20, D5))}`);
+}
 // production fit on every year -> index.html (M_COEF) with --apply
 const PROD = fitHead(JSON.parse(readFileSync(ROOT + "/ufc-eval-preds.json", "utf8")).filter(r => r.sh && r.oc >= 0 && r.tend));
 console.log(`\nPRODUCTION M_COEF (all years): ${JSON.stringify(PROD)}   [sim, winner's finish mix, loser's finished mix, KO3, SUB3, KO5, SUB5]`);

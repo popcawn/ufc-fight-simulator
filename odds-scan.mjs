@@ -39,12 +39,19 @@ for (const e of feed) {
     const m = bk.markets.find(x => x.key === "totals"); if (!m) continue;
     const t = {};
     for (const o of m.outcomes) if (o.point != null) (t[o.point] ||= [0, 0])[o.name === "Over" ? 0 : 1] = o.price;
-    for (const [pt, v] of Object.entries(t)) if (v[0] > 1 && v[1] > 1) (f.tot[bk.key] ||= {})[pt] = v;
+    for (const [pt, v] of Object.entries(t)) if (v[0] > 1 && v[1] > 1) {
+      (f.tot[bk.key] ||= {})[pt] = v;
+      const o = (f.totOpen ||= {})[bk.key] ||= {}; if (!(pt in o)) o[pt] = seeding ? null : v; // first round line this book showed
+    }
   }
 }
-// keep finished fights 60 days (closing lines for the bet log), then drop
-const cutoff = Date.now() - 60 * 864e5;
-for (const [id, f] of Object.entries(fights)) if (new Date(f.t).getTime() < cutoff) delete fights[id];
+// keep finished fights 60 days in odds.json (closing lines for the bet log), then move them to odds-archive.json —
+// a permanent record of opening + closing moneylines and round lines for future prop backtests
+const cutoff = Date.now() - 60 * 864e5, ARCH = ROOT + "/odds-archive.json";
+const archive = existsSync(ARCH) ? JSON.parse(readFileSync(ARCH, "utf8")) : {};
+let archived = 0;
+for (const [id, f] of Object.entries(fights)) if (new Date(f.t).getTime() < cutoff) { archive[id] = f; delete fights[id]; archived++; }
+if (archived || !existsSync(ARCH)) writeFileSync(ARCH, JSON.stringify(archive));
 
 const books = { ...(prev ? prev.books : {}) };
 for (const e of feed) for (const bk of e.bookmakers) books[bk.key] = bk.title;
