@@ -103,6 +103,8 @@ for (const Y of years.slice(1)) {
 F = F.filter(r => r.P.head);   // score every model on the same walk-forward years
 const YR = (process.argv.find(a => a.startsWith("--years=")) || "").slice(8).split("-").map(Number); // e.g. --years=2022-2023
 if (YR.length === 2 && YR[0]) F = F.filter(r => +r.date.slice(0, 4) >= YR[0] && +r.date.slice(0, 4) <= YR[1]);
+if (process.argv.includes("--thin")) F = F.filter(r => r.mf < 4);   // a fighter with under 4 UFC fights
+if (process.argv.includes("--est")) F = F.filter(r => r.mf >= 4);    // both fighters 4+ UFC fights
 
 const ll = (S, k, f) => S.reduce((s, r) => s - Math.log(f(r.P[k], r)), 0) / S.length;
 const oc6 = (P, r) => P[r.oc];                                           // exact: winner + method

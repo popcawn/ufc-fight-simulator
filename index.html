@@ -1510,6 +1510,8 @@ function verdictFor(entered, A, B, pA, anchor, eligible){
       `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly${half ? ", halved" : ""}, capped at 3%).${thinNote}${extra}${propNote}` };
   }
   const un = entered.filter(e => e.tag === "unanch" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
+  if(un && un.i >= 2 && lowData) return { status:"caution", title:"NO PROP BET — THIN DATA", body:
+    `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}. In fights like this the model's finish and method odds barely beat a simple division average (backtest), so a prop "edge" here is mostly noise — props aren't judged. The moneyline still is, at 5–20% edges.` };
   if(un) return { status:"caution", title: un.i < 2 ? "NOT ANCHORED — NO BET YET" : "PROP NOT ANCHORED — NO BET YET", body: un.i < 2
     ? `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but that's the raw model alone — enter <b>both</b> moneylines so it's anchored to the market. Raw model edges lost money in every backtest.`
     : `<b>${un.label}</b> shows +${(un.ev*100).toFixed(1)}% EV, but prop odds aren't anchored to the market yet. Enter both moneylines, both "Goes the distance" / "Inside the distance" prices, <b>and all three of that fighter's method prices</b> (KO/TKO, sub, decision). Unanchored, the model's finish and method odds match past results on average but are blunter than the books', so most of this "edge" is that gap, not value.` };
@@ -1550,7 +1552,10 @@ function computeVerdict(){
   if(dist){ dist.p = sig(0.8*logit(dist.pMkt) + 0.2*logit(dist.pModel)); props = reshapeProps(props, props[0][1], dist.p); }
   // a prop row can be a bet only when every anchor it depends on is in: moneyline + distance, plus that fighter's
   // method split for his method and double-chance rows
-  const eligible = i => i < 2 ? !!anchor : (!!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1]))); // raw (unanchored) edges lost money in every backtest
+  // props also need both fighters to have 4+ UFC fights: in thinner fights the method/distance odds barely beat a
+  // simple division average (prop-eval --thin: distance log loss 0.6837 vs 0.6907, vs 0.6549 vs 0.6819 established)
+  const thinFight = Math.min(calcA.w + calcA.l, calcB.w + calcB.l) < 4;
+  const eligible = i => i < 2 ? !!anchor : (!thinFight && !!anchor && !!dist && (i === 8 || i === 9 || ((i <= 4 || (i >= 10 && i <= 12)) ? splitOK[0] : splitOK[1]))); // raw (unanchored) edges lost money in every backtest
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
@@ -1576,7 +1581,9 @@ function computeVerdict(){
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
-    else if(e.tag === "unanch"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ⚠ unanchored"; ev.className = "evcell suspect"; }
+    else if(e.tag === "unanch"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+(thinFight && i >= 2 ? "% ⚠ thin data" : "% ⚠ unanchored"); ev.className = "evcell suspect"; }
+    else if(e.tag === "thin"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% · under 5%"; ev.className = "evcell"; }      // below the rule: not a bet
+    else if(e.tag === "toogood"){ ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ⚠ over 20%"; ev.className = "evcell suspect"; } // usually model error
     else if(v.status === "take"){
       if(i === v.bestIndex){ ev.textContent = "★ BEST +"+(e.ev*100).toFixed(1)+"%"; ev.className = "evcell best"; } // the one to bet if you only bet one
       else { ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ✓ value"; ev.className = "evcell ok"; }
