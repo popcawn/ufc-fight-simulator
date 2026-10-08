@@ -271,6 +271,7 @@
   <section class="panel p-calc" data-tab="calc">
     <div class="calc-top">
       <h3>Fair odds &amp; value</h3>
+      <label class="dimtxt" title="Find +EV: flags every bet the model sees as +EV (3-50%), props and longshots included — the Classic sim's style. Proven only: just the backtested moneyline rule (5-20% at the opener).">Mode <select id="betMode"><option value="aggressive">Find +EV</option><option value="proven">Proven only</option></select></label>
       <label class="dimtxt">Betting <select id="lineTiming"><option value="current">fight week (conservative)</option><option value="open">early, at the opener (backtested edge)</option></select></label>
     </div>
     <div class="empty">Simulate a fight, then type your book's odds (e.g. <code>-150</code>, <code>+220</code>). Enter <b>both moneylines</b> to anchor the model to the market.</div>
@@ -1484,27 +1485,31 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
 // Anchored mode (moneyline or opening line entered) uses the backtested rule: TAKE at >=3% EV on the
 // market-anchored probability, half stake when a fighter has <4 UFC fights (edge positive but weaker). Anchoring replaces the old "heavy favorite disagreement" heuristic — the blend shrinks the
 // model toward the market automatically. Unanchored mode keeps the stricter 4% bar.
+// Bet mode. "aggressive" (default) = find +EV: any 3-50% edge on any row, props and thin data included (half stake),
+// weight changes allowed with a warning. "proven" = only the backtested moneyline rule (5-20% at the opener).
+let betMode = (() => { try { return localStorage.getItem("ufcsim.mode") || "aggressive"; } catch(e){ return "aggressive"; } })();
+const AGG = () => betMode !== "proven";
 function verdictFor(entered, A, B, pA, anchor, eligible, xdiv){
   if(!entered.length) return { status:"none" };
   const minFights = Math.min(A.w + A.l, B.w + B.l);
   const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
   const lowData = minFights < 4;
   const rel = i => i >= 2 ? 0.7 : 1.0; // every prop (method, distance, double chance) is the noisier part of the model
-  const TH = 0.05; // the rule: 5-20% edges (3-5% lost money in the backtest; 20%+ lost too)
+  const TH = AGG() ? 0.03 : 0.05, CAP = AGG() ? 0.50 : 0.20; // proven rule: 5-20% (3-5% and 20%+ edges lost money in the backtest)
 
   entered.forEach(e => {
     e.kelly = e.ev / (e.dec - 1);
     e.score = e.kelly * rel(e.i);
     // props (method, distance, double chance) are reference only: on 1,787 real round lines (2021-26) the books beat the
     // model (log loss 0.6548 vs 0.6751), raw model edges lost 3.1% and blending made it worse (prop-eval, totals-history)
-    e.tag = e.ev <= 0 ? "noev" : (e.i >= 2 && !xdiv) ? "info" : e.ev > 0.20 ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
+    e.tag = e.ev <= 0 ? "noev" : (!AGG() && e.i >= 2 && !xdiv) ? "info" : e.ev > CAP ? "toogood" : !eligible(e.i) ? "unanch" : e.ev < TH ? "thin" : "take";
   });
   const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
 
   if(takes.length){
-    const best = takes[0], half = lowData && !!anchor;
+    const best = takes[0], half = lowData && (!!anchor || AGG());
     const stake = Math.min(3, 25 * best.kelly * (half ? 0.5 : 1)).toFixed(1);
-    if(lowData && !anchor) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
+    if(lowData && !anchor && !AGG()) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
       `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
     const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are on the same fight — treat them as one position, don't stack.` : "";
     const propNote = (anchor && best.i > 1) ? ` Heads up: method odds are calibrated on ~2,000 past fights, but there are no historical prop lines to backtest betting them — only the moneyline rule is proven profitable.` : "";
@@ -1526,7 +1531,7 @@ function verdictFor(entered, A, B, pA, anchor, eligible, xdiv){
     `<b>${info.label}</b> shows +${(info.ev*100).toFixed(1)}% EV against your price, but props aren't bets here: tested on 1,787 real UFC round lines (2021–26), the books priced finishes and rounds better than the model, and betting the model's prop edges lost money (−3.1%). Use the fair odds as a reference — only the moneyline rule is proven.` };
   const tooGood = entered.find(e => e.tag === "toogood");
   if(tooGood) return { status:"pass", title:"PASS", body:
-    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is over 20% — in the backtest, edges that big lost money: it's usually the model being wrong, not free money. Pass.` };
+    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is over ${Math.round(CAP*100)}% — edges that big are usually the model being wrong, not free money: it's usually the model being wrong, not free money. Pass.` };
   if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", body:
     `Only razor-thin edges (under ${TH*100}%) — inside the margin of error. Not worth a bet.` };
   return { status:"pass", title:"PASS", body: anchor
@@ -1569,7 +1574,15 @@ function computeVerdict(){
   const m = {};
   for(const k of Object.keys(decs)){ const i = +k; m[i] = { i, label:props[i][0], prob:props[i][1], dec:decs[k], ev:props[i][1]*decs[k] - 1 }; }
   const entered = Object.values(m);
-  const v = verdictFor(entered, calcA, calcB, pStar, anchor, eligible, xdivFight);
+  const v = verdictFor(entered, calcA, calcB, pStar, anchor, AGG() ? () => true : eligible, AGG() ? false : xdivFight);
+  if(AGG() && v.status === "take"){ // one plain-language heads-up when the pick is outside the backtested rule
+    const b = m[v.bestIndex], notes = [];
+    if(v.bestIndex >= 2) notes.push("props weren't profitable vs real round lines in the backtest");
+    if(!anchor) notes.push("only one moneyline entered, so this is the raw model");
+    if(xdivFight) notes.push(`weight-class change (${calcA.div} vs ${calcB.div})`);
+    if(b && (b.ev < 0.05 || b.ev > 0.20)) notes.push("outside the 5–20% backtested window");
+    if(notes.length) v.body += ` <span class="dimtxt">Find +EV mode — ${notes.join("; ")}. Size it like a long shot.</span>`;
+  }
   // anchor status line (one line; the backtest detail lives in the hover tooltip)
   const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
   an.title = !anchor ? "" : anchor.kind === "open"
@@ -1611,6 +1624,9 @@ function computeVerdict(){
   if($("result").classList.contains("ready") && panelsOverflow()) fitDash(); // a long verdict can outgrow the reserved space
 }
 $("lineTiming").addEventListener("change", computeVerdict);
+$("betMode").value = betMode;
+$("betMode").addEventListener("change", () => { betMode = $("betMode").value; try { localStorage.setItem("ufcsim.mode", betMode); } catch(e){}
+  computeVerdict(); if(typeof buildScan === "function" && ODDS && !$("wkcard").classList.contains("hidden")) buildScan(); });
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
 const amOdds = p => {
   p = Math.min(0.995, Math.max(0.005, p));
@@ -1843,7 +1859,7 @@ function scoreFight(id, f){
   row.thin = Math.min(A.w + A.l, B.w + B.l) < 4;
   row.pick = row.side[0].ev >= row.side[1].ev ? 0 : 1;
   const e = row.side[row.pick].ev;
-  row.take = e >= 0.05 && e <= 0.20 && !row.xdiv && !row.noBook; // same rule as the calculator: 5-20% edges
+  row.take = AGG() ? (e >= 0.03 && e <= 0.50 && !row.noBook) : (e >= 0.05 && e <= 0.20 && !row.xdiv && !row.noBook); // same rule as the calculator's mode
   row.stake = row.take ? Math.min(3, 25 * row.side[row.pick].kelly * (row.thin ? 0.5 : 1)) : 0;
   row.totals = totalsFor(row, A, Bs, id);
   return row;
