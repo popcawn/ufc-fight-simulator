@@ -148,6 +148,8 @@
   table.scan th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:1px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line);}
   table.scan td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
   table.scan .r{color:#ff7a7a; font-weight:600;} table.scan .b{color:#7aa3ff; font-weight:600;}
+  table.scan span.thinf{color:var(--dim); font-weight:500; cursor:help;}  /* under 4 UFC fights: thin data */
+  .ufcn{font-size:9.5px; font-weight:700; letter-spacing:.4px; border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:4px; color:var(--dim); white-space:nowrap;}
   table.scan tr.take td{background:rgba(62,201,126,.08);}
   table.scan tr.dayrow td{color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding-top:12px;}
   table.scan tr.unscored td{opacity:.6;}
@@ -223,7 +225,7 @@
       <div class="tblwrap" id="wkbody"></div>
       <div class="slip" id="slip"></div>
     </div>
-    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. The model's round timing is calibrated on ~2,000 past fights but much blunter than the books, and there's no prop-line history to prove an edge, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
+    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>Grayed names</b> with a "2 UFC"-style badge have under 4 UFC fights (thin data): moneyline stakes are halved and props aren't judged. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. The model's round timing is calibrated on ~2,000 past fights but much blunter than the books, and there's no prop-line history to prove an edge, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
   </div>
 </div>
 <div class="modal hidden" id="betcard" role="dialog" aria-modal="true" aria-label="My bets">
@@ -1870,7 +1872,12 @@ function renderScan(){
       if(un.length) html += `<tr class="unscored"><td colspan="5" class="sub">Not scored (debut or inactive fighter): ${un.map(x => `${surname(x.name[0])}–${surname(x.name[1])}`).join(", ")}</td></tr>`;
     }
     if(!r.side) continue;
-    const nm = i => `<span class="${i ? "b" : "r"}">${r.name[i]}</span>`;
+    const ufcN = f => f ? f.w + f.l : null; // prior UFC fights (W + L)
+    const nm = i => { const f = i ? r.B : r.A, n = ufcN(f);
+      return n !== null && n < 4
+        ? `<span class="${i ? "b" : "r"} thinf" title="Only ${n} UFC fight${n === 1 ? "" : "s"}: thin data. The model leans on averages here, so moneyline stakes are halved and props aren't judged.">${r.name[i]}<span class="ufcn">${n} UFC</span></span>`
+        : `<span class="${i ? "b" : "r"}">${r.name[i]}</span>`; };
+    const thinWho = () => { const c = [r.A, r.B].filter(f => f && ufcN(f) < 4).sort((x, y) => ufcN(x) - ufcN(y))[0]; return c ? `${surname(c.name)} has ${ufcN(c)} UFC fight${ufcN(c) === 1 ? "" : "s"}` : "thin data"; };
     const px = i => `<b>${decAm(r.best[i].d)}</b> <span class="bk">${bookName(r.best[i].book)}</span>`;
     const k = r.pick, s = r.side[k], sur = i => surname(r.name[i]), inSlip = slip.some(l => l.id === r.id);
     const tip = r.early ? `Fresh line (first seen ${Math.round(r.age)}h ago, hasn't moved 3+ pts): opening-line weights, the backtested edge`
@@ -1879,7 +1886,7 @@ function renderScan(){
       <td>${nm(0)} vs ${nm(1)} <span class="badge ${r.early ? "early" : ""}" title="${tip}">${r.early ? "EARLY" : "LATE"}</span></td>
       <td><b>${sur(0)} ${pct(r.pFair)}</b><div class="sub">market ${pct(r.pMkt)} · model ${pct(r.pModel)}</div></td>
       <td>${px(0)}<br>${px(1)}</td>
-      <td title="${r.totals ? r.totals.lines.map(x => `Rounds ${x.L}: market under ${x.mU == null ? "?" : pct(x.mU)} · model ${pct(x.pu)}`).join(" · ") : "No total-rounds line at your books"}">${r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${r.stake.toFixed(1)}%${r.thin ? " (halved, thin data)" : ""}</div>`
+      <td title="${r.totals ? r.totals.lines.map(x => `Rounds ${x.L}: market under ${x.mU == null ? "?" : pct(x.mU)} · model ${pct(x.pu)}`).join(" · ") : "No total-rounds line at your books"}">${r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${r.stake.toFixed(1)}%${r.thin ? ` (halved: ${thinWho()})` : ""}</div>`
         : `<span class="dimtxt">pass</span><div class="sub">${r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.noBook ? "not offered at your books" : `best edge ${(s.ev * 100).toFixed(1)}% (${sur(k)})`}</div>`}${showRds && r.totals ? r.totals.lines.map(x => `<div class="sub rds">Rounds ${x.L}: market under <b>${x.mU == null ? "?" : pct(x.mU)}</b> · model ${pct(x.pu)} · o ${x.over.d ? decAm(x.over.d) + " " + bookName(x.over.book) : "—"} / u ${x.under.d ? decAm(x.under.d) + " " + bookName(x.under.book) : "—"}</div>`).join("") : ""}</td>
       <td class="acts"><button class="mini-btn" data-sim="${r.id}">Sim</button>${r.take ? `<button class="mini-btn" data-slip="${r.id}" ${inSlip ? "disabled" : ""}>${inSlip ? "In slip" : "+ Parlay"}</button><button class="mini-btn" data-log="${r.id}">Log bet</button>` : ""}</td>
     </tr>`;
