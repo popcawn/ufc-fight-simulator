@@ -276,6 +276,7 @@
     </div>
     <div class="empty">Simulate a fight, then type your book's odds (e.g. <code>-150</code>, <code>+220</code>). Enter <b>both moneylines</b> to anchor the model to the market.</div>
     <div class="needs-sim">
+      <div class="anchornote" id="autoOdds"></div>
       <div class="anchornote" id="anchorNote"></div>
       <div class="verdict-box hidden" id="verdictBox"></div>
       <div class="fit-reserve" id="fitReserve" aria-hidden="true"><div class="anchornote">⚓ <b>Fight-week anchor</b> · Islam Makhachev: market 71.2% → blend <b>70.4%</b> (raw model 62.3%)</div><div class="verdict-box take"><span class="vh">✅ TAKE THIS BET</span><b>Makhachev · KO or sub</b> at your entered odds — <b>+6.4% EV</b>, hits ~31%. Suggested stake ~<b>1.2% of bankroll</b> (¼-Kelly, capped at 3%). The other 2 green rows are on the same fight — treat them as one position, don't stack.<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div></div></div>
@@ -1742,6 +1743,7 @@ $("go").onclick = () => {
 
   $("result").classList.add("ready");
   fitDash();
+  $("autoOdds").innerHTML = ""; autoFillOdds(A, B);
 };
 
 // ---- TRACK RECORD (written by `node market-eval.mjs --apply` — do not edit by hand) ----
@@ -1979,6 +1981,25 @@ $("wkbooks").addEventListener("click", e => { // toggle a sportsbook in/out of "
   try { if(myBooks) localStorage.setItem("ufcsim.books", JSON.stringify(myBooks)); else localStorage.removeItem("ufcsim.books"); } catch(err){}
   buildScan();
 });
+
+// ---- AUTO-FILL: if the simmed matchup is on an upcoming card, drop in both moneylines from the odds feed
+// (best price at your books), set the timing selector, and say where they came from. Never overwrites typed prices.
+async function autoFillOdds(A, B){
+  const O = await loadOdds(); if(!O || calcA !== A || calcB !== B) return; // a newer sim started meanwhile
+  const now = Date.now(), lastScan = new Date(O.updated).getTime();
+  const hit = Object.entries(O.fights).find(([, f]) => { const t = new Date(f.t).getTime();
+    if(t < now - 3 * 36e5 || (f.seen && lastScan - new Date(f.seen).getTime() > 6 * 36e5)) return false; // past, or pulled from the books
+    const x = findFighter(f.a), y = findFighter(f.b); return (x === A && y === B) || (x === B && y === A); });
+  if(!hit) return;
+  const row = scoreFight(hit[0], hit[1]); if(!row) return;
+  const ins = document.querySelectorAll("#calcBody .oddsin"); if(ins.length < 2 || ins[0].value || ins[1].value) return;
+  const flip = findFighter(hit[1].a) !== A, pa = row.best[flip ? 1 : 0], pb = row.best[flip ? 0 : 1];
+  ins[0].value = decAm(pa.d); ins[1].value = decAm(pb.d);
+  $("lineTiming").value = row.early ? "open" : "current";
+  const hrs = (now - lastScan) / 36e5, ago = hrs < 1 ? "under an hour" : hrs < 48 ? Math.round(hrs) + "h" : Math.round(hrs / 24) + " days";
+  $("autoOdds").innerHTML = `⚡ <b>Moneylines auto-filled</b> · ${surname(A.name)} ${decAm(pa.d)} (${bookName(pa.book)}) · ${surname(B.name)} ${decAm(pb.d)} (${bookName(pb.book)}) · best at your books, ${row.early ? "fresh opening line" : "fight-week line"}, updated ${ago} ago — edit any price; props aren't in the feed, type those`;
+  ins[0].dispatchEvent(new Event("input"));
+}
 
 // ---- MY BETS: local bet log with closing-line value (CLV). Beating the close proves an edge in ~50 bets;
 // win/loss needs hundreds. Stored in this browser; Export/Import moves it between computers.

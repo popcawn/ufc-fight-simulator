@@ -200,6 +200,8 @@ if (F[0].rdp && existsSync(DIR + "totals-history.json")) {
   const st = B => { const pl = B.reduce((s, b) => s + b.pnl, 0); return B.length ? `${String(B.length).padStart(4)} bets ROI ${(100 * pl / B.length >= 0 ? "+" : "") + (100 * pl / B.length).toFixed(1)}% (${pl >= 0 ? "+" : ""}${pl.toFixed(0)}u)` : "   0 bets"; };
   console.log(`  BETTING at the mean near-close price (flat 1u):`);
   console.log(`    raw model, edge 5-20%            ${st(bets("modU", .05, .20))}   |   raw model, any edge 5%+ ${st(bets("modU", .05, 9))}`);
+  for (const x of XA) x.b80 = sg(0.8 * lg(x.mktU) + 0.2 * lg(x.modU)); // the app's Find +EV prop blend (80% market / 20% model)
+  console.log(`    FIND +EV (app blend 80/20), edge 3-50% ${st(bets("b80", .03, .50))}   |   by half: 2023-24 ${st(bets("b80", .03, .50, XA.filter(x => x.yr <= 2024)))} · 2025-26 ${st(bets("b80", .03, .50, XA.filter(x => x.yr >= 2025)))}`);
   console.log(`    market-anchored, edge 5-20%      ${st(bets("ancU", .05, .20))}   |   anchored, edge 3%+ ${st(bets("ancU", .03, 9))}`);
   for (const [lab, lo, hi] of [["model & books close (gap < 0.4)", 0, .4], ["moderate gap (0.4-0.75)", .4, .75], ["big gap (> 0.75, ~2x odds)", .75, 99]]) {
     const S2 = XA.filter(x => x.gap >= lo && x.gap < hi); console.log(`    ${lab.padEnd(34)} n=${String(S2.length).padStart(4)} · raw 5-20% ${st(bets("modU", .05, .20, S2))} · anchored 5-20% ${st(bets("ancU", .05, .20, S2))}`); }
