@@ -134,7 +134,7 @@
   .note{font-size:12px; color:var(--dim); margin-top:8px; line-height:1.55;} .note b{color:var(--text);}
 
 
-  /* ---- Classic sim: the frozen Sept 28 version, full-screen inside the new sim ---- */
+  /* ---- Classic sim: the Sept 28 model and rules (stats refreshed weekly), full-screen inside the new sim ---- */
   .classic{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column;}
   .classic-bar{display:flex; align-items:center; gap:12px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; flex:none;}
   .classic-title{font-weight:800; letter-spacing:1px; color:var(--gold); font-size:14px;} .classic-title .sub{letter-spacing:0; margin-left:6px; font-weight:400;}
@@ -202,7 +202,7 @@
   <button id="go">SIMULATE</button>
   <button id="wk" class="secondary" title="Every UFC line from US sportsbooks, scanned with the backtested rule">This week</button>
   <button id="mb" class="secondary" title="Your logged bets and closing-line value">My bets</button>
-  <button id="classicBtn" class="secondary" title="The original sim, frozen as of Sept 28: raw-model calculator, no market anchoring">Classic</button>
+  <button id="classicBtn" class="secondary" title="The original sim: Sept 28 model and rules (raw-model calculator, no market anchoring), fighter stats refreshed weekly">Classic</button>
   <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
   <div class="err" id="err"></div>
 </header>
@@ -210,7 +210,7 @@
 <div class="classic hidden" id="classicView" role="dialog" aria-modal="true" aria-label="Classic sim">
   <div class="classic-bar">
     <button class="secondary" id="classicBack">← Back to new sim</button>
-    <span class="classic-title">CLASSIC SIM <span class="sub">frozen Sept 28 version · raw-model calculator, no market anchoring · fighter stats as of Sept 28</span></span>
+    <span class="classic-title">CLASSIC SIM <span class="sub">Sept 28 model &amp; rules · raw-model calculator, no market anchoring · fighter stats refreshed weekly</span></span>
     <a id="classicOpen" href="classic.html" target="_blank" rel="noopener">Open in new tab ↗</a>
   </div>
   <iframe id="classicFrame" title="Classic UFC sim"></iframe>
@@ -2103,7 +2103,7 @@ function attachSearch(id){
 }
 attachSearch("fa"); attachSearch("fb");
 
-// ---- CLASSIC SIM: the original version frozen as of Sept 28 (classic.html, never rebuilt by the weekly bot) ----
+// ---- CLASSIC SIM: the original Sept 28 model and rules (classic.html); classic-build-roster.mjs refreshes only its fighter stats weekly ----
 const CLASSIC_URL = typeof location !== "undefined" && location.protocol === "file:" ? "https://popcawn.github.io/ufc-fight-simulator/classic.html" : "classic.html";
 $("classicOpen").href = CLASSIC_URL;
 $("classicBtn").onclick = () => { const fr = $("classicFrame"); if(!fr.getAttribute("src")) fr.setAttribute("src", CLASSIC_URL); $("classicView").classList.remove("hidden"); };

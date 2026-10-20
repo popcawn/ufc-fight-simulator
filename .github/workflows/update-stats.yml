@@ -24,11 +24,13 @@ jobs:
         run: node espn-history.mjs || echo "::warning::ESPN history step failed — roster still updates, pro records catch up next week"
       - name: Re-inject the roster with any new pro histories (reuses the downloaded CSVs)
         run: node build-roster.mjs --cache
+      - name: Refresh the Classic sim's fighter stats (its own Sept 28 builder; never blocks the main roster)
+        run: node classic-build-roster.mjs --cache || echo "::warning::Classic roster refresh failed — main roster still updates"
       - name: Commit if the roster changed
         run: |
           git config user.name  "ufc-stats-bot"
           git config user.email "actions@github.com"
-          git add index.html ufc-roster.json espn-history.json
+          git add index.html ufc-roster.json espn-history.json classic.html
           if git diff --cached --quiet; then
             echo "No changes — roster already current."
           else
