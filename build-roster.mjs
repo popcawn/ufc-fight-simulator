@@ -122,6 +122,22 @@ const shrunk = (s, d) => { const M = s.time*d, r = (c, p) => (c + p*SH) / (M + S
 // catchweight-only fighters: take the division of their most recent opponent that has one
 const oppDiv = s => { for (let i = (s.opps||[]).length-1; i >= 0; i--) { const o = S.get(s.opps[i]); if (o && o.div) return o.div; } return null; };
 
+// Fighters booked on an upcoming card (odds.json, next 60 days) are always included, however long they've been out,
+// so a returning veteran (e.g. a 3-year layoff) can still be simmed. Ring rust is capped at 36 months by the model.
+const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/s+/g, " ").trim();
+const booked = new Set();
+try {
+  const O = JSON.parse(readFileSync(ROOT + "/odds.json", "utf8")), now = Date.now();
+  const known = [...S.keys()], byNorm = new Map(known.map(n => [nmz(n), n]));
+  for (const f of Object.values(O.fights || {})) {
+    const t = new Date(f.t).getTime(); if (!(t > now - 864e5 && t < now + 60 * 864e5)) continue;
+    for (const n of [f.a, f.b]) { const k = nmz(n || ""); if (!k) continue;
+      if (byNorm.has(k)) { booked.add(byNorm.get(k)); continue; }
+      const last = k.split(" ").pop(), c = known.filter(x => { const q = nmz(x); return q.split(" ").pop() === last && q[0] === k[0]; });
+      if (c.length === 1) booked.add(c[0]); }
+  }
+} catch (e) { console.log("odds.json not readable — no booked-returner override"); }
+
 // ---- emit active roster ----
 const medHt = { "Heavyweight":75,"Light Heavyweight":75,"Middleweight":73,"Welterweight":71,"Lightweight":70,"Featherweight":68,"Bantamweight":67,"Flyweight":66,"Women's Featherweight":68,"Women's Bantamweight":66,"Women's Flyweight":65,"Women's Strawweight":64 };
 // current win/loss streak: consecutive same-sign results from the most recent fight (+N win, -N loss)
@@ -141,7 +157,8 @@ const originOf = s => { const c = {}; for (const d of s.divs || []) if (WTS[d]) 
 const pathOf = s => { const c = new Map(); for (const d of s.divs || []) if (WTS[d]) c.set(d, (c.get(d) || 0) + 1); return [...c].map(([d, n]) => d + ":" + n).join("|"); };
 const rows = [];
 for (const [name, s] of S) {
-  if (!s.last || s.last < CUTOFF) continue;
+  if (!s.last || (s.last < CUTOFF && !booked.has(name))) continue;
+  if (s.last < CUTOFF) console.log(`  + returning from a long layoff (booked): ${name}, last UFC fight ${s.last.toISOString().slice(0, 10)}`);
   const t = tape.get(name) || {};
   const div = s.div || oppDiv(s) || "Unknown";
   const ht = inches(t.HEIGHT) || medHt[div] || 70;
