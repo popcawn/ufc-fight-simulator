@@ -26,6 +26,10 @@ let added = 0;
 for (const e of feed) {
   const f = fights[e.id] || (added++, fights[e.id] = { a: e.home_team, b: e.away_team, t: e.commence_time, first: seeding ? null : now, open: {}, now: {} });
   f.t = e.commence_time; f.seen = now;
+  if (![e.home_team, e.away_team].includes(f.a) || ![e.home_team, e.away_team].includes(f.b)) {
+    console.log(`::warning::fight ${e.id} changed: "${f.a} v ${f.b}" -> "${e.home_team} v ${e.away_team}". Prices restarted.`);
+    Object.assign(f, { a: e.home_team, b: e.away_team, first: now, open: {}, now: {} }); delete f.tot; delete f.totOpen;
+  }
   for (const bk of e.bookmakers) {
     const m = bk.markets.find(x => x.key === "h2h"); if (!m) continue;
     const pa = m.outcomes.find(o => o.name === f.a), pb = m.outcomes.find(o => o.name === f.b);

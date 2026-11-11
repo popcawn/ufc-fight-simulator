@@ -19,10 +19,22 @@ const HL = 730, ELO_K = 40;
 // Fresh download by default so a stale cache can never silently produce a wrong roster.
 const USE_CACHE = process.argv.includes("--cache");
 if (!existsSync(DIR)) mkdirSync(DIR);
+const MIN_ROWS = { "ufc_event_details.csv": 700, "ufc_fighter_tott.csv": 4000, "ufc_fight_results.csv": 8000, "ufc_fight_stats.csv": 38000 };
 async function csv(name) {
   const p = DIR + name;
-  if (!(USE_CACHE && existsSync(p))) { console.log("downloading", name); writeFileSync(p, await fetch(BASE + name).then(r => r.text())); }
-  return parseCSV(readFileSync(p, "utf8"));
+  if (!(USE_CACHE && existsSync(p))) {
+    console.log("downloading", name);
+    let text = "", err = "";
+    for (let i = 0; i < 3 && !text; i++) { // a failed download used to be saved as if it were the data
+      try { const r = await fetch(BASE + name); if (r.ok) text = await r.text(); else err = "HTTP " + r.status; } catch (e) { err = e.message; }
+    }
+    if (!text) { console.log(`::error::download failed: ${name} (${err}). Roster left untouched.`); process.exit(1); }
+    if (parseCSV(text).length < MIN_ROWS[name]) { console.log(`::error::${name} came back with too few rows (expected ${MIN_ROWS[name]}+). Roster left untouched.`); process.exit(1); }
+    writeFileSync(p, text);
+  }
+  const rows = parseCSV(readFileSync(p, "utf8"));
+  if (rows.length < MIN_ROWS[name]) { console.log(`::error::${name} has ${rows.length} rows (expected ${MIN_ROWS[name]}+). Roster left untouched.`); process.exit(1); }
+  return rows;
 }
 function parseCSV(text) {
   const rows = []; let row = [], cur = "", q = false;
@@ -36,7 +48,9 @@ function parseCSV(text) {
   }
   if (cur || row.length) { row.push(cur.replace(/\r$/, "")); rows.push(row); }
   const head = rows[0].map(h => h.trim());
-  return rows.slice(1).filter(r => r.length === head.length).map(r => Object.fromEntries(head.map((h,i)=>[h, r[i].trim()])));
+  const kept = rows.slice(1).filter(r => r.length === head.length), skipped = rows.length - 1 - kept.length;
+  if (skipped > 0) console.log(`::warning::${skipped} row(s) skipped: wrong number of columns (first: ${JSON.stringify(rows.slice(1).find(r => r.length !== head.length)).slice(0, 120)})`);
+  return kept.map(r => Object.fromEntries(head.map((h,i)=>[h, r[i].trim()])));
 }
 const [events, tott, results, stats] = await Promise.all(["ufc_event_details.csv","ufc_fighter_tott.csv","ufc_fight_results.csv","ufc_fight_stats.csv"].map(csv));
 const evDate = new Map(events.map(e => [e.EVENT.trim(), new Date(e.DATE)]));
@@ -124,7 +138,7 @@ const oppDiv = s => { for (let i = (s.opps||[]).length-1; i >= 0; i--) { const o
 
 // Fighters booked on an upcoming card (odds.json, next 60 days) are always included, however long they've been out,
 // so a returning veteran (e.g. a 3-year layoff) can still be simmed. Ring rust is capped at 36 months by the model.
-const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/s+/g, " ").trim();
+const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 const booked = new Set();
 try {
   const O = JSON.parse(readFileSync(ROOT + "/odds.json", "utf8")), now = Date.now();
@@ -182,6 +196,15 @@ for (const n of ["Max Holloway","Merab Dvalishvili","Alex Pereira","Tom Aspinall
   const r = rows.find(r => r[0] === n);
   console.log(n + ":", r ? JSON.stringify(r) : "MISSING");
 }
+// ---- safety net: never publish a broken roster ----
+const prevN = existsSync(ROOT + "/ufc-roster.json") ? JSON.parse(readFileSync(ROOT + "/ufc-roster.json", "utf8")).length : 0;
+const broken = rows.filter(r => r.some(v => v === null || (typeof v === "number" && !Number.isFinite(v))));
+if (rows.length < 500 || (prevN && rows.length < prevN * 0.9) || broken.length) {
+  console.log(`::error::roster check failed: ${rows.length} fighters (was ${prevN}), ${broken.length} with broken numbers${broken.length ? ", e.g. " + broken[0][0] : ""}. Nothing written.`);
+  process.exit(1);
+}
+const newest = bouts.length ? bouts[bouts.length - 1].date : null, staleDays = newest ? Math.round((TODAY - newest) / 864e5) : 999;
+if (staleDays > 16) console.log(`::warning::newest fight in the UFCStats mirror is ${staleDays} days old${newest ? " (" + newest.toISOString().slice(0, 10) + ")" : ""}. The mirror may have stopped updating.`);
 writeFileSync(ROOT + "/ufc-roster.json", JSON.stringify(rows));
 
 // ---- inject into HTML ----

@@ -1788,11 +1788,24 @@ $("tabs").addEventListener("click", e => {
 // Per fight: consensus market % (mean price across books, de-vigged — exactly as in the backtest), anchored
 // fair % (opening-line weights only while the line is fresh), best price per side across books, same TAKE rule.
 const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const NAME_ALIAS = { // sportsbook spelling (lower case, no accents) -> the UFCStats name in the roster. Add a line when the name check flags one.
+  "lupita godinez": "Loopy Godinez", "beatriz mesquita": "Bia Mesquita", "jose henrique": "Jose Souza" };
 const rosterIdx = new Map(fighters.map(f => [nmz(f.name), f]));
-function findFighter(n){ // sportsbook spelling -> roster fighter (exact, else unique surname + first initial)
-  const k = nmz(n); if(rosterIdx.has(k)) return rosterIdx.get(k);
-  const last = surname(k), c = fighters.filter(f => { const q = nmz(f.name); return surname(q) === last && q[0] === k[0]; }); // suffix-aware: "allen frye" finds "Allen Frye Jr."
-  return c.length === 1 ? c[0] : null;
+const rosterKeys = fighters.map(f => { const q = nmz(f.name); return { f, q, sq: q.replace(/ /g, ""), sk: q.replace(/[aeiouy ]/g, ""), so: q.split(" ").sort().join(" ") }; });
+const editDist = (a, b) => { const d = [...Array(a.length + 1)].map((_, i) => [i]); for(let j = 1; j <= b.length; j++) d[0][j] = j;
+  for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] !== b[j - 1])); return d[a.length][b.length]; };
+function findFighter(n){
+  let k = nmz(n); if(NAME_ALIAS[k]) k = nmz(NAME_ALIAS[k]);
+  if(rosterIdx.has(k)) return rosterIdx.get(k);                                                    // 1. exact
+  const sq = k.replace(/ /g, ""), sk = k.replace(/[aeiouy ]/g, "");
+  const near = sq.length >= 9 ? rosterKeys.filter(x => x.sk === sk && editDist(x.sq, sq) <= 2) : []; // 2. same consonants, vowels differ (Lourenco / Lorenco, Darya / Daria)
+  if(near.length === 1) return near[0].f;
+  const so = k.split(" ").sort().join(" "), swap = rosterKeys.filter(x => x.so === so);              // 3. same words, other order (Yadong Song / Song Yadong)
+  if(swap.length === 1) return swap[0].f;
+  const last = surname(k), first = k.split(" ")[0], c = rosterKeys.filter(x => surname(x.q) === last && x.q[0] === k[0]);
+  if(c.length === 1) return c[0].q.slice(0, 2) === k.slice(0, 2) ? c[0].f : null;                    // 4. surname + initial: first two letters must agree (Joe / Joseph yes, Magomed / Murtazali no)
+  const pre = c.filter(x => { const fq = x.q.split(" ")[0]; return fq.startsWith(first) || first.startsWith(fq); });
+  return pre.length === 1 ? pre[0].f : null;                                                         // 5. several share the surname: only a short form of the same first name (Alex / Alexander)
 }
 const BOOK = { draftkings:"DraftKings", fanduel:"FanDuel", betmgm:"BetMGM", betrivers:"BetRivers", hardrockbet:"Hard Rock", betonlineag:"BetOnline",
   bovada:"Bovada", betanysports:"BetAnySports", betparx:"betPARX", ballybet:"Bally Bet", espnbet:"ESPN BET", fanatics:"Fanatics", williamhill_us:"Caesars", mybookieag:"MyBookie", lowvig:"LowVig", betus:"BetUS" };
@@ -1906,7 +1919,7 @@ function renderScan(){
         : `<span class="${i ? "b" : "r"}">${r.name[i]}</span>`; };
     const thinWho = () => { const c = [r.A, r.B].filter(f => f && ufcN(f) < 4).sort((x, y) => ufcN(x) - ufcN(y))[0]; return c ? `${surname(c.name)} has ${ufcN(c)} UFC fight${ufcN(c) === 1 ? "" : "s"}` : "thin data"; };
     const px = i => `<b>${decAm(r.best[i].d)}</b> <span class="bk">${bookName(r.best[i].book)}</span>`;
-    const k = r.pick, s = r.side[k], sur = i => surname(r.name[i]), inSlip = slip.some(l => l.id === r.id);
+    const k = r.pick, s = r.side[k], sur = i => surname(r.name[i]), inSlip = slipLegs().some(l => sameFight(l.r, r));
     const tip = r.early ? `Fresh line (first seen ${Math.round(r.age)}h ago, hasn't moved 3+ pts): opening-line weights, the backtested edge`
       : "Line has been up a while or already moved: conservative fight-week weights";
     html += `<tr class="${r.take ? "take" : ""}">
@@ -1929,20 +1942,27 @@ function slipOffers(legs){ // parlays settle at ONE book: payout = product of th
   return Object.keys((ODDS && ODDS.books) || {}).filter(b => usableBook(b) && legs.every(l => l.r.f.now[b]))
     .map(b => { const D = legs.reduce((s, l) => s * l.r.f.now[b][l.k], 1); return { b, D, ev: P * D - 1 }; }).sort((x, y) => y.D - x.D);
 }
+const ufcCount = f => f ? f.w + f.l : 0;
+const legThin = l => [l.r.A, l.r.B].filter(f => f && ufcCount(f) < 4);   // fighters in this leg's fight with under 4 UFC fights
+const sameFight = (r1, r2) => { const a = r1.name.map(nmz), b = r2.name.map(nmz); return a.some(n => b.includes(n)); }; // a shared fighter = the same fight, even when the feed lists it twice
 function renderSlip(){
-  const legs = slipLegs();
-  if(!legs.length){ $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip</h4><p class="sub" style="line-height:1.5">Add TAKE rows, one per fight. Every leg needs its own edge — the book's cut multiplies across legs.</p>`; return; }
+  const legs = slipLegs(), gone = slip.length - legs.length;
+  const goneNote = gone > 0 ? `<div class="warnline">⚠ ${gone} leg${gone === 1 ? "" : "s"} dropped: the fight is no longer in the odds feed (cancelled or re-booked).</div>` : "";
+  if(!legs.length){ $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip</h4><p class="sub" style="line-height:1.5">Add TAKE rows, one per fight. Every leg needs its own edge — the book's cut multiplies across legs.</p>` + goneNote; return; }
   const P = legs.reduce((s, l) => s * l.p, 1), offers = slipOffers(legs), top = offers[0];
   const stake = top ? Math.min(1, 25 * Math.max(0, (P * top.D - 1) / (top.D - 1))) : 0;
-  const weak = legs.filter(l => l.r.side[l.k].ev < 0.03);
+  const evAt = l => top ? l.p * l.r.f.now[top.b][l.k] - 1 : l.r.side[l.k].ev; // this leg's edge at the ONE book the parlay settles at
+  const weak = legs.filter(l => evAt(l) < 0.03), thinLegs = legs.filter(l => legThin(l).length);
+  const badge = l => legThin(l).map(f => `<span class="ufcn" style="color:var(--gold);border-color:var(--gold)" title="${f.name} has only ${ufcCount(f)} UFC fight${ufcCount(f) === 1 ? "" : "s"}: thin data, a high-variance leg">⚠ ${surname(f.name)} ${ufcCount(f)} UFC</span>`).join("");
   $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip · ${legs.length} leg${legs.length === 1 ? "" : "s"}</h4>` +
-    legs.map((l, i) => `<div class="leg"><span>${l.name} <span class="sub">${pct(l.p)} fair</span></span><button class="mini-btn x" data-rm="${i}" aria-label="Remove">×</button></div>`).join("") +
+    legs.map((l, i) => `<div class="leg"><span>${l.name}${badge(l)} <span class="sub">${pct(l.p)} fair${top ? ` · ${evAt(l) >= 0 ? "+" : ""}${(evAt(l) * 100).toFixed(1)}% at ${bookName(top.b)}` : ""}</span></span><button class="mini-btn x" data-rm="${i}" aria-label="Remove">×</button></div>`).join("") +
     `<div class="slipstat">Hits about <b>1 in ${(1 / P).toFixed(1)}</b> (${pct(P)})</div>` +
     (top ? `<div class="slipstat">Best payout <b>${decAm(top.D)}</b> at ${bookName(top.b)} · EV <b class="${top.ev >= 0 ? "ok" : "miss"}">${top.ev >= 0 ? "+" : ""}${(top.ev * 100).toFixed(1)}%</b></div>` +
       offers.slice(1, 3).map(o => `<div class="sub">${bookName(o.b)} ${decAm(o.D)} · EV ${(o.ev * 100).toFixed(1)}%</div>`).join("") +
       `<div class="slipstat">Stake <b>${stake.toFixed(2)}%</b> of bankroll <div class="sub">¼-Kelly, capped at 1% — parlays swing hard</div></div>`
       : `<div class="warnline">No single book offers all of these legs.</div>`) +
-    (weak.length ? `<div class="warnline">⚠ ${weak.map(l => l.name).join(", ")}: edge has dropped under 3% — this leg drags the parlay down.</div>` : "") +
+    (thinLegs.length ? `<div class="warnline">⚠ Thin data: ${thinLegs.map(l => legThin(l).map(f => `${f.name} (${ufcCount(f)} UFC fight${ufcCount(f) === 1 ? "" : "s"})`).join(", ")).join("; ")}. High-variance leg${thinLegs.length === 1 ? "" : "s"}.</div>` : "") +
+    (weak.length ? `<div class="warnline">⚠ ${weak.map(l => l.name).join(", ")}: edge is under 3% at ${top ? bookName(top.b) : "your books"} — ${weak.length === 1 ? "this leg drags" : "these legs drag"} the parlay down.</div>` : "") + goneNote +
     `<div class="slipbtns"><button class="mini-btn" id="slipLog" ${top ? "" : "disabled"}>Log parlay</button><button class="mini-btn" id="slipClear">Clear</button></div>`;
 }
 function simFromScan(id){ // load the fight into the main dashboard with the best prices filled in
@@ -1957,7 +1977,7 @@ function simFromScan(id){ // load the fight into the main dashboard with the bes
 $("wkbody").addEventListener("click", e => {
   const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
   if(b.dataset.sim) simFromScan(b.dataset.sim);
-  else if(b.dataset.slip){ const r = scanRows.find(x => x.id === b.dataset.slip); if(r && !slip.some(l => l.id === r.id)) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); }
+  else if(b.dataset.slip){ const r = scanRows.find(x => x.id === b.dataset.slip); if(r && !slipLegs().some(l => sameFight(l.r, r))) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); }
   else if(b.dataset.log){ const r = scanRows.find(x => x.id === b.dataset.log); if(!r) return; const s = r.side[r.pick];
     logBet([{ fid: r.id, k: r.pick, name: r.name[r.pick], vs: r.name[1 - r.pick], t: r.f.t, price: s.d }], s.d, s.book, r.stake);
     b.textContent = "Logged ✓"; b.disabled = true; }

@@ -25,6 +25,8 @@ jobs:
         run: node odds-scan.mjs
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      - name: Check fighter names against the roster (warnings only)
+        run: node check-names.mjs || true
       - name: Commit if lines changed
         run: |
           git config user.name  "odds-scan-bot"
