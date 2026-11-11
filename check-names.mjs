@@ -7,7 +7,8 @@ const html = readFileSync(ROOT + "/classic.html", "utf8"); // the Classic roster
 const roster = [...html.match(/const F = \[([\s\S]*?)\n\];/)[1].matchAll(/^\["((?:[^"\\]|\\.)*)"/gm)].map(m => JSON.parse('"' + m[1] + '"'));
 const alias = (() => { const m = readFileSync(ROOT + "/index.html", "utf8").match(/const NAME_ALIAS = (\{[\s\S]*?\});/); try { return m ? Function("return " + m[1])() : {}; } catch (e) { return {}; } })();
 const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
-const keys = roster.map(n => { const q = nmz(n.replace(/s*([^)]*)$/, "")); // "Bruno Silva (Flyweight)" counts as the book's "Bruno Silva" return { n, q, sq: q.replace(/ /g, ""), last: q.split(" ").pop() }; }), exact = new Map(keys.map(k => [k.q, k.n]));
+// a roster name like "Bruno Silva (Flyweight)" counts as the sportsbook's plain "Bruno Silva"
+const keys = roster.map(n => { const q = nmz(n.replace(/\s*\([^)]*\)$/, "")); return { n, q, sq: q.replace(/ /g, ""), last: q.split(" ").pop() }; }), exact = new Map(keys.map(k => [k.q, k.n]));
 const dist = (a, b) => { const d = [...Array(a.length + 1)].map((_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
   for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] !== b[j - 1])); return d[a.length][b.length]; };
 const now = Date.now(), up = Object.values(O.fights).filter(f => { const t = new Date(f.t).getTime(); return t > now && t < now + 21 * 864e5 && f.seen === O.updated; });
