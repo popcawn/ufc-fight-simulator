@@ -74,6 +74,13 @@ for (const s of stats) {
   a.kd += +(s.KD||0)||0; a.ctrl += secs(s.CTRL); // knockdowns scored, octagon control (seconds)
 }
 const tape = new Map(tott.map(t => [t.FIGHTER.trim(), t]));
+// Two different UFC fighters can share one UFCStats name; without this their fights merge into one record.
+// Each fight goes to a fighter by its weight class. Row = [weight class that marks him ("" = every other fight), roster name, weight on his UFCStats page].
+// Data fix only: no stat formula changes. Bruno Silva = a flyweight (born 1990) and a middleweight (born 1989).
+const SAME_NAME = { "Bruno Silva": [["Middleweight", "Bruno Silva (Middleweight)", "185"], ["", "Bruno Silva (Flyweight)", "125"]] };
+const who = (n, wc) => { const t = SAME_NAME[n]; return t ? t.find(([d]) => (wc || "").includes(d))[1] : n; };
+const tapeOf = name => { for (const [base, list] of Object.entries(SAME_NAME)) { const e = list.find(x => x[1] === name);
+  if (e) return tott.find(t => t.FIGHTER.trim() === base && (t.WEIGHT || "").trim().startsWith(e[2])); } return tape.get(name); };
 const inches = s => { const m=(s||"").match(/(\d+)'\s*(\d+)/); if(m) return +m[1]*12 + +m[2]; const m2=(s||"").match(/^(\d+)"/); return m2 ? +m2[1] : 0; };
 
 const WCRE = /(Women's )?(Strawweight|Flyweight|Bantamweight|Featherweight|Lightweight|Welterweight|Middleweight|Light Heavyweight|Heavyweight)/;
@@ -91,7 +98,7 @@ for (const { r, date } of bouts) {
   const names = r.BOUT.split(" vs. ").map(x=>x.trim());
   if (names.length !== 2) continue;
   const [nA, nB] = names;
-  const sA = getS(nA), sB = getS(nB);
+  const sA = getS(who(nA, r.WEIGHTCLASS)), sB = getS(who(nB, r.WEIGHTCLASS)); // nA/nB stay the UFCStats names for the per-bout stat lookup below
   const out = r.OUTCOME.trim();
   const method = r.METHOD || "";
   const isKO = /KO\/TKO|TKO/.test(method), isSub = /Submission/.test(method);
@@ -130,7 +137,7 @@ const streak = res => { let n = 0; for (let i = res.length-1; i >= 0; i--) { if 
 const rows = [];
 for (const [name, s] of S) {
   if (!s.last) continue; // EVERY fighter with a UFC fight (user request 2026-11-03), not just recent ones
-  const t = tape.get(name) || {};
+  const t = tapeOf(name) || {};
   const div = s.div || "Unknown";
   const ht = inches(t.HEIGHT) || medHt[div] || 70;
   const reach = inches(t.REACH) || ht;
