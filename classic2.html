@@ -246,7 +246,8 @@
     <li><b>Distance rows in a PASS THIS FIGHT fight stay info only.</b> Inside those fights the same lean went 30–29 (+6.4% on 59 bets; the goes-the-distance side 20–18, −1.0%) — too few bets to trust.</li>
     <li><b>Method props are information only.</b> There is no price history to test them, so 2.0 never recommends one.</li>
     <li><b>Kept from v1 because they tested well:</b> PASS THIS FIGHT (those would-be bets lost 16–45%), LEAN PASS on fighters with under 4 UFC fights (those picks lost 2–29%), and passing on edges above 50%.</li>
-    <li><b>Fade rule on thin-data fights.</b> When the suspect pick is the veteran, the note names the newcomer as the fade (93–49, +4.4% at 2021–25 opening prices; +16% to +33% in 2026). When the suspect pick is the newcomer, it says skip.</li>
+    <li><b>Experience: one line, 4 UFC fights.</b> Favorite edges where both fighters have 4+ UFC fights went 110–59 (+11.4%). With a 1–3-fight fighter in the fight they went 67–47 (−1.2%), so those are LEAN PASS. Single fight counts look all over the place (1 fight −1%, 4 fights −7%) only because each holds 20–55 bets; pooled, the line at 4 holds.</li>
+    <li><b>Fade rule: only against 3-fight newcomers.</b> When the model's pick is the veteran and the newcomer has exactly 3 UFC fights, the model badly underrates the newcomer: fading those picks went 43–9 (+20.7% at closing prices, +30% at opening, up 5 of 6 years; a random group that size does this badly 0.03% of the time). Fades of 1- and 2-fight newcomers lost (−2.5%, −6.6%) and debuts were never tested, so those say skip. When the pick is the newcomer, or both are newcomers, it also says skip.</li>
     <li><b>Short-notice switch.</b> The model cannot know a fighter is a late replacement. In the 25 such fights that could be identified, the replacement won 24% (Classic said 48%, books said 42%). The switch lowers that fighter's chance (a 50% fighter becomes about 40%) and blocks a TAKE on them. With only 25 cases the size is an estimate.</li>
     <li><b>Next opponent.</b> Type or pick a fighter and the other box switches to their next scheduled opponent (from the latest sportsbook scan). If that replaced a name, the note under the boxes has an <b>undo</b>. Odds are never filled in for you.</li>
   </ul>
@@ -3334,11 +3335,15 @@ function verdictFor(entered, A, B, pA, ctx){
     const alsoShort = lean ? ` Small lean: <b>${lean.label}</b> (+${(lean.ev*100).toFixed(1)}%).` : "";
     const also = lean ? ` Separately, <b>${lean.label}</b> shows a small lean (+${(lean.ev*100).toFixed(1)}%).` : "";
     if(lowData){
-      let fade, fadeShort;
-      if(nMe >= 4 && nOpp < 4) fade = ` <b>Fade rule:</b> the suspect pick is the veteran, so the fade is <b>${opp.name}</b> (${nOpp} UFC fight${nOpp===1?"":"s"}). Fades like this went 93–49 (+4.4%) at 2021–25 opening prices and +16% to +33% in 2026.` + (nOpp === 1 ? ` With only 1 UFC fight that fade was weaker (−5%).` : nOpp === 0 ? ` A debut was not part of that test.` : ""), fadeShort = `Fade: bet <b>${opp.name}</b>.`;
+      // fade rule, re-tested 2026-11-12 (tests/thin-why.mjs, real prices 2021-26): betting the newcomer when the model's edge pick is
+      // the 4+ veteran only worked when the newcomer had exactly 3 UFC fights (43-9, +20.7% at closing prices, +30.2% at opening,
+      // up 5 of 6 years). With 1 or 2 fights it lost (-2.5% / -6.6%); debuts were never tested.
+      let fade, fadeShort, fadeIndex = null;
+      if(nMe >= 4 && nOpp === 3) fade = ` <b>Fade rule:</b> the suspect pick is the veteran and <b>${opp.name}</b> has exactly 3 UFC fights. The model badly underrates fighters at that stage: fading picks like this went 43–9 (+20.7% at closing prices, +30% at opening prices, up 5 of 6 years). Small stake.`, fadeShort = `Fade: bet <b>${opp.name}</b> (3-fight newcomers beat these picks 43–9).`, fadeIndex = 1 - ml.i;
+      else if(nMe >= 4 && nOpp < 3) fade = ` <b>Fade rule:</b> <b>${opp.name}</b> has ${nOpp === 0 ? "no UFC fights (debut — never tested)" : `only ${nOpp} UFC fight${nOpp===1?"":"s"}; fades of 1–2-fight newcomers lost (−2.5% / −6.6% at closing prices)`}. Skip.`, fadeShort = `No fade here — skip.`;
       else if(nMe < 4 && nOpp >= 4) fade = ` <b>Fade rule:</b> the suspect pick is the newcomer — skip. Betting against picks like this lost 18.6%.`, fadeShort = `No fade here — skip.`;
       else fade = ` Both fighters are newcomers, so there is no tested fade here.`, fadeShort = `Both are newcomers — skip.`;
-      return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:ml.i, leanIndex:null, mlNote:"suspect", short:`<b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}, so the model's pick is unreliable. ${fadeShort}`, body:
+      return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:fadeIndex, fadeIndex, leanIndex:null, mlNote:"suspect", short:`<b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}, so the model's pick is unreliable. ${fadeShort}`, body:
         `The model flags <b>${ml.label}</b> (+${(ml.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable.${fade}` };
     }
     if(ctx.notice && ctx.notice[ml.i])
@@ -3389,7 +3394,8 @@ function computeVerdict(){
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     const plus = "+"+(e.ev*100).toFixed(1)+"%";
     const tag = (cls, t) => { ev.className = "evcell " + cls; ev.innerHTML = `${plus}<span class="tag">${t}</span>`; };
-    if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
+    if(i === v.fadeIndex){ ev.className = "evcell lean"; ev.innerHTML = `${(e.ev*100).toFixed(1)}%<span class="tag">fade</span>`; } // model's EV is negative here; the bet comes from the fade test
+    else if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
     else if(i === v.bestIndex && v.status === "take") tag("best", "★ best");
     else if(i === v.leanIndex) tag("lean", "lean");
     else if(i <= 1){ // moneyline rows
