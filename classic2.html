@@ -238,7 +238,8 @@
   </ul>
   <h4>What changed from Classic v1, and the test behind each change</h4>
   <ul>
-    <li><b>Win probability: unchanged.</b> Same simulation, same trained head, same numbers as Classic v1. A longer ring-rust cap was tested and did not help, so the 36-month cap stays.</li>
+    <li><b>Win probability: the same as Classic v1, except for age.</b> Same simulation and trained head. A longer ring-rust cap was tested and did not help, so the 36-month cap stays.</li>
+    <li><b>Age markdown (added Nov 12).</b> Fighters 40+ won 25% of their fights from 2021–26 while both the books and the Classic said about 35%. Each year over 36 now costs a little extra (a 43-year-old vs a 30-year-old: 50% → about 40%). Tested walk-forward (each year's size fit on earlier years only): predictions improved for 38+ fighters in both 2021–23 and 2024–26, and 2.0 bets in those fights went from −5.9% to +3.3%. The note under the result shows when it applies.</li>
     <li><b>Method and distance split: rebuilt.</b> Scored on 2,439 real fights (2021–26, each year predicted only from earlier fights), v1's six-way split (who wins &times; KO / submission / decision) had a log-loss of 2.11 — worse than a blind guess (about 1.70). The 2.0 split scores 1.60 and is better in both halves of the test. v1 said fights go the distance 42% of the time (real: 50%), and could show a fighter at 0.0% to win by decision.</li>
     <li><b>Distance now leans on each fighter's own record.</b> How often each fighter's UFC fights have gone to a decision predicts distance far better than the simulation does. When 2.0 says 20–30%, fights went the distance 29% of the time (v1: said 26%, real 40%).</li>
     <li><b>Favorites vs underdogs.</b> At real prices (2021–25 closing lines, 2026 DraftKings/FanDuel), favorites the model liked more than the book went 110–59 (+11.4%). Underdog edges went 186–334 (−5.8%): they won 36% of the time, the book's number, not the model's 47%. So 2.0 calls only the favorites a TAKE.</li>
@@ -3121,6 +3122,10 @@ function blend(pSim, A, B){
 const M2 = { D:[0.0513, 0.1591, 1.0438], AD:0.8984, AF:[1.0876, 0.1901], KO:[-0.2627, 0.081, 0.6806, 0.426],
   RSH:{ 3:[0.515, 0.326, 0.16], 5:[0.301, 0.31, 0.185, 0.111, 0.093] } }; // RSH = share of real finishes by round
 const SHORT_NOTICE = 0.4; // logit penalty for a late replacement (a 50% fighter becomes ~40%); an estimate, see the 2.0 notes
+// Age (added 2026-11-12, tests/age-adj.mjs): the Classic's straight-line age term under-rates how fast fighters fade late.
+// Each year over 36 costs 0.06 logit on top of it (walk-forward fit; better log-loss on 38+ fights in 2021-23 AND 2024-26,
+// bets in those fights -5.9% -> +3.3%). A 43-year-old vs a 30-year-old: 50% -> ~40%.
+const AGE_K = 0.06, ageOver = f => Math.max(0, (+f.age || 0) - 36);
 const decRate = f => { const n = f.w + f.l, dec = Math.max(0, n - f.koW - f.subW - f.koL - f.subL); return (dec + 2.5) / (n + 5); };
 const koWinLg  = f => logit((f.koW + 1.3) / (f.koW + f.subW + 2)); // share of this fighter's finish wins that are KOs
 const koLossLg = f => logit((f.koL + 1.3) / (f.koL + f.subL + 2)); // share of this fighter's finish losses that are KOs
@@ -3435,7 +3440,9 @@ $("go").onclick = () => {
   const t = simulate(A, B, nRounds, 10000);
   const N = t.A + t.B, sn = [$("snA").checked, $("snB").checked];
   // short notice (2.0): a late replacement is marked down by a fixed amount; both checked cancels out
-  const probA = sig(logit(blend(t.A/N, A, B)) - SHORT_NOTICE*((sn[0]?1:0) - (sn[1]?1:0)));
+  // age (2.0): every year over 36 costs a little more than the Classic's own age term says (AGE_K, see method.js)
+  const ageAdj = AGE_K*(ageOver(A) - ageOver(B));
+  const probA = sig(logit(blend(t.A/N, A, B)) - SHORT_NOTICE*((sn[0]?1:0) - (sn[1]?1:0)) - ageAdj);
   const m = methodModel(t, probA, A, B, nRounds);
   const aWin = probA>=0.5, W = aWin ? A : B, winN = aWin ? probA : 1-probA;
   const winT = aWin ? { KO:m.koA, SUB:m.subA, DEC:m.decA } : { KO:m.koB, SUB:m.subB, DEC:m.decB };
@@ -3455,7 +3462,8 @@ $("go").onclick = () => {
   $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b>${rdTxt} &middot; ${confTxt}`;
   $("xdiv").textContent = A.div !== B.div ? `⚠ Cross-division matchup (${A.div} vs ${B.div}): rough estimate only.` : "";
 
-  $("snote").textContent = (sn[0] || sn[1]) ? (sn[0] && sn[1] ? "Short notice on both fighters: it cancels out." : `Short notice: ${(sn[0] ? A : B).name} marked down (an estimate from 25 past fights).`) : "";
+  const ageTxt = ageAdj ? (() => { const o = ageAdj > 0 ? A : B, p0 = sig(logit(probA) + ageAdj); return `Age: ${o.name} (${o.age}) marked down ${Math.abs(Math.round(100*(p0 - probA)))} pts (fighters fade faster after 36 than the base model says).`; })() : "";
+  $("snote").textContent = [(sn[0] || sn[1]) ? (sn[0] && sn[1] ? "Short notice on both fighters: it cancels out." : `Short notice: ${(sn[0] ? A : B).name} marked down (an estimate from 25 past fights).`) : "", ageTxt].filter(Boolean).join(" ");
   $("methWho").textContent = W.name;
   $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c/winN)}</span></div>`).join("");
   $("rounds").innerHTML = m.rounds.map((v,i)=>`<div class="mrow"><span class="lab">Round ${i+1}</span><span>${pct(v)}</span></div>`).join("")
