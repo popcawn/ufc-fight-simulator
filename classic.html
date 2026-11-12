@@ -41,6 +41,7 @@
   .err:empty{display:none;}
   .oppnote{font-size:12px; color:var(--dim); margin-top:6px;}
   .oppnote:empty{display:none;}
+  .oppundo{font:inherit; color:var(--gold); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
 
   /* result card */
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:12px;}
@@ -230,6 +231,7 @@
     <li><b>Fair</b> is the model's price with no book margin. <b>Market</b> is the book's chance with its margin removed (on the two-way win and distance markets). <b>EV</b> is your expected return per dollar at the odds you typed (e.g. <code>-150</code> or <code>+220</code>).</li>
     <li><b>Best</b> is the one row to bet if you only bet one. <b>Value</b> rows are the same fight, so treat them as one position. When the verdict says pass, positive rows are marked <b>suspect</b>.</li>
     <li>Props are estimated from the simulation's method and round mix.</li>
+    <li><b>Next opponent.</b> Type or pick a fighter and the other box switches to their next scheduled opponent. If that replaced a name, the note under the boxes has an <b>undo</b>.</li>
     <li>Model-based suggestion, not financial advice. Bet only what you can afford to lose.</li>
   </ul>
   <h4>The model</h4>
@@ -3506,9 +3508,10 @@ showGroups();
 // inside the site's Classic overlay the title row is redundant (the overlay has its own bar)
 try { if(window.self !== window.top) document.documentElement.classList.add("embedded"); } catch(e){ try { document.documentElement.classList.add("embedded"); } catch(e2){} }
 
-// ---- NEXT OPPONENT: type or pick one fighter and the other box fills with their next scheduled opponent ----
-// From the site's odds.json (fights still listed at the latest scan, starting within the next 90 days). Never replaces a
-// name you typed yourself; it only fills an empty box or one it filled earlier. Display only: no probability is touched.
+// ---- NEXT OPPONENT: type or pick a fighter and the other box switches to their next scheduled opponent ----
+// From the site's odds.json (fights still listed at the latest scan, starting within the next 90 days). The box you changed
+// last decides the fight; if that replaced a name, the note offers "undo" (for a made-up matchup). Display only: no odds,
+// no probability.
 const OPP_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia mesquita", "jose henrique":"jose souza", "charlie radtke":"charles radtke" }; // = NAME_ALIAS in index.html
 const oppNm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s*\([^)]*\)$/, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 const oppKey = s => { const k = oppNm(s); return OPP_ALIAS[k] || k; };
@@ -3527,20 +3530,31 @@ function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp 
   }
   return best ? { ...best, opp: oppIdx.get(oppKey(best.name)) || null } : null;
 }
-const oppAuto = { fa:null, fb:null }; // the name this feature put in each box
+const oppDone = { fa:"", fb:"" }; // the value each box last set the fight from (so leaving the box or pressing Enter does not redo it)
+function oppNote(text, undo){
+  const note = $("oppNote"); if(!note) return;
+  note.textContent = text || "";
+  if(text && undo){
+    const b = document.createElement("button"); b.type = "button"; b.className = "oppundo"; b.textContent = "undo";
+    b.onclick = () => { $(undo.box).value = undo.prev; oppDone[undo.box] = undo.prev; note.textContent = ""; };
+    note.appendChild(document.createTextNode(" · ")); note.appendChild(b);
+  }
+}
 function oppFill(id, loose){ // loose = also a short name the Simulate button accepts ("gane"), checked when you leave the box or press Enter
-  const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim(), note = $("oppNote");
-  if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
+  const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim();
+  if(v === oppDone[id]) return;
   const F = byName[v.toLowerCase()] || oppIdx.get(oppNm(v)) || (loose ? lookup(id) : null) || null;
-  if(!F){ if(note) note.textContent = ""; return; }
+  if(!F){ oppNote(""); return; }
   const go = () => {
     if($(id).value.trim() !== v) return; // you kept typing meanwhile
+    oppDone[id] = v;
     const nf = nextFight(F), out = $(other);
-    if(!nf){ if(note) note.textContent = ""; return; }
-    const free = !out.value.trim() || out.value === oppAuto[other];
-    if(nf.opp && free && out.value !== nf.opp.name){ out.value = nf.opp.name; oppAuto[other] = nf.opp.name; }
+    if(!nf){ oppNote(""); return; }
     const date = new Date(nf.t).toLocaleDateString([], { weekday:"short", month:"short", day:"numeric" });
-    if(note){ note.textContent = nf.opp ? `Next fight: ${F.name} vs ${nf.opp.name} · ${date}` : `Next fight: vs ${nf.name} · ${date} (not in the roster yet, so it can't be simmed)`; }
+    if(!nf.opp){ oppNote(`Next fight: vs ${nf.name} · ${date} (not in the roster yet, so it can't be simmed)`); return; }
+    const prev = out.value.trim(), changed = prev !== nf.opp.name;
+    if(changed){ out.value = nf.opp.name; oppDone[other] = nf.opp.name; }
+    oppNote(`Next fight: ${F.name} vs ${nf.opp.name} · ${date}`, changed && prev ? { box: other, prev } : null);
   };
   if(OPP) go(); else oppReady.then(go);
 }

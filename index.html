@@ -38,6 +38,7 @@
   .chk{font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:center; cursor:pointer; white-space:nowrap;}
   .oppnote{position:absolute; right:14px; top:100%; margin-top:6px; color:var(--dim); font-size:12px; z-index:5; background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:6px; max-width:calc(100% - 28px);}
   .oppnote:empty{display:none;}
+  .oppundo{font:inherit; color:var(--gold); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
   .err{position:absolute; left:14px; top:100%; margin-top:6px; color:#ff7a7a; font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
   .err:empty{display:none;}
 
@@ -208,7 +209,7 @@
   <button id="wk" class="secondary" title="Every UFC line from US sportsbooks, scanned with the backtested rule">This week</button>
   <button id="mb" class="secondary" title="Your logged bets and closing-line value">My bets</button>
   <button id="classicBtn" class="secondary" title="Classic v1: the original Sept 28 model and betting rules (raw-model calculator, no market anchoring), fighter stats refreshed weekly">Classic v1</button>
-  <button id="classicBtn2" class="secondary" title="Classic 2.0: the same win-probability engine as v1, with a rebuilt method/distance split, verdict rules re-checked against real prices, a short-notice switch and live moneylines">Classic 2.0</button>
+  <button id="classicBtn2" class="secondary" title="Classic 2.0: the same win-probability engine as v1, with a rebuilt method/distance split, verdict rules re-checked against real prices, and a short-notice switch">Classic 2.0</button>
   <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
   <div class="err" id="err"></div>
   <div class="oppnote" id="oppNote" aria-live="polite"></div>
@@ -219,7 +220,7 @@
     <button class="secondary" id="classicBack">← Back to new sim</button>
     <span class="classic-title">CLASSIC SIM</span>
     <span class="classic-ver">
-      <button class="secondary" id="classicV2" title="Classic 2.0: the same win-probability engine as v1, with a rebuilt method/distance split, verdict rules re-checked against real prices, a short-notice switch and live moneylines">Classic 2.0</button>
+      <button class="secondary" id="classicV2" title="Classic 2.0: the same win-probability engine as v1, with a rebuilt method/distance split, verdict rules re-checked against real prices, and a short-notice switch">Classic 2.0</button>
       <button class="secondary" id="classicV1" title="Classic v1: the original Sept 28 model and rules, unchanged">Classic v1</button>
     </span>
     <span id="classicSub"></span>
@@ -2149,19 +2150,28 @@ function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp 
   }
   return best ? { ...best, opp: findFighter(best.name) } : null;
 }
-const oppAuto = { fa: null, fb: null }; // the name this feature put in each box
+const oppDone = { fa: "", fb: "" }; // the value each box last set the fight from (so leaving the box does not redo it)
 let oppTimer = null;
-async function oppFill(id, loose){ // loose = also a short name Simulate accepts ("gane"), checked when you leave the box
+function oppNoteSet(text, undo){ // the note under the header; "undo" puts back a name the fill replaced
+  const note = $("oppNote"); note.textContent = text || ""; clearTimeout(oppTimer);
+  if(!text) return;
+  if(undo){ const b = document.createElement("button"); b.type = "button"; b.className = "oppundo"; b.textContent = "undo";
+    b.onclick = () => { $(undo.box).value = undo.prev; oppDone[undo.box] = undo.prev; note.textContent = ""; };
+    note.appendChild(document.createTextNode(" · ")); note.appendChild(b); }
+  oppTimer = setTimeout(() => { note.textContent = ""; }, undo ? 10000 : 6000);
+}
+async function oppFill(id, loose){ // the box you changed last decides the fight; loose = also a short name Simulate accepts ("gane")
   const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim();
-  if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
-  const note = $("oppNote"), F = rosterIdx.get(nmz(v)) || (loose ? lookup(id) : null); if(!F){ note.textContent = ""; return; }
+  if(v === oppDone[id]) return;
+  const F = rosterIdx.get(nmz(v)) || (loose ? lookup(id) : null); if(!F){ oppNoteSet(""); return; }
   await loadOdds(); if($(id).value.trim() !== v) return; // you kept typing meanwhile
-  const nf = nextFight(F), out = $(other); if(!nf){ note.textContent = ""; return; }
-  const free = !out.value.trim() || out.value === oppAuto[other];
-  if(nf.opp && free && out.value !== nf.opp.name){ out.value = nf.opp.name; oppAuto[other] = nf.opp.name; }
+  oppDone[id] = v;
+  const nf = nextFight(F), out = $(other); if(!nf){ oppNoteSet(""); return; }
   const date = new Date(nf.t).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-  note.textContent = nf.opp ? `Next fight: ${F.name} vs ${nf.opp.name} · ${date}` : `Next fight: vs ${nf.name} · ${date} (not in the roster yet)`;
-  clearTimeout(oppTimer); oppTimer = setTimeout(() => { note.textContent = ""; }, 6000);
+  if(!nf.opp){ oppNoteSet(`Next fight: vs ${nf.name} · ${date} (not in the roster yet)`); return; }
+  const prev = out.value.trim(), changed = prev !== nf.opp.name;
+  if(changed){ out.value = nf.opp.name; oppDone[other] = nf.opp.name; }
+  oppNoteSet(`Next fight: ${F.name} vs ${nf.opp.name} · ${date}`, changed && prev ? { box: other, prev } : null);
 }
 for(const id of ["fa", "fb"]){ $(id).addEventListener("input", () => oppFill(id)); $(id).addEventListener("change", () => oppFill(id, true)); }
 
@@ -2171,7 +2181,7 @@ for(const id of ["fa", "fb"]){ $(id).addEventListener("input", () => oppFill(id)
 // stats of both weekly. Each has its own button in the header; the bar inside the overlay switches between them.
 const CLASSIC = {
   1: { file: "classic.html",  frame: "classicFrame",  sub: "v1 · Sept 28 model & rules, unchanged · raw-model calculator, no market anchoring · fighter stats refreshed weekly" },
-  2: { file: "classic2.html", frame: "classicFrame2", sub: "2.0 · same win engine as v1 · rebuilt method/distance split, re-tested verdict rules, short-notice switch, live moneylines" } };
+  2: { file: "classic2.html", frame: "classicFrame2", sub: "2.0 · same win engine as v1 · rebuilt method/distance split, re-tested verdict rules, short-notice switch" } };
 // "?h=" changes every hour, so the Classic frames never keep showing a copy cached from before an update
 const classicUrl = v => (typeof location !== "undefined" && location.protocol === "file:" ? "https://popcawn.github.io/ufc-fight-simulator/" : "") + CLASSIC[v].file + "?h=" + Math.floor(Date.now() / 36e5);
 function showClassic(v){

@@ -41,6 +41,7 @@
   .err:empty{display:none;}
   .oppnote{font-size:12px; color:var(--dim); margin-top:6px;}
   .oppnote:empty{display:none;}
+  .oppundo{font:inherit; color:var(--gold); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
 
   /* result card */
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:12px;}
@@ -204,7 +205,6 @@
   </div>
 
   <div class="pane" id="pane-prices">
-    <div class="livenote" id="liveNote"></div>
     <div class="tblwrap"><table class="calctable" id="calcTable">
       <thead><tr><th>Outcome</th><th>Model</th><th>Fair</th><th>Book odds</th><th class="c-mkt" title="The book's no-vig probability">Market</th><th title="Expected value per dollar at the odds you typed">EV</th></tr></thead>
       <tbody id="calcBody"></tbody>
@@ -248,7 +248,7 @@
     <li><b>Kept from v1 because they tested well:</b> PASS THIS FIGHT (those would-be bets lost 16–45%), LEAN PASS on fighters with under 4 UFC fights (those picks lost 2–29%), and passing on edges above 50%.</li>
     <li><b>Fade rule on thin-data fights.</b> When the suspect pick is the veteran, the note names the newcomer as the fade (93–49, +4.4% at 2021–25 opening prices; +16% to +33% in 2026). When the suspect pick is the newcomer, it says skip.</li>
     <li><b>Short-notice switch.</b> The model cannot know a fighter is a late replacement. In the 25 such fights that could be identified, the replacement won 24% (Classic said 48%, books said 42%). The switch lowers that fighter's chance (a 50% fighter becomes about 40%) and blocks a TAKE on them. With only 25 cases the size is an estimate.</li>
-    <li><b>Live moneylines.</b> The two win rows are filled from the latest DraftKings/FanDuel scan when the fight is listed. Type over them to use your own price.</li>
+    <li><b>Next opponent.</b> Type or pick a fighter and the other box switches to their next scheduled opponent (from the latest sportsbook scan). If that replaced a name, the note under the boxes has an <b>undo</b>. Odds are never filled in for you.</li>
   </ul>
   <h4>Backtest</h4>
   <button id="bt" class="secondary">Run backtest (28 real fights)</button>
@@ -3413,47 +3413,6 @@ const amOdds = p => {
   return (o > 0 ? "+" : "") + o;
 };
 
-// ---- LIVE MONEYLINES (2.0): prefill the two win rows from the site's odds.json (best of DraftKings / FanDuel per side) ----
-// Loaded once from the same folder; silently skipped when the page is opened as a local file or the fight is not listed.
-let LIVE = null;
-const liveNm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\s*\([^)]*\)$/,"").replace(/[^a-z ]/g," ").replace(/\s+/g," ").trim();
-// sportsbook spelling -> roster spelling (same list as NAME_ALIAS in index.html)
-const LIVE_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia mesquita", "jose henrique":"jose souza", "charlie radtke":"charles radtke" };
-const liveKey = s => { const k = liveNm(s); return LIVE_ALIAS[k] || k; };
-const decToAm = d => d >= 2 ? "+"+Math.round((d-1)*100) : "-"+Math.round(100/(d-1));
-const LIVE_BOOKS = { draftkings:"DraftKings", fanduel:"FanDuel" }, LIVE_SHORT = { draftkings:"DK", fanduel:"FD" };
-const liveReady = (typeof fetch === "function" && typeof location !== "undefined" && location.protocol !== "file:")
-  ? fetch("odds.json", { cache:"no-store" }).then(r => r.ok ? r.json() : null).then(j => { LIVE = j; }).catch(() => {}) : Promise.resolve();
-function liveFor(A, B){
-  if(!LIVE || !LIVE.fights) return null;
-  const a = liveNm(A.name), b = liveNm(B.name), now = Date.now();
-  for(const f of Object.values(LIVE.fights)){
-    if(!f.now || f.seen !== LIVE.updated || !(new Date(f.t).getTime() > now)) continue; // only fights still listed and not started
-    const fa = liveKey(f.a), fb = liveKey(f.b), flip = fa === b && fb === a;
-    if(!(fa === a && fb === b) && !flip) continue;
-    const bk = Object.keys(LIVE_BOOKS).filter(k => Array.isArray(f.now[k]) && f.now[k][0] > 1 && f.now[k][1] > 1);
-    if(!bk.length) return null;
-    const best = side => bk.map(k => ({ k, d: f.now[k][flip ? 1-side : side] })).sort((x,y) => y.d - x.d)[0];
-    return [best(0), best(1)];
-  }
-  return null;
-}
-function fillLive(A, B){
-  const note = $("liveNote"); if(note) note.textContent = "";
-  const go = () => {
-    if(calcA !== A || calcB !== B) return; // the user moved on to another fight while the prices loaded
-    const L = liveFor(A, B); if(!L) return;
-    const ins = [0,1].map(i => document.querySelector(`#calcBody .oddsin[data-i="${i}"]`));
-    if(!ins[0] || !ins[1] || ins[0].value || ins[1].value) return; // never overwrite what the user typed
-    ins.forEach((inp, i) => { inp.value = decToAm(L[i].d); });
-    if(note) note.title = `Moneylines filled from the latest scan: ${A.name} at ${LIVE_BOOKS[L[0].k]}, ${B.name} at ${LIVE_BOOKS[L[1].k]}. Type over them to use your own price.`;
-    if(note) note.textContent = `Live: ${decToAm(L[0].d)} ${LIVE_SHORT[L[0].k]} · ${decToAm(L[1].d)} ${LIVE_SHORT[L[1].k]}`
-      + (LIVE.updated ? ` · ${new Date(LIVE.updated).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}` : "");
-    computeVerdict();
-  };
-  if(LIVE) go(); else liveReady.then(go);
-}
-
 function lookup(id){
   const v = $(id).value.trim().toLowerCase();
   if(byName[v]) return byName[v];
@@ -3544,7 +3503,6 @@ $("go").onclick = () => {
   $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
   renderCalc(propsFor(m, probA, A, B), A, B, { notice: sn });
-  fillLive(A, B);
 
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({behavior:"smooth"});
@@ -3626,9 +3584,10 @@ showGroups();
 // inside the site's Classic overlay the title row is redundant (the overlay has its own bar)
 try { if(window.self !== window.top) document.documentElement.classList.add("embedded"); } catch(e){ try { document.documentElement.classList.add("embedded"); } catch(e2){} }
 
-// ---- NEXT OPPONENT: type or pick one fighter and the other box fills with their next scheduled opponent ----
-// From the site's odds.json (fights still listed at the latest scan, starting within the next 90 days). Never replaces a
-// name you typed yourself; it only fills an empty box or one it filled earlier. Display only: no probability is touched.
+// ---- NEXT OPPONENT: type or pick a fighter and the other box switches to their next scheduled opponent ----
+// From the site's odds.json (fights still listed at the latest scan, starting within the next 90 days). The box you changed
+// last decides the fight; if that replaced a name, the note offers "undo" (for a made-up matchup). Display only: no odds,
+// no probability.
 const OPP_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia mesquita", "jose henrique":"jose souza", "charlie radtke":"charles radtke" }; // = NAME_ALIAS in index.html
 const oppNm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s*\([^)]*\)$/, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 const oppKey = s => { const k = oppNm(s); return OPP_ALIAS[k] || k; };
@@ -3647,20 +3606,31 @@ function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp 
   }
   return best ? { ...best, opp: oppIdx.get(oppKey(best.name)) || null } : null;
 }
-const oppAuto = { fa:null, fb:null }; // the name this feature put in each box
+const oppDone = { fa:"", fb:"" }; // the value each box last set the fight from (so leaving the box or pressing Enter does not redo it)
+function oppNote(text, undo){
+  const note = $("oppNote"); if(!note) return;
+  note.textContent = text || "";
+  if(text && undo){
+    const b = document.createElement("button"); b.type = "button"; b.className = "oppundo"; b.textContent = "undo";
+    b.onclick = () => { $(undo.box).value = undo.prev; oppDone[undo.box] = undo.prev; note.textContent = ""; };
+    note.appendChild(document.createTextNode(" · ")); note.appendChild(b);
+  }
+}
 function oppFill(id, loose){ // loose = also a short name the Simulate button accepts ("gane"), checked when you leave the box or press Enter
-  const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim(), note = $("oppNote");
-  if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
+  const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim();
+  if(v === oppDone[id]) return;
   const F = byName[v.toLowerCase()] || oppIdx.get(oppNm(v)) || (loose ? lookup(id) : null) || null;
-  if(!F){ if(note) note.textContent = ""; return; }
+  if(!F){ oppNote(""); return; }
   const go = () => {
     if($(id).value.trim() !== v) return; // you kept typing meanwhile
+    oppDone[id] = v;
     const nf = nextFight(F), out = $(other);
-    if(!nf){ if(note) note.textContent = ""; return; }
-    const free = !out.value.trim() || out.value === oppAuto[other];
-    if(nf.opp && free && out.value !== nf.opp.name){ out.value = nf.opp.name; oppAuto[other] = nf.opp.name; }
+    if(!nf){ oppNote(""); return; }
     const date = new Date(nf.t).toLocaleDateString([], { weekday:"short", month:"short", day:"numeric" });
-    if(note){ note.textContent = nf.opp ? `Next fight: ${F.name} vs ${nf.opp.name} · ${date}` : `Next fight: vs ${nf.name} · ${date} (not in the roster yet, so it can't be simmed)`; }
+    if(!nf.opp){ oppNote(`Next fight: vs ${nf.name} · ${date} (not in the roster yet, so it can't be simmed)`); return; }
+    const prev = out.value.trim(), changed = prev !== nf.opp.name;
+    if(changed){ out.value = nf.opp.name; oppDone[other] = nf.opp.name; }
+    oppNote(`Next fight: ${F.name} vs ${nf.opp.name} · ${date}`, changed && prev ? { box: other, prev } : null);
   };
   if(OPP) go(); else oppReady.then(go);
 }
