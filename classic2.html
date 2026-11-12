@@ -82,7 +82,7 @@
   .calctable th{color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.6px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
   .calctable td{padding:4px 8px; border-bottom:1px solid var(--line);}
   .calctable tr.g-meth, .calctable tr.g-dc{display:none;}
-  .calctable.show-meth tr.g-meth, .calctable.show-dc tr.g-dc{display:table-row;}
+  .calctable.show-meth tr.g-meth, .calctable.show-dc tr.g-dc, .calctable tr.has{display:table-row;}
   .calctable tr.g-meth td:first-child, .calctable tr.g-dc td:first-child{color:#c3c7d6;}
   .calctable .short{display:none;}
   .oddsin{width:76px; height:28px; padding:0 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit;}
@@ -3268,7 +3268,6 @@ function propsFor(m, pA, A, B){
   ];
 }
 let calcProps = [], calcA = null, calcB = null, calcCtx = {};
-const lastNm = n => n.replace(/ +(Jr[.]?|Sr[.]?|II|III|IV)$/i, "").split(" ").pop(); // "Khalil Rountree Jr." -> "Rountree"
 function renderCalc(props, A, B, ctx){
   calcProps = props; calcA = A; calcB = B; calcCtx = ctx || {};
   const sA = lastNm(A.name), sB = lastNm(B.name);
@@ -3382,6 +3381,7 @@ function computeVerdict(){
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
     if(row) row.classList.remove("rec");
     const e = m[i];
+    if(row) row.classList.toggle("has", !!e); // a row with a typed price stays visible when its group is folded
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell c-mkt"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     const plus = "+"+(e.ev*100).toFixed(1)+"%";
@@ -3599,8 +3599,10 @@ $("bt").onclick = () => {
   $("btcard").scrollIntoView({behavior:"smooth"});
 };
 
-// ---- 2.0 PAGE UI: tabs, extra price rows, embedded mode (nothing here touches a probability) ----
+// ---- PAGE UI: tabs, extra price rows, embedded mode (nothing here touches a probability or a rule) ----
+const lastNm = n => n.replace(/ +(Jr[.]?|Sr[.]?|II|III|IV)$/i, "").split(" ").pop(); // "Khalil Rountree Jr." -> "Rountree"
 const UI = { tab:"prices", meth:false, dc:false };
+try { const u = JSON.parse(localStorage.getItem("ufcsim.classicRows") || "{}"); UI.meth = !!u.meth; UI.dc = !!u.dc; } catch(e){}
 const PANES = ["prices", "breakdown", "tape"];
 function showTab(t){
   UI.tab = t;
@@ -3608,14 +3610,16 @@ function showTab(t){
   PANES.forEach(k => $("pane-"+k).classList.toggle("hidden", k !== t));
 }
 document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
-// the method and double-chance rows stay folded until asked for (they are never a recommended bet)
+// the method and double-chance rows stay folded until asked for; the choice is remembered. A row with a typed price always shows.
 function showGroups(){
   const tb = $("calcTable"); tb.classList.toggle("show-meth", UI.meth); tb.classList.toggle("show-dc", UI.dc);
   [["tgMeth", UI.meth, "Method props"], ["tgDc", UI.dc, "Double chance"]].forEach(([id, on, lab]) => {
     const b = $(id); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); b.textContent = (on ? "− " : "+ ") + lab; });
+  try { localStorage.setItem("ufcsim.classicRows", JSON.stringify({ meth:UI.meth, dc:UI.dc })); } catch(e){}
 }
 $("tgMeth").onclick = () => { UI.meth = !UI.meth; showGroups(); };
 $("tgDc").onclick = () => { UI.dc = !UI.dc; showGroups(); };
+showGroups();
 // inside the site's Classic overlay the title row is redundant (the overlay has its own bar)
 try { if(window.self !== window.top) document.documentElement.classList.add("embedded"); } catch(e){ try { document.documentElement.classList.add("embedded"); } catch(e2){} }
 

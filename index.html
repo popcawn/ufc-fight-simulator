@@ -205,7 +205,8 @@
   <button id="go">SIMULATE</button>
   <button id="wk" class="secondary" title="Every UFC line from US sportsbooks, scanned with the backtested rule">This week</button>
   <button id="mb" class="secondary" title="Your logged bets and closing-line value">My bets</button>
-  <button id="classicBtn" class="secondary" title="The Classic sim (raw-model calculator, no market anchoring): Classic 2.0 and the original Classic v1 (Sept 28 model and rules), fighter stats refreshed weekly">Classic</button>
+  <button id="classicBtn" class="secondary" title="Classic v1: the original Sept 28 model and betting rules (raw-model calculator, no market anchoring), fighter stats refreshed weekly">Classic v1</button>
+  <button id="classicBtn2" class="secondary" title="Classic 2.0: the same win-probability engine as v1, with a rebuilt method/distance split, verdict rules re-checked against real prices, a short-notice switch and live moneylines">Classic 2.0</button>
   <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
   <div class="err" id="err"></div>
 </header>
@@ -2133,22 +2134,21 @@ function attachSearch(id){
 attachSearch("fa"); attachSearch("fb");
 
 // ---- CLASSIC SIM: two versions side by side, each in its own frame so switching keeps what you typed ----
-// v1 = classic.html, the original Sept 28 model and rules, never edited. 2.0 = classic2.html, the same win engine with a
-// rebuilt method/distance split and re-tested verdict rules. classic-build-roster.mjs refreshes the fighter stats of both weekly.
+// v1 = classic.html, the original Sept 28 model and rules (only its page layout was refreshed). 2.0 = classic2.html, the same
+// win engine with a rebuilt method/distance split and re-tested verdict rules. classic-build-roster.mjs refreshes the fighter
+// stats of both weekly. Each has its own button in the header; the bar inside the overlay switches between them.
 const CLASSIC = {
   1: { file: "classic.html",  frame: "classicFrame",  sub: "v1 · Sept 28 model & rules, unchanged · raw-model calculator, no market anchoring · fighter stats refreshed weekly" },
   2: { file: "classic2.html", frame: "classicFrame2", sub: "2.0 · same win engine as v1 · rebuilt method/distance split, re-tested verdict rules, short-notice switch, live moneylines" } };
 const classicUrl = v => (typeof location !== "undefined" && location.protocol === "file:" ? "https://popcawn.github.io/ufc-fight-simulator/" : "") + CLASSIC[v].file;
-let classicVer = 2; try { if(localStorage.getItem("ufcsim.classicVer") === "1") classicVer = 1; } catch(e){}
 function showClassic(v){
-  classicVer = v; try { localStorage.setItem("ufcsim.classicVer", String(v)); } catch(e){}
   for(const k of [1, 2]){ $(CLASSIC[k].frame).classList.toggle("hidden", k !== v); $("classicV"+k).classList.toggle("on", k === v); }
   const fr = $(CLASSIC[v].frame); if(!fr.getAttribute("src")) fr.setAttribute("src", classicUrl(v));
   $("classicSub").textContent = CLASSIC[v].sub; $("classicOpen").href = classicUrl(v);
 }
-$("classicOpen").href = classicUrl(classicVer);
 $("classicV1").onclick = () => showClassic(1); $("classicV2").onclick = () => showClassic(2);
-$("classicBtn").onclick = () => { showClassic(classicVer); $("classicView").classList.remove("hidden"); };
+const openClassic = v => { showClassic(v); $("classicView").classList.remove("hidden"); };
+$("classicBtn").onclick = () => openClassic(1); $("classicBtn2").onclick = () => openClassic(2);
 $("classicBack").addEventListener("click", () => $("classicView").classList.add("hidden"));
 if(document.addEventListener) document.addEventListener("keydown", e => { if(e.key === "Escape") $("classicView").classList.add("hidden"); });
 

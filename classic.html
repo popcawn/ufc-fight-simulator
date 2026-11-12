@@ -3,169 +3,253 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UFC Fight Simulator — Monte Carlo</title>
+<title>UFC Fight Simulator — Classic v1</title>
 <style>
+  /* Classic 2.0 page styles (ufc-data/v2/ui.css). Goal: the whole result on one screen, no paragraphs on screen. */
   :root{
     --bg:#0e0f13; --panel:#171922; --panel2:#1e2130; --line:#2b2f42;
     --text:#e8eaf2; --dim:#8b91a7; --red:#e23b3b; --blue:#3b6fe2;
-    --gold:#d4a843; --green:#3ec97e;
+    --gold:#d4a843; --green:#3ec97e; --redt:#ff7a7a; --bluet:#7aa3ff;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; padding:24px; max-width:980px; margin:0 auto;}
-  h1{font-size:26px; letter-spacing:1px;}
-  h1 span{color:var(--gold);}
-  .sub{color:var(--dim); font-size:13px; margin:6px 0 22px;}
-  .pickers{display:grid; grid-template-columns:1fr 60px 1fr; gap:12px; align-items:end;}
-  .picker label{display:block; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
-  .picker input{width:100%; padding:12px 14px; font-size:16px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:8px; outline:none;}
-  .picker input:focus{border-color:var(--gold);}
-  .picker.red input:focus{border-color:var(--red);}
-  .picker.blue input:focus{border-color:var(--blue);}
-  .vs{text-align:center; font-weight:800; font-size:20px; color:var(--gold); padding-bottom:14px;}
-  .controls{display:flex; gap:16px; align-items:center; margin:16px 0 8px; flex-wrap:wrap;}
-  button{padding:12px 28px; font-size:15px; font-weight:700; letter-spacing:1px; background:var(--gold); color:#14130c; border:none; border-radius:8px; cursor:pointer;}
-  button:hover{filter:brightness(1.1);}
-  button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
-  .chk{font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:center; cursor:pointer;}
-  .err{color:var(--red); font-size:14px; margin-top:8px; min-height:18px;}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:18px;}
-  .hidden{display:none;}
-  .names{display:flex; justify-content:space-between; font-size:20px; font-weight:700; margin-bottom:4px;}
-  .names .r{color:#ff7a7a;} .names .b{color:#7aa3ff;}
-  .probs{display:flex; justify-content:space-between; font-size:30px; font-weight:800; margin-bottom:10px;}
-  .probs .pcol:last-child{text-align:right;}
-  .odds{font-size:14px; font-weight:600; color:var(--dim); margin-top:2px;}
-  .bar{height:18px; border-radius:9px; overflow:hidden; display:flex; background:var(--blue);}
-  .bar .fillA{background:var(--red); height:100%; transition:width .6s;}
-  .verdict{margin:14px 0 4px; font-size:16px;}
+  html{-webkit-text-size-adjust:100%;}
+  body{background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; font-size:14px; line-height:1.4; padding:16px; max-width:900px; margin:0 auto; font-variant-numeric:tabular-nums;}
+  .hidden{display:none !important;}
+  a{color:var(--gold);}
+  code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
+
+  /* title row (hidden inside the site's Classic overlay, which already has its own bar) */
+  .top{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .top h1{font-size:15px; font-weight:700; letter-spacing:.5px;}
+  .top .v2{font-size:11px; font-weight:700; letter-spacing:.5px; color:#14130c; background:var(--gold); border-radius:5px; padding:2px 7px;}
+  .top a{margin-left:auto; font-size:12px; color:var(--dim);}
+  .embedded .top{display:none;}
+
+  /* fighter pickers + simulate, one row on a wide screen */
+  .setup{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:start;}
+  .picker input[list]{width:100%; height:42px; padding:0 12px; font-size:16px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-left-width:3px; border-radius:8px; outline:none;}
+  .picker.red input[list]{border-left-color:var(--red);} .picker.blue input[list]{border-left-color:var(--blue);}
+  .picker input[list]:focus{border-color:var(--gold);}
+  .sn, .chk{display:inline-flex; gap:6px; align-items:center; font-size:12px; color:var(--dim); cursor:pointer; white-space:nowrap;}
+  .sn{margin-top:5px;}
+  .actions{display:flex; gap:12px; align-items:center; height:42px;}
+  button{font-family:inherit; cursor:pointer;}
+  #go{height:42px; padding:0 22px; font-size:14px; font-weight:700; letter-spacing:.5px; background:var(--gold); color:#14130c; border:none; border-radius:8px;}
+  #go:hover{filter:brightness(1.08);}
+  button.secondary{padding:7px 14px; font-size:13px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px;}
+  .err{color:var(--redt); font-size:13px; margin-top:6px;}
+  .err:empty{display:none;}
+
+  /* result card */
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:12px;}
+  .h2h{display:flex; justify-content:space-between; gap:12px;}
+  .side .nm{font-size:15px; font-weight:700; line-height:1.2;}
+  .side.r .nm{color:var(--redt);} .side.b .nm{color:var(--bluet);} .side.b{text-align:right;}
+  .side .pc{font-size:26px; font-weight:800; line-height:1.15;}
+  .side .pc small{font-size:13px; font-weight:600; color:var(--dim); margin:0 6px;}
+  .bar{height:8px; border-radius:4px; overflow:hidden; display:flex; background:var(--blue); margin-top:8px;}
+  .bar .fillA{background:var(--red); height:100%; transition:width .5s;}
+  .verdict{margin-top:10px; font-size:14px;}
   .verdict b{color:var(--gold);}
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:16px;}
-  @media(max-width:700px){.grid2{grid-template-columns:1fr;} .pickers{grid-template-columns:1fr;} .vs{display:none;}}
-  .mini h3{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;}
-  .mrow{display:flex; justify-content:space-between; font-size:14px; padding:5px 0; border-bottom:1px solid var(--line);}
-  .mrow:last-child{border-bottom:none;}
-  .mrow .lab{color:var(--dim);}
-  .taphd{border-bottom:1px solid var(--line); margin-bottom:2px;}
-  .taphd .r{color:#ff7a7a; font-weight:700;} .taphd .b{color:#7aa3ff; font-weight:700;}
-  .twin{color:var(--green); font-weight:700;}   /* better stat */
-  .tlose{color:var(--dim);}                       /* worse stat */
-  .tval{color:var(--text);}                       /* tie / no comparison */
-  .tapescore{margin-top:12px; padding-top:10px; border-top:1px solid var(--line);}
-  .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:4px;}
-  .ts-nums{display:flex; justify-content:space-between; font-size:18px; font-weight:800;}
-  .ts-nums .r{color:#ff7a7a;} .ts-nums .b{color:#7aa3ff;}
-  .ts-bar{height:12px; border-radius:6px; overflow:hidden; display:flex; background:var(--blue); margin:4px 0 8px;}
-  .ts-fill{background:var(--red); height:100%;}
-  .ts-verdict{font-size:14px;} .ts-verdict b{color:var(--gold);}
-  .ts-note{font-size:11px; color:var(--dim); margin-top:5px; line-height:1.4;}
-  .driver{font-size:14px; padding:6px 0; border-bottom:1px solid var(--line);}
-  .driver:last-child{border-bottom:none;}
-  .driver .who{font-weight:700;}
-  .who.r{color:#ff7a7a;} .who.b{color:#7aa3ff;}
-  table{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px;}
-  th,td{text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);}
-  th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px;}
-  .ok{color:var(--green); font-weight:700;} .miss{color:var(--red); font-weight:700;}
-  .bigstat{font-size:34px; font-weight:800; color:var(--gold);}
-  .note{font-size:12px; color:var(--dim); margin-top:10px; line-height:1.5;}
-  .calc{margin-top:18px; border-top:1px solid var(--line); padding-top:16px;}
-  .calc h3{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
-  .calcnote{font-size:12px; color:var(--dim); margin-bottom:12px; line-height:1.5;}
+  .warn{color:var(--gold); font-size:12px; margin-top:4px;}
+  .warn:empty{display:none;}
+
+  /* the call: a headline and one line; the reasoning is behind "Why" */
+  .verdict-box{margin-top:12px; padding:10px 12px; border-radius:8px; border:1px solid; font-size:13.5px; line-height:1.45;}
+  .verdict-box .vh{font-size:14px; font-weight:800; letter-spacing:.4px; margin-right:8px;}
+  .verdict-box .vline b{font-weight:700;}
+  .verdict-box details{margin-top:4px; font-size:12.5px; color:var(--dim);}
+  .verdict-box summary{cursor:pointer; font-size:12px; color:var(--dim); width:max-content;}
+  .verdict-box details[open] summary{margin-bottom:4px;}
+  .verdict-box details b{color:var(--text);}
+  .verdict-box.take{background:rgba(62,201,126,.10); border-color:rgba(62,201,126,.55);} .verdict-box.take .vh{color:var(--green);}
+  .verdict-box.pass{background:rgba(226,59,59,.08); border-color:rgba(226,59,59,.5);} .verdict-box.pass .vh{color:var(--redt);}
+  .verdict-box.caution, .verdict-box.lean{background:rgba(212,168,67,.10); border-color:rgba(212,168,67,.55);}
+  .verdict-box.caution .vh, .verdict-box.lean .vh{color:var(--gold);}
+
+  /* tabs */
+  .tabs{display:flex; gap:4px; margin-top:14px; border-bottom:1px solid var(--line);}
+  .tab{padding:8px 14px; font-size:13px; font-weight:600; color:var(--dim); background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px;}
+  .tab:hover{color:var(--text);}
+  .tab.on{color:var(--text); border-bottom-color:var(--gold);}
+  .pane{padding-top:10px;}
+
+  /* prices table */
+  .livenote{font-size:12px; color:var(--dim); margin-bottom:6px;}
+  .livenote:empty{display:none;}
+  .tblwrap{overflow-x:auto;}
   .calctable{width:100%; border-collapse:collapse; font-size:13px;}
-  .calctable th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px; text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);}
-  .calctable td{padding:6px 8px; border-bottom:1px solid var(--line);}
-  .calctable tr:last-child td{border-bottom:none;}
-  .oddsin{width:84px; padding:5px 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit;}
+  .calctable th{color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.6px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  .calctable td{padding:4px 8px; border-bottom:1px solid var(--line);}
+  .calctable tr.g-meth, .calctable tr.g-dc{display:none;}
+  .calctable.show-meth tr.g-meth, .calctable.show-dc tr.g-dc, .calctable tr.has{display:table-row;}
+  .calctable tr.g-meth td:first-child, .calctable tr.g-dc td:first-child{color:#c3c7d6;}
+  .calctable .short{display:none;}
+  .oddsin{width:76px; height:28px; padding:0 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:13px; font-family:inherit;}
   .oddsin:focus{border-color:var(--gold); outline:none;}
   .evcell{font-weight:700; color:var(--dim); white-space:nowrap;}
-  .evcell.suspect{color:var(--gold); font-weight:600; opacity:.75;}
-  .evcell.best{color:var(--gold); font-weight:800; letter-spacing:.3px;}
-  .mktcell{color:var(--text);}
-  .verdict-box{margin:4px 0 16px; padding:12px 14px; border-radius:8px; font-size:14px; line-height:1.5; border:1px solid;}
-  .verdict-box .vh{font-size:16px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:4px;}
-  .verdict-box .vsmall{font-size:11px; color:var(--dim); margin-top:8px;}
-  .verdict-box.take{background:rgba(62,201,126,.12); border-color:var(--green);}
-  .verdict-box.take .vh{color:var(--green);}
-  .verdict-box.pass{background:rgba(226,59,59,.10); border-color:var(--red);}
-  .verdict-box.pass .vh{color:#ff7a7a;}
-  .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);}
-  .verdict-box.caution .vh{color:var(--gold);}
-  tr.rec td{background:rgba(212,168,67,.15);}                 /* best-bet row: gold tint, distinct from green value rows */
+  .evcell .tag{font-size:11px; font-weight:600; margin-left:6px; opacity:.9;}
+  .evcell.ok{color:var(--green);} .evcell.best{color:var(--green);}
+  .evcell.suspect{color:var(--gold); font-weight:600; opacity:.8;}
+  .evcell.lean{color:var(--gold);}
+  .evcell.info{font-weight:500;}
+  tr.rec td{background:rgba(212,168,67,.12);}
   tr.rec td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
-  .warn{color:var(--gold); font-size:13px; margin-top:8px;}
-  footer{margin-top:28px; font-size:12px; color:var(--dim); line-height:1.6;}
-  code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
+  .more{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+  .chip{padding:5px 12px; font-size:12px; color:var(--dim); background:none; border:1px solid var(--line); border-radius:999px;}
+  .chip:hover{color:var(--text);}
+  .chip.on{color:var(--text); background:var(--panel2); border-color:var(--dim);}
+  .hint{font-size:12px; color:var(--dim); margin-left:auto;}
+
+  /* breakdown + tape */
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:20px;}
+  .mini h3{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px; font-weight:600;}
+  .mrow{display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:4px 0; border-bottom:1px solid var(--line);}
+  .mrow:last-child{border-bottom:none;}
+  .mrow .lab{color:var(--dim);}
+  .driver{font-size:13px; padding:4px 0; border-bottom:1px solid var(--line);}
+  .driver:last-child{border-bottom:none;}
+  .driver .who{font-weight:700;} .who.r{color:var(--redt);} .who.b{color:var(--bluet);}
+  #tape{max-width:480px; margin:0 auto;}
+  #tape .mrow{padding:3px 0;}
+  #tape .mrow span{flex:1;} #tape .mrow span:nth-child(2){flex:1.6; text-align:center;} #tape .mrow span:last-child{text-align:right;}
+  .taphd .r{color:var(--redt); font-weight:700;} .taphd .b{color:var(--bluet); font-weight:700;}
+  .twin{color:var(--green); font-weight:700;} .tlose{color:var(--dim);} .tval{color:var(--text);}
+  .tapescore{margin-top:8px; padding-top:8px; border-top:1px solid var(--line);}
+  .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--dim);}
+  .ts-nums{display:flex; justify-content:space-between; font-size:16px; font-weight:800;}
+  .ts-nums .r{color:var(--redt);} .ts-nums .b{color:var(--bluet);}
+  .ts-bar{height:6px; border-radius:3px; overflow:hidden; display:flex; background:var(--blue); margin:3px 0 6px;}
+  .ts-fill{background:var(--red); height:100%;}
+  .ts-verdict{font-size:13px;} .ts-verdict b{color:var(--gold);}
+  .ts-note{font-size:11px; color:var(--dim); margin-top:3px;}
+
+  /* everything long lives here, closed by default */
+  .about{margin-top:14px; font-size:12px; color:var(--dim); line-height:1.6;}
+  .about > summary{cursor:pointer; font-size:12px; width:max-content;}
+  .about h4{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text); margin:14px 0 4px;}
+  .about li{margin:4px 0 4px 18px;}
+  .about b{color:var(--text);}
+  .about table{width:100%; border-collapse:collapse; font-size:12px; margin-top:8px;}
+  .about th, .about td{text-align:left; padding:4px 6px; border-bottom:1px solid var(--line);}
+  .about th{font-size:11px; text-transform:uppercase; letter-spacing:.6px; font-weight:600;}
+  .ok{color:var(--green); font-weight:700;} .miss{color:var(--redt); font-weight:700;}
+  .bigstat{font-size:22px; font-weight:800; color:var(--gold); margin-top:10px;}
+
+  @media(min-width:721px){ /* wide screen: the weighted score sits beside the tape, so the tab fits one screen */
+    #tape{max-width:760px; display:grid; grid-template-columns:minmax(0,1fr) 230px; column-gap:28px;}
+    #tape .mrow{grid-column:1;}
+    #tape .tapescore{grid-column:2; grid-row:1 / span 13; align-self:start; margin-top:0; padding-top:0; border-top:none;}
+  }
+  @media(max-width:720px){
+    .grid3{grid-template-columns:1fr 1fr;} .grid3 .mini:last-child{grid-column:1 / -1;}
+  }
+  @media(max-width:560px){
+    body{padding:10px;}
+    .setup{grid-template-columns:1fr; gap:6px;}
+    .picker{display:flex; gap:8px; align-items:center;} .picker input[list]{flex:1; min-width:0;} .sn{margin-top:0;}
+    .actions{justify-content:space-between;} #go{flex:1;}
+    .card{padding:12px;}
+    .side .pc{font-size:22px;} .side .pc small{font-size:12px; margin:0 4px;}
+    .tab{flex:1; padding:8px 4px;}
+    .calctable th, .calctable td{padding:4px 5px;}
+    .calctable .full{display:none;} .calctable .short{display:inline;}
+    .calctable .c-mkt{display:none;}
+    .oddsin{width:62px; padding:0 6px;}
+    .evcell .tag{display:block; margin-left:0; line-height:1.1;}
+    .hint{display:none;}
+    #tape .mrow{padding:2px 0;} .ts-note{display:none;}
+  }
 </style>
 </head>
 <body>
 
-<h1>UFC FIGHT <span>SIMULATOR</span></h1>
-<div class="sub">Monte Carlo engine + trained outcome model (Elo, age, reach, form, ring rust, experience, octagon control) &middot; 10,000 simulated fights per matchup &middot; full active roster, recency-weighted stats from UFCStats fight data &middot; 65.8% on 585 held-out real fights &middot; method/round mix calibrated to the real 2018+ finish distribution</div>
+<div class="top"><h1>UFC Fight Simulator</h1><span class="v2">CLASSIC V1</span><a href="classic2.html">Classic 2.0</a></div>
 
-<div class="pickers">
+<div class="setup">
   <div class="picker red">
-    <label>Red Corner</label>
-    <input id="fa" list="roster" placeholder="Type a fighter name...">
+    <input id="fa" list="roster" placeholder="Red corner" aria-label="Red corner fighter">
   </div>
-  <div class="vs">VS</div>
   <div class="picker blue">
-    <label>Blue Corner</label>
-    <input id="fb" list="roster" placeholder="Type a fighter name...">
+    <input id="fb" list="roster" placeholder="Blue corner" aria-label="Blue corner fighter">
+  </div>
+  <div class="actions">
+    <label class="chk" title="Five-round main event or title fight"><input type="checkbox" id="five" checked> 5 rounds</label>
+    <button id="go">Simulate</button>
   </div>
 </div>
 <datalist id="roster"></datalist>
-
-<div class="controls">
-  <button id="go">SIMULATE FIGHT</button>
-  <label class="chk"><input type="checkbox" id="five" checked> 5-round main event</label>
-  <button id="bt" class="secondary">Run backtest (28 real fights)</button>
-</div>
 <div class="err" id="err"></div>
 
 <div class="card hidden" id="result">
-  <div class="names"><span class="r" id="na"></span><span class="b" id="nb"></span></div>
-  <div class="probs">
-    <div class="pcol"><span id="pa"></span><div class="odds" id="oa"></div></div>
-    <div class="pcol"><span id="pb"></span><div class="odds" id="ob"></div></div>
+  <div class="h2h">
+    <div class="side r"><div class="nm" id="na"></div><div class="pc"><span id="pa"></span><small id="oa" title="Fair odds"></small></div></div>
+    <div class="side b"><div class="nm" id="nb"></div><div class="pc"><small id="ob" title="Fair odds"></small><span id="pb"></span></div></div>
   </div>
   <div class="bar"><div class="fillA" id="fill"></div></div>
   <div class="verdict" id="verdict"></div>
   <div class="warn" id="xdiv"></div>
-  <div class="grid2">
-    <div class="mini"><h3>Method (winner-weighted)</h3><div id="methods"></div></div>
-    <div class="mini"><h3>Round of finish</h3><div id="rounds"></div></div>
+  <div class="verdict-box hidden" id="verdictBox"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab on" data-tab="prices" role="tab">Prices</button>
+    <button class="tab" data-tab="breakdown" role="tab">Breakdown</button>
+    <button class="tab" data-tab="tape" role="tab">Tape</button>
   </div>
-  <div class="grid2">
-    <div class="mini"><h3>What drove the pick</h3><div id="drivers"></div></div>
-    <div class="mini"><h3>Tale of the tape</h3><div id="tape"></div></div>
-  </div>
-  <div class="calc">
-    <h3>Fair odds &amp; value calculator</h3>
-    <p class="calcnote">"Fair odds" is the model's no-vig price for each outcome. Type a sportsbook's American odds (e.g. <code>-150</code> or <code>+220</code>) to see your expected value — <span class="ok">green = positive EV</span> (the book is paying more than the model thinks it's worth). <b>Market %</b> is the book's <i>no-vig</i> probability (vig removed on the two-way win/distance markets) — compare it to <b>Model %</b> to see where you actually disagree with the line. When the verdict says pass, green flags are downgraded to <span style="color:var(--gold)">⚠ suspect</span>. Props are estimated from the simulation's method/round mix. Read the honesty note before betting.</p>
-    <div class="verdict-box hidden" id="verdictBox"></div>
-    <table class="calctable">
-      <thead><tr><th>Outcome</th><th>Model %</th><th>Fair odds</th><th>Book odds</th><th>Market %</th><th>EV</th></tr></thead>
+
+  <div class="pane" id="pane-prices">
+    <div class="tblwrap"><table class="calctable" id="calcTable">
+      <thead><tr><th>Outcome</th><th>Model</th><th>Fair</th><th>Book odds</th><th class="c-mkt" title="The book's no-vig probability">Market</th><th title="Expected value per dollar at the odds you typed">EV</th></tr></thead>
       <tbody id="calcBody"></tbody>
-    </table>
+    </table></div>
+    <div class="more">
+      <button class="chip" id="tgMeth" aria-pressed="false">+ Method props</button>
+      <button class="chip" id="tgDc" aria-pressed="false">+ Double chance</button>
+      <span class="hint">Type your book's odds in any row</span>
+    </div>
   </div>
+
+  <div class="pane hidden" id="pane-breakdown">
+    <div class="grid3">
+      <div class="mini"><h3>How <span id="methWho">the pick</span> wins</h3><div id="methods"></div></div>
+      <div class="mini"><h3>Round of finish</h3><div id="rounds"></div></div>
+      <div class="mini"><h3>What drove the pick</h3><div id="drivers"></div></div>
+    </div>
+  </div>
+
+  <div class="pane hidden" id="pane-tape"><div id="tape"></div></div>
 </div>
 
-<div class="card hidden" id="btcard">
-  <div class="mini"><h3>Backtest — real fights (2024–2025) between rostered fighters</h3></div>
-  <div class="bigstat" id="btacc"></div>
-  <div id="btsum" style="font-size:14px; margin-top:4px;"></div>
-  <table><thead><tr><th>Fight</th><th>Actual</th><th>Model pick</th><th>Conf.</th><th></th></tr></thead><tbody id="btbody"></tbody></table>
-  <div class="note">Honesty note: no fight model on earth hits 90% — Vegas favorites win ~65% of UFC fights and published ML models top out around 65–72%. This model scored <b>65.8% on 585 held-out fights</b> (every UFC fight Jan 2025 – Jun 2026, predicted using only pre-fight data — no leakage, no hardcoding; see ufc-eval.mjs). The small 28-fight table above uses current stats and is for illustration. Treat single-fight picks as probabilities, not certainties.</div>
-</div>
-
-<footer>
-  <b>Refreshing the data:</b> run <code>node ufc-build-roster.mjs</code> — it downloads the latest UFCStats dataset
-  (Greco1899/scrape_ufc_stats on GitHub, auto-updated after every event), recomputes all fighter stats, and re-injects
-  the roster into this file. Records shown are UFC fights only.
-</footer>
+<details class="about" id="about">
+  <summary>About Classic v1</summary>
+  <h4>Reading the table</h4>
+  <ul>
+    <li><b>Fair</b> is the model's price with no book margin. <b>Market</b> is the book's chance with its margin removed (on the two-way win and distance markets). <b>EV</b> is your expected return per dollar at the odds you typed (e.g. <code>-150</code> or <code>+220</code>).</li>
+    <li><b>Best</b> is the one row to bet if you only bet one. <b>Value</b> rows are the same fight, so treat them as one position. When the verdict says pass, positive rows are marked <b>suspect</b>.</li>
+    <li>Props are estimated from the simulation's method and round mix.</li>
+    <li>Model-based suggestion, not financial advice. Bet only what you can afford to lose.</li>
+  </ul>
+  <h4>The model</h4>
+  <ul>
+    <li>Monte Carlo engine + trained outcome model (Elo, age, reach, form, ring rust, experience, octagon control), 10,000 simulated fights per matchup.</li>
+    <li><b>65.8% on 585 held-out real fights.</b> Method and round mix calibrated to the real 2018+ finish distribution.</li>
+    <li>This is the original Sept 28 model and betting rules, unchanged. Only the page layout is new. <a href="classic2.html">Classic 2.0</a> keeps the same win probability and re-tests the method split and the rules against real prices.</li>
+  </ul>
+  <h4>Backtest</h4>
+  <button id="bt" class="secondary">Run backtest (28 real fights)</button>
+  <div class="hidden" id="btcard">
+    <div class="bigstat" id="btacc"></div>
+    <div id="btsum"></div>
+    <table><thead><tr><th>Fight</th><th>Actual</th><th>Model pick</th><th>Conf.</th><th></th></tr></thead><tbody id="btbody"></tbody></table>
+    <ul><li>Illustration only: these 28 fights use current stats. The real test is <b>65.8% on 585 held-out fights</b> (every UFC fight Jan 2025 – Jun 2026, predicted from pre-fight data only). Betting favorites win about 65%.</li></ul>
+  </div>
+  <h4>Data</h4>
+  <ul><li>Full active roster from UFCStats, refreshed weekly. Records shown are UFC fights only.</li></ul>
+</details>
 
 <script>
 "use strict";
+// CLASSIC v1 — the original model and rules. Page layout generated by ufc-data/v2/make-classic1.mjs (shared with Classic 2.0).
 // ---- FULL ACTIVE ROSTER — generated by ufc-build-roster.mjs from UFCStats fight data ----
 // W/L and finish counts are UFC fights only.
 // [name, div, age, ht, reach, stance(O/S/X=switch), W, L, koW, subW, koL, subL, slpm, sapm, acc, def, td15, tdAcc, tdDef, sub15]
@@ -3145,10 +3229,13 @@ function propsFor(t, pA, A, B){
 let calcProps = [], calcA = null, calcB = null;
 function renderCalc(props, A, B){
   calcProps = props; calcA = A; calcB = B;
+  const sA = lastNm(A.name), sB = lastNm(B.name);
+  const shortLab = t => (sA === sB ? t : t.replace(A.name, sA).replace(B.name, sB)).replace("Goes the distance", "Goes distance").replace("Ends inside the distance", "Ends inside");
+  const lab = t => `<span class="full">${t}</span><span class="short">${shortLab(t)}</span>`;
   $("calcBody").innerHTML = props.map((p,i)=>
-    `<tr id="row${i}"><td>${p[0]}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
+    `<tr id="row${i}" class="${i>=2 && i<=7 ? "g-meth" : i>=10 ? "g-dc" : ""}"><td>${lab(p[0])}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
     `<td><input class="oddsin" data-i="${i}" placeholder="—"></td>`+
-    `<td class="mktcell" id="mkt${i}">—</td><td class="evcell" id="ev${i}">—</td></tr>`).join("");
+    `<td class="mktcell c-mkt" id="mkt${i}">—</td><td class="evcell" id="ev${i}">—</td></tr>`).join("");
   document.querySelectorAll("#calcBody .oddsin").forEach(inp => inp.addEventListener("input", computeVerdict));
   computeVerdict();
 }
@@ -3178,7 +3265,7 @@ function verdictFor(entered, A, B, pA){
     const dvA = rawA/tot, dvB = rawB/tot; // de-vigged market probabilities
     const fav = dvA > dvB ? { dv:dvA, name:A.name, mp:pA } : { dv:dvB, name:B.name, mp:pB };
     if(fav.dv > 0.70 && (fav.dv - fav.mp) > 0.08)
-      return { status:"pass", title:"PASS THIS FIGHT", body:
+      return { status:"pass", title:"PASS THIS FIGHT", short:`Books have <b>${fav.name}</b> at ${Math.round(fav.dv*100)}%, the model only ${Math.round(fav.mp*100)}%. Gaps this big on a favorite lose.`, body:
         `The no-vig market has <b>${fav.name}</b> at ${Math.round(fav.dv*100)}% but the model only ${Math.round(fav.mp*100)}% — a ${Math.round((fav.dv-fav.mp)*100)}-point gap on a clear favorite. When a thin-data model disagrees with a sharp line this hard, the model is the one missing something. The underdog "value" is almost certainly an illusion.` };
   }
 
@@ -3191,18 +3278,18 @@ function verdictFor(entered, A, B, pA){
 
   if(takes.length){
     const best = takes[0], stake = Math.min(3, 25 * best.kelly).toFixed(1);
-    if(lowData) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
+    if(lowData) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, short:`<b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}, so the edge on <b>${best.label}</b> is unreliable. Lean pass.`, body:
       `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
     const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are correlated with this (same fight) — treat them as one position, don't stack.` : "";
-    return { status:"take", title:"TAKE THIS BET", bestIndex:best.i, body:
+    return { status:"take", title:"TAKE THIS BET", bestIndex:best.i, short:`<b>${best.label}</b> · +${(best.ev*100).toFixed(1)}% EV · stake about ${stake}% of bankroll.`, body:
       `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%).${extra}` };
   }
   const tooGood = entered.find(e => e.tag === "toogood");
-  if(tooGood) return { status:"pass", title:"PASS", body:
+  if(tooGood) return { status:"pass", title:"PASS", short:`A +${(tooGood.ev*100).toFixed(0)}% edge is too big to be real.`, body:
     `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
-  if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", body:
+  if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", short:`Edges under 4%. Not worth a bet.`, body:
     `Only razor-thin edges (under 4%) — inside the model's margin of error. Not worth a bet.` };
-  return { status:"pass", title:"PASS", body:`No positive expected value at these prices. The book's lines look efficient here.` };
+  return { status:"pass", title:"PASS", short:`No edge at these prices.`, body:`No positive expected value at these prices. The book's lines look efficient here.` };
 }
 function computeVerdict(){
   const m = {};
@@ -3218,21 +3305,22 @@ function computeVerdict(){
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
     if(row) row.classList.remove("rec");
     const e = m[i];
-    if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
+    if(row) row.classList.toggle("has", !!e); // a row with a typed price stays visible when its group is folded
+    if(!e){ mkt.textContent = "—"; mkt.className = "mktcell c-mkt"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
+    const tag = (cls, t) => { ev.className = "evcell " + cls; ev.innerHTML = `+${(e.ev*100).toFixed(1)}%<span class="tag">${t}</span>`; };
     if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
     else if(v.status === "take"){
-      if(i === v.bestIndex){ ev.textContent = "★ BEST +"+(e.ev*100).toFixed(1)+"%"; ev.className = "evcell best"; } // the one to bet if you only bet one
-      else { ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ✓ value"; ev.className = "evcell ok"; }
+      if(i === v.bestIndex) tag("best", "★ best"); // the one to bet if you only bet one
+      else tag("ok", "value");
     }
-    else { ev.textContent = "+"+(e.ev*100).toFixed(1)+"% ⚠ suspect"; ev.className = "evcell suspect"; } // pass/caution: green flags are illusory
+    else tag("suspect", "suspect"); // pass/caution: green flags are illusory
   });
   const box = $("verdictBox");
   if(v.status === "none"){ box.className = "verdict-box hidden"; box.innerHTML = ""; return; }
-  const icon = v.status === "take" ? "✅ " : v.status === "caution" ? "⚠ " : "🚫 ";
   box.className = "verdict-box " + v.status;
-  box.innerHTML = `<span class="vh">${icon}${v.title}</span>${v.body}`+
-    `<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div>`;
+  // a headline and one line on screen; the original reasoning opens under "Why"
+  box.innerHTML = `<span class="vh">${v.title}</span><span class="vline">${v.short}</span><details><summary>Why</summary>${v.body}</details>`;
   if(v.bestIndex != null){ const r = $("row"+v.bestIndex); if(r) r.classList.add("rec"); }
 }
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
@@ -3273,10 +3361,11 @@ $("go").onclick = () => {
     if(rds.length) rdTxt = `, most likely round ${rds[0][0]}`;
   }
   const conf = Math.max(probA,1-probA);
-  const confTxt = conf>0.72 ? "clear favorite" : conf>0.58 ? "moderate favorite" : "near coin-flip — genuinely competitive";
-  $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b> (${pct(topMC/winN)} of their wins)${rdTxt} &middot; ${confTxt}`;
-  $("xdiv").textContent = A.div !== B.div ? `⚠ Cross-division fantasy matchup (${A.div} vs ${B.div}) — win % is adjusted for the ${Math.abs(divWt(A)-divWt(B))}lb weight-class gap, but the model is trained on same-division fights, so treat it as a rough estimate.` : "";
+  const confTxt = conf>0.72 ? "clear favorite" : conf>0.58 ? "moderate favorite" : "near coin-flip";
+  $("verdict").innerHTML = `Pick: <b>${W.name}</b> by <b>${mName[topM]}</b>${rdTxt} &middot; ${confTxt}`;
+  $("xdiv").textContent = A.div !== B.div ? `⚠ Cross-division matchup (${A.div} vs ${B.div}): rough estimate only.` : "";
 
+  $("methWho").textContent = W.name;
   $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c/winN)}</span></div>`).join("");
   const rdAll = {};
   for(const[k,v] of Object.entries(t.rdA)) rdAll[k]=(rdAll[k]||0)+v;
@@ -3328,7 +3417,7 @@ $("go").onclick = () => {
       `<div class="ts-nums"><span class="r">${Math.round(tsPctA*100)}</span><span class="b">${Math.round((1-tsPctA)*100)}</span></div>`+
       `<div class="ts-bar"><div class="ts-fill" style="width:${(tsPctA*100).toFixed(1)}%"></div></div>`+
       `<div class="ts-verdict">On-paper winner: <b>${tsWin.name}</b></div>`+
-      `<div class="ts-note">A weighted tally of the stats above only — separate from the model's win probability up top, which also factors opponent quality (Elo) and simulates the fight, so the two can disagree.</div>`+
+      `<div class="ts-note">Stats only. The win % above also uses opponent quality and the simulation, so the two can disagree.</div>`+
     `</div>`;
   $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
@@ -3389,6 +3478,30 @@ $("bt").onclick = () => {
   $("btcard").classList.remove("hidden");
   $("btcard").scrollIntoView({behavior:"smooth"});
 };
+
+// ---- PAGE UI: tabs, extra price rows, embedded mode (nothing here touches a probability or a rule) ----
+const lastNm = n => n.replace(/ +(Jr[.]?|Sr[.]?|II|III|IV)$/i, "").split(" ").pop(); // "Khalil Rountree Jr." -> "Rountree"
+const UI = { tab:"prices", meth:false, dc:false };
+try { const u = JSON.parse(localStorage.getItem("ufcsim.classicRows") || "{}"); UI.meth = !!u.meth; UI.dc = !!u.dc; } catch(e){}
+const PANES = ["prices", "breakdown", "tape"];
+function showTab(t){
+  UI.tab = t;
+  document.querySelectorAll(".tab").forEach(b => { const on = b.dataset.tab === t; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+  PANES.forEach(k => $("pane-"+k).classList.toggle("hidden", k !== t));
+}
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+// the method and double-chance rows stay folded until asked for; the choice is remembered. A row with a typed price always shows.
+function showGroups(){
+  const tb = $("calcTable"); tb.classList.toggle("show-meth", UI.meth); tb.classList.toggle("show-dc", UI.dc);
+  [["tgMeth", UI.meth, "Method props"], ["tgDc", UI.dc, "Double chance"]].forEach(([id, on, lab]) => {
+    const b = $(id); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); b.textContent = (on ? "− " : "+ ") + lab; });
+  try { localStorage.setItem("ufcsim.classicRows", JSON.stringify({ meth:UI.meth, dc:UI.dc })); } catch(e){}
+}
+$("tgMeth").onclick = () => { UI.meth = !UI.meth; showGroups(); };
+$("tgDc").onclick = () => { UI.dc = !UI.dc; showGroups(); };
+showGroups();
+// inside the site's Classic overlay the title row is redundant (the overlay has its own bar)
+try { if(window.self !== window.top) document.documentElement.classList.add("embedded"); } catch(e){ try { document.documentElement.classList.add("embedded"); } catch(e2){} }
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));
