@@ -175,6 +175,11 @@ const re = /const F = \[[\s\S]*?\n\];/;
 if (!re.test(html)) { console.error("FATAL: F array not found in HTML"); process.exit(1); }
 html = html.replace(re, "const F = [\n" + rows.map(r => JSON.stringify(r)).join(",\n") + "\n];");
 writeFileSync(HTML_PATH, html);
+// Classic 2.0 (classic2.html) uses this same roster: identical rows, written into its own file. Never blocks the v1 update.
+{ const P2 = ROOT + "/classic2.html";
+  if (existsSync(P2)) { const h2 = readFileSync(P2, "utf8");
+    if (re.test(h2)) { writeFileSync(P2, h2.replace(re, () => "const F = [\n" + rows.map(r => JSON.stringify(r)).join(",\n") + "\n];")); console.log("Classic 2.0 roster injected."); }
+    else console.log("::warning::classic2.html has no roster block — left untouched."); } }
 const names = new Set(rows.map(r => r[0]));
 const btNames = [...html.matchAll(/^\["([^"]+)","([^"]+)","(?:KO|SUB|DEC)","\d{4}-\d{2}"\]/gm)].flatMap(m => [m[1], m[2]]);
 const missing = [...new Set(btNames.filter(n => !names.has(n)))];
