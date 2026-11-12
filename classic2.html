@@ -3648,10 +3648,10 @@ function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp 
   return best ? { ...best, opp: oppIdx.get(oppKey(best.name)) || null } : null;
 }
 const oppAuto = { fa:null, fb:null }; // the name this feature put in each box
-function oppFill(id){
+function oppFill(id, loose){ // loose = also a short name the Simulate button accepts ("gane"), checked when you leave the box or press Enter
   const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim(), note = $("oppNote");
   if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
-  const F = byName[v.toLowerCase()] || oppIdx.get(oppNm(v)) || null;
+  const F = byName[v.toLowerCase()] || oppIdx.get(oppNm(v)) || (loose ? lookup(id) : null) || null;
   if(!F){ if(note) note.textContent = ""; return; }
   const go = () => {
     if($(id).value.trim() !== v) return; // you kept typing meanwhile
@@ -3664,7 +3664,11 @@ function oppFill(id){
   };
   if(OPP) go(); else oppReady.then(go);
 }
-["fa","fb"].forEach(id => $(id).addEventListener("input", () => oppFill(id)));
+for(const id of ["fa","fb"]){
+  $(id).addEventListener("input", () => oppFill(id));
+  $(id).addEventListener("change", () => oppFill(id, true));
+  $(id).addEventListener("keydown", e => { if(e.key === "Enter") oppFill(id, true); }); // runs before Enter-to-simulate, so the pair is complete
+}
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));

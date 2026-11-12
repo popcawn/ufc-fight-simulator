@@ -2151,10 +2151,10 @@ function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp 
 }
 const oppAuto = { fa: null, fb: null }; // the name this feature put in each box
 let oppTimer = null;
-async function oppFill(id){
+async function oppFill(id, loose){ // loose = also a short name Simulate accepts ("gane"), checked when you leave the box
   const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim();
   if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
-  const note = $("oppNote"), F = rosterIdx.get(nmz(v)); if(!F){ note.textContent = ""; return; }
+  const note = $("oppNote"), F = rosterIdx.get(nmz(v)) || (loose ? lookup(id) : null); if(!F){ note.textContent = ""; return; }
   await loadOdds(); if($(id).value.trim() !== v) return; // you kept typing meanwhile
   const nf = nextFight(F), out = $(other); if(!nf){ note.textContent = ""; return; }
   const free = !out.value.trim() || out.value === oppAuto[other];
@@ -2163,7 +2163,7 @@ async function oppFill(id){
   note.textContent = nf.opp ? `Next fight: ${F.name} vs ${nf.opp.name} · ${date}` : `Next fight: vs ${nf.name} · ${date} (not in the roster yet)`;
   clearTimeout(oppTimer); oppTimer = setTimeout(() => { note.textContent = ""; }, 6000);
 }
-for(const id of ["fa", "fb"]) for(const ev of ["input", "change"]) $(id).addEventListener(ev, () => oppFill(id));
+for(const id of ["fa", "fb"]){ $(id).addEventListener("input", () => oppFill(id)); $(id).addEventListener("change", () => oppFill(id, true)); }
 
 // ---- CLASSIC SIM: two versions side by side, each in its own frame so switching keeps what you typed ----
 // v1 = classic.html, the original Sept 28 model and rules (only its page layout was refreshed). 2.0 = classic2.html, the same
@@ -2172,7 +2172,8 @@ for(const id of ["fa", "fb"]) for(const ev of ["input", "change"]) $(id).addEven
 const CLASSIC = {
   1: { file: "classic.html",  frame: "classicFrame",  sub: "v1 · Sept 28 model & rules, unchanged · raw-model calculator, no market anchoring · fighter stats refreshed weekly" },
   2: { file: "classic2.html", frame: "classicFrame2", sub: "2.0 · same win engine as v1 · rebuilt method/distance split, re-tested verdict rules, short-notice switch, live moneylines" } };
-const classicUrl = v => (typeof location !== "undefined" && location.protocol === "file:" ? "https://popcawn.github.io/ufc-fight-simulator/" : "") + CLASSIC[v].file;
+// "?h=" changes every hour, so the Classic frames never keep showing a copy cached from before an update
+const classicUrl = v => (typeof location !== "undefined" && location.protocol === "file:" ? "https://popcawn.github.io/ufc-fight-simulator/" : "") + CLASSIC[v].file + "?h=" + Math.floor(Date.now() / 36e5);
 function showClassic(v){
   for(const k of [1, 2]){ $(CLASSIC[k].frame).classList.toggle("hidden", k !== v); $("classicV"+k).classList.toggle("on", k === v); }
   const fr = $(CLASSIC[v].frame); if(!fr.getAttribute("src")) fr.setAttribute("src", classicUrl(v));
