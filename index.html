@@ -36,6 +36,8 @@
   .pick input:focus{border-color:var(--gold);}
   .vs{font-weight:800; color:var(--gold);}
   .chk{font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:center; cursor:pointer; white-space:nowrap;}
+  .oppnote{position:absolute; right:14px; top:100%; margin-top:6px; color:var(--dim); font-size:12px; z-index:5; background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:6px; max-width:calc(100% - 28px);}
+  .oppnote:empty{display:none;}
   .err{position:absolute; left:14px; top:100%; margin-top:6px; color:#ff7a7a; font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
   .err:empty{display:none;}
 
@@ -209,6 +211,7 @@
   <button id="classicBtn2" class="secondary" title="Classic 2.0: the same win-probability engine as v1, with a rebuilt method/distance split, verdict rules re-checked against real prices, a short-notice switch and live moneylines">Classic 2.0</button>
   <button id="bt" class="secondary" title="Model track record &amp; how it works">Track record ⓘ</button>
   <div class="err" id="err"></div>
+  <div class="oppnote" id="oppNote" aria-live="polite"></div>
 </header>
 
 <div class="classic hidden" id="classicView" role="dialog" aria-modal="true" aria-label="Classic sim">
@@ -2116,7 +2119,7 @@ function attachSearch(id){
     const byName = (a, b) => a.name.localeCompare(b.name);
     items = first.sort(byName).concat(word.sort(byName), any.sort(byName)).slice(0, 8); sel = items.length ? 0 : -1; render();
   };
-  const choose = i => { if(items[i]){ inp.value = items[i].name; close(); } };
+  const choose = i => { if(items[i]){ inp.value = items[i].name; close(); inp.dispatchEvent(new Event("change")); } }; // "change" = a fighter was picked (next-opponent fill)
   inp.addEventListener("input", update);
   inp.addEventListener("keydown", e => { // registered before the Enter-to-simulate handler below
     if(!items.length) return;
@@ -2132,6 +2135,35 @@ function attachSearch(id){
   inp.addEventListener("blur", () => setTimeout(close, 100));
 }
 attachSearch("fa"); attachSearch("fb");
+
+// ---- NEXT OPPONENT: type or pick one fighter and the other box fills with their next scheduled opponent ----
+// From odds.json (fights still listed at the latest scan, starting within the next 90 days). Never replaces a name you
+// typed yourself; it only fills an empty box or one it filled earlier.
+function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp = roster fighter, or null), else null
+  if(!ODDS || !ODDS.fights) return null;
+  const now = Date.now(), lim = now + 90 * 864e5; let best = null;
+  for(const f of Object.values(ODDS.fights)){
+    const t = new Date(f.t).getTime(); if(f.seen !== ODDS.updated || !(t > now) || t > lim) continue;
+    const other = findFighter(f.a) === F ? f.b : findFighter(f.b) === F ? f.a : null;
+    if(other && (!best || t < best.t)) best = { name: other, t };
+  }
+  return best ? { ...best, opp: findFighter(best.name) } : null;
+}
+const oppAuto = { fa: null, fb: null }; // the name this feature put in each box
+let oppTimer = null;
+async function oppFill(id){
+  const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim();
+  if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
+  const note = $("oppNote"), F = rosterIdx.get(nmz(v)); if(!F){ note.textContent = ""; return; }
+  await loadOdds(); if($(id).value.trim() !== v) return; // you kept typing meanwhile
+  const nf = nextFight(F), out = $(other); if(!nf){ note.textContent = ""; return; }
+  const free = !out.value.trim() || out.value === oppAuto[other];
+  if(nf.opp && free && out.value !== nf.opp.name){ out.value = nf.opp.name; oppAuto[other] = nf.opp.name; }
+  const date = new Date(nf.t).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  note.textContent = nf.opp ? `Next fight: ${F.name} vs ${nf.opp.name} · ${date}` : `Next fight: vs ${nf.name} · ${date} (not in the roster yet)`;
+  clearTimeout(oppTimer); oppTimer = setTimeout(() => { note.textContent = ""; }, 6000);
+}
+for(const id of ["fa", "fb"]) for(const ev of ["input", "change"]) $(id).addEventListener(ev, () => oppFill(id));
 
 // ---- CLASSIC SIM: two versions side by side, each in its own frame so switching keeps what you typed ----
 // v1 = classic.html, the original Sept 28 model and rules (only its page layout was refreshed). 2.0 = classic2.html, the same

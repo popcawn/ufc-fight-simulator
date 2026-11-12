@@ -39,6 +39,8 @@
   button.secondary{padding:7px 14px; font-size:13px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px;}
   .err{color:var(--redt); font-size:13px; margin-top:6px;}
   .err:empty{display:none;}
+  .oppnote{font-size:12px; color:var(--dim); margin-top:6px;}
+  .oppnote:empty{display:none;}
 
   /* result card */
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:12px;}
@@ -180,6 +182,7 @@
 </div>
 <datalist id="roster"></datalist>
 <div class="err" id="err"></div>
+<div class="oppnote" id="oppNote"></div>
 
 <div class="card hidden" id="result">
   <div class="h2h">
@@ -3502,6 +3505,46 @@ $("tgDc").onclick = () => { UI.dc = !UI.dc; showGroups(); };
 showGroups();
 // inside the site's Classic overlay the title row is redundant (the overlay has its own bar)
 try { if(window.self !== window.top) document.documentElement.classList.add("embedded"); } catch(e){ try { document.documentElement.classList.add("embedded"); } catch(e2){} }
+
+// ---- NEXT OPPONENT: type or pick one fighter and the other box fills with their next scheduled opponent ----
+// From the site's odds.json (fights still listed at the latest scan, starting within the next 90 days). Never replaces a
+// name you typed yourself; it only fills an empty box or one it filled earlier. Display only: no probability is touched.
+const OPP_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia mesquita", "jose henrique":"jose souza", "charlie radtke":"charles radtke" }; // = NAME_ALIAS in index.html
+const oppNm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s*\([^)]*\)$/, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const oppKey = s => { const k = oppNm(s); return OPP_ALIAS[k] || k; };
+const oppIdx = new Map(); fighters.forEach(f => { const k = oppNm(f.name); oppIdx.set(k, oppIdx.has(k) ? null : f); }); // null = two fighters share the name: never guess
+let OPP = null;
+const oppReady = (typeof fetch === "function" && typeof location !== "undefined" && location.protocol !== "file:")
+  ? fetch("odds.json", { cache:"no-store" }).then(r => r.ok ? r.json() : null).then(j => { OPP = j; }).catch(() => {}) : Promise.resolve();
+function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp = roster fighter, or null if not in the roster), else null
+  if(!OPP || !OPP.fights) return null;
+  const me = oppNm(F.name), now = Date.now(), lim = now + 90*864e5; let best = null;
+  if(oppIdx.get(me) !== F) return null;
+  for(const f of Object.values(OPP.fights)){
+    const t = new Date(f.t).getTime(); if(f.seen !== OPP.updated || !(t > now) || t > lim) continue;
+    const other = oppKey(f.a) === me ? f.b : oppKey(f.b) === me ? f.a : null;
+    if(other && (!best || t < best.t)) best = { name: other, t };
+  }
+  return best ? { ...best, opp: oppIdx.get(oppKey(best.name)) || null } : null;
+}
+const oppAuto = { fa:null, fb:null }; // the name this feature put in each box
+function oppFill(id){
+  const other = id === "fa" ? "fb" : "fa", v = $(id).value.trim(), note = $("oppNote");
+  if(oppAuto[id] !== null && v !== oppAuto[id]) oppAuto[id] = null; // you changed a box it had filled: that box is yours now
+  const F = byName[v.toLowerCase()] || oppIdx.get(oppNm(v)) || null;
+  if(!F){ if(note) note.textContent = ""; return; }
+  const go = () => {
+    if($(id).value.trim() !== v) return; // you kept typing meanwhile
+    const nf = nextFight(F), out = $(other);
+    if(!nf){ if(note) note.textContent = ""; return; }
+    const free = !out.value.trim() || out.value === oppAuto[other];
+    if(nf.opp && free && out.value !== nf.opp.name){ out.value = nf.opp.name; oppAuto[other] = nf.opp.name; }
+    const date = new Date(nf.t).toLocaleDateString([], { weekday:"short", month:"short", day:"numeric" });
+    if(note){ note.textContent = nf.opp ? `Next fight: ${F.name} vs ${nf.opp.name} · ${date}` : `Next fight: vs ${nf.name} · ${date} (not in the roster yet, so it can't be simmed)`; }
+  };
+  if(OPP) go(); else oppReady.then(go);
+}
+["fa","fb"].forEach(id => $(id).addEventListener("input", () => oppFill(id)));
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));
