@@ -285,12 +285,13 @@
   <section class="panel p-calc" data-tab="calc">
     <div class="calc-top">
       <h3>Fair odds &amp; value</h3>
-      <label class="dimtxt" title="Find +EV: flags every bet the model sees as +EV (3-50%), props and longshots included — the Classic sim's style. Proven only: just the backtested moneyline rule (5-20% at the opener).">Mode <select id="betMode"><option value="aggressive">Find +EV</option><option value="proven">Proven only</option></select></label>
+      <label class="dimtxt" title="2.0 + main sim: a TAKE is a moneyline Classic 2.0 backs (favorite edge with 4+ UFC fights each, or the fade of a 3-fight newcomer), left out when the main sim backs the other side. Find +EV: flags every bet the model sees as +EV (3-50%), props and longshots included — the Classic sim's style. Proven only: just the backtested moneyline rule (5-20% at the opener).">Mode <select id="betMode"><option value="consensus">2.0 + main sim</option><option value="aggressive">Find +EV</option><option value="proven">Proven only</option></select></label>
       <label class="dimtxt">Betting <select id="lineTiming"><option value="current">fight week (conservative)</option><option value="open">early, at the opener (backtested edge)</option></select></label>
     </div>
     <div class="empty">Simulate a fight, then type your book's odds (e.g. <code>-150</code>, <code>+220</code>). Enter <b>both moneylines</b> to anchor the model to the market.</div>
     <div class="needs-sim">
       <div class="anchornote" id="autoOdds"></div>
+      <div class="anchornote" id="c20note"></div>
       <div class="anchornote" id="anchorNote"></div>
       <div class="verdict-box hidden" id="verdictBox"></div>
       <div class="fit-reserve" id="fitReserve" aria-hidden="true"><div class="anchornote">⚓ <b>Fight-week anchor</b> · Islam Makhachev: market 71.2% → blend <b>70.4%</b> (raw model 62.3%)</div><div class="verdict-box take"><span class="vh">✅ TAKE THIS BET</span><b>Makhachev · KO or sub</b> at your entered odds — <b>+6.4% EV</b>, hits ~31%. Suggested stake ~<b>1.2% of bankroll</b> (¼-Kelly, capped at 3%). The other 2 green rows are on the same fight — treat them as one position, don't stack.<div class="vsmall">Model-based suggestion, not financial advice. Lines move and the model has blind spots — bet only what you can afford to lose.</div></div></div>
@@ -1502,8 +1503,10 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
 // model toward the market automatically. Unanchored mode keeps the stricter 4% bar.
 // Bet mode. "aggressive" (default) = find +EV: any 3-50% edge on any row, props and thin data included (half stake),
 // weight changes allowed with a warning. "proven" = only the backtested moneyline rule (5-20% at the opener).
-let betMode = (() => { try { return localStorage.getItem("ufcsim.mode") || "aggressive"; } catch(e){ return "aggressive"; } })();
-const AGG = () => betMode !== "proven";
+// "consensus" (default since 2026-11-15) = Classic 2.0 x main sim, see the CONSENSUS MODE block; outside the scanner it behaves like "proven".
+let betMode = (() => { try { if(localStorage.getItem("ufcsim.modeV") !== "2"){ localStorage.setItem("ufcsim.modeV", "2"); localStorage.setItem("ufcsim.mode", "consensus"); } // one-time move to the new default
+  return localStorage.getItem("ufcsim.mode") || "consensus"; } catch(e){ return "consensus"; } })();
+const AGG = () => betMode === "aggressive", CONS = () => betMode === "consensus";
 function verdictFor(entered, A, B, pA, anchor, eligible, xdiv){
   if(!entered.length) return { status:"none" };
   const minFights = Math.min(A.w + A.l, B.w + B.l);
@@ -1641,7 +1644,8 @@ function computeVerdict(){
 $("lineTiming").addEventListener("change", computeVerdict);
 $("betMode").value = betMode;
 $("betMode").addEventListener("change", () => { betMode = $("betMode").value; try { localStorage.setItem("ufcsim.mode", betMode); } catch(e){}
-  computeVerdict(); if(typeof buildScan === "function" && ODDS && !$("wkcard").classList.contains("hidden")) buildScan(); });
+  if(calcA) computeVerdict(); // no fight simulated yet: nothing to re-judge (this used to throw and skip the scanner refresh)
+  if(typeof buildScan === "function" && ODDS && !$("wkcard").classList.contains("hidden")) buildScan(); });
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
 const amOdds = p => {
   p = Math.min(0.995, Math.max(0.005, p));
@@ -1758,6 +1762,7 @@ $("go").onclick = () => {
   $("result").classList.add("ready");
   fitDash();
   $("autoOdds").innerHTML = ""; autoFillOdds(A, B);
+  c20Note(A, B, nRounds);
 };
 
 // ---- TRACK RECORD (written by `node market-eval.mjs --apply` — do not edit by hand) ----
@@ -1910,10 +1915,12 @@ function buildScan(){
     .map(([id, f]) => scoreFight(id, f)).filter(r => r && (r.A || r.B))
     .sort((a, b) => a.t.toDateString() === b.t.toDateString() ? (b.take - a.take) || (a.t - b.t) : a.t - b.t);
   const h = (now - new Date(O.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + "h" : Math.round(h / 24) + " days";
+  if(CONS()) consensusPrep();
   const takes = scanRows.filter(r => r.take).length;
-  $("wkinfo").innerHTML = `<b>${takes} bet${takes === 1 ? "" : "s"}</b> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`
+  $("wkinfo").innerHTML = `<b id="wkTakes">${takes} bet${takes === 1 ? "" : "s"}</b><span id="wkCons"></span> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`
     + (h > 36 ? ` <span class="warnline">⚠ stale — the "Scan odds" GitHub Action isn't refreshing (is the ODDS_API_KEY secret set?). Re-check prices at your book.</span>` : "");
   renderScan(); renderSlip();
+  if(CONS()) consensusPass();
 }
 function renderScan(){
   let html = "", lastDay = "";
@@ -1940,7 +1947,7 @@ function renderScan(){
       <td>${nm(0)} vs ${nm(1)} <span class="badge ${r.early ? "early" : ""}" title="${tip}">${r.early ? "EARLY" : "LATE"}</span></td>
       <td><b>${sur(0)} ${pct(r.pFair)}</b><div class="sub">market ${pct(r.pMkt)} · model ${pct(r.pModel)}</div></td>
       <td>${px(0)}<br>${px(1)}</td>
-      <td title="${r.totals ? r.totals.lines.map(x => `Rounds ${x.L}: market under ${x.mU == null ? "?" : pct(x.mU)} · model ${pct(x.pu)}`).join(" · ") : "No total-rounds line at your books"}">${r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${r.stake.toFixed(1)}%${r.thin ? ` (halved: ${thinWho()})` : ""}</div>`
+      <td title="${r.totals ? r.totals.lines.map(x => `Rounds ${x.L}: market under ${x.mU == null ? "?" : pct(x.mU)} · model ${pct(x.pu)}`).join(" · ") : "No total-rounds line at your books"}">${CONS() && (r.cpending || r.cv) ? consCall(r, sur) : r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${r.stake.toFixed(1)}%${r.thin ? ` (halved: ${thinWho()})` : ""}</div>`
         : `<span class="dimtxt">pass</span><div class="sub">${r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.noBook ? "not offered at your books" : `best edge ${(s.ev * 100).toFixed(1)}% (${sur(k)})`}</div>`}${showRds && r.totals ? r.totals.lines.map(x => `<div class="sub rds">Rounds ${x.L}: market under <b>${x.mU == null ? "?" : pct(x.mU)}</b> · model ${pct(x.pu)} · o ${x.over.d ? decAm(x.over.d) + " " + bookName(x.over.book) : "—"} / u ${x.under.d ? decAm(x.under.d) + " " + bookName(x.under.book) : "—"}</div>`).join("") : ""}</td>
       <td class="acts"><button class="mini-btn" data-sim="${r.id}">Sim</button>${r.take ? `<button class="mini-btn" data-slip="${r.id}" ${inSlip ? "disabled" : ""}>${inSlip ? "In slip" : "+ Parlay"}</button><button class="mini-btn" data-log="${r.id}">Log bet</button>` : ""}</td>
     </tr>`;
@@ -2194,6 +2201,107 @@ const openClassic = v => { showClassic(v); $("classicView").classList.remove("hi
 $("classicBtn").onclick = () => openClassic(1); $("classicBtn2").onclick = () => openClassic(2);
 $("classicBack").addEventListener("click", () => $("classicView").classList.add("hidden"));
 if(document.addEventListener) document.addEventListener("keydown", e => { if(e.key === "Escape") $("classicView").classList.add("hidden"); });
+
+// ---- CONSENSUS MODE: Classic 2.0 x main sim (2026-11-15) ----
+// Backtest (ufc-data/v2/tests/consensus.mjs, same fights and prices, 2022-26): moneylines Classic 2.0 backs returned +22.8% at
+// opening lines and +16.8% at closing lines. Main-sim TAKEs that 2.0 also backs: +25.6% / +19.2%. Main-sim TAKEs without 2.0
+// behind them: +13% early but -5% to -13% by fight night, and -25% to -44% inside a 2.0 PASS fight. So in this mode a TAKE is a
+// moneyline Classic 2.0 backs (favorite edge of 4-50% with 4+ UFC fights each, or the fade of a 3-fight newcomer), and it is
+// left out when the main sim backs the other side. Classic 2.0's numbers come from classic2.html, loaded in its (hidden) frame;
+// if that page can't be reached the scanner says so and falls back to the main sim's proven rule.
+const sgnPct = x => (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "%";
+// pure: Classic 2.0's moneyline call. p = its chance for side 0, pMkt = the market's no-vig chance for side 0,
+// d = [price 0, price 1] (decimal), n = [UFC fights 0, UFC fights 1]
+function c20View(p, pMkt, d, n){
+  const fav = pMkt > 0.5 ? { dv: pMkt, mp: p } : { dv: 1 - pMkt, mp: 1 - p };
+  if(fav.dv > 0.70 && fav.dv - fav.mp > 0.08) return { back: null, kind: null, why: "calls it a PASS fight (it rates the big favorite 8+ points below the books)" };
+  const P = [p, 1 - p], ev = [P[0] * d[0] - 1, P[1] * d[1] - 1], thin = Math.min(n[0], n[1]) < 4;
+  for(const s of [0, 1]){
+    if(!(ev[s] >= 0.04 && ev[s] <= 0.50)) continue;
+    if(!thin && d[s] < 2) return { back: s, kind: "take", ev: ev[s] };
+    if(n[s] >= 4 && n[1 - s] === 3) return { back: 1 - s, kind: "fade", ev: ev[s] };
+    if(thin) return { back: null, kind: null, why: "says skip (a fighter has under 4 UFC fights)" };
+    return { back: null, kind: null, why: "only sees an underdog edge (unproven)" };
+  }
+  return { back: null, kind: null, why: ev[0] > 0.50 || ev[1] > 0.50 ? "shows an edge too big to be real" : "sees no edge at these prices" };
+}
+const C20 = { loading: null, runId: 0, state: "idle", calc: null };
+function c20Api(){ try { const w = $("classicFrame2").contentWindow; return w && typeof w.classic20 === "function" ? w.classic20 : null; } catch(e){ return null; } }
+function c20Load(){ // -> true once the Classic 2.0 page is loaded in its frame and reachable (same site)
+  if(c20Api()) return Promise.resolve(true);
+  if(C20.loading) return C20.loading;
+  return C20.loading = new Promise(res => {
+    const fr = $("classicFrame2"), fin = ok => { C20.loading = null; res(ok); };
+    try {
+      fr.addEventListener("load", () => fin(!!c20Api()), { once: true });
+      if(!fr.getAttribute("src")) fr.setAttribute("src", classicUrl(2));
+      else if(fr.contentDocument && fr.contentDocument.readyState === "complete"){ fin(!!c20Api()); return; }
+    } catch(e){ fin(false); return; }
+    setTimeout(() => fin(!!c20Api()), 10000);
+  });
+}
+function consensusPrep(){ // before the first paint: no TAKEs until Classic 2.0 has been asked
+  for(const r of scanRows){ if(!r.side) continue;
+    r.main = { pick: r.pick, take: r.take, stake: r.stake, side: r.side.map(x => ({ ...x })) }; // the main sim's own view of the row
+    r.take = false; r.stake = 0; r.cpending = true; r.cv = null; }
+}
+function consensusRow(r){ // sets r.cv; when Classic 2.0 backs a side the row points at it (pick, chance, stake)
+  const api = c20Api(), c = api ? api(r.A.name, r.B.name, 3, 4000) : null, M = r.main, sur = i => surname(r.name[i]);
+  const mainTake = i => M.side[i].ev >= 0.05 && M.side[i].ev <= 0.20;
+  r.cpending = false; r.take = false; r.stake = 0; r.pick = M.pick; r.side = M.side.map(x => ({ ...x })); r.agree = false;
+  const v = r.cv = c ? c20View(c.p, r.pMkt, [r.best[0].d, r.best[1].d], [c.nA, c.nB]) : { back: null, kind: null, why: "does not have both fighters in its roster" };
+  if(c) v.p = c.p;
+  if(v.back == null){ r.cnote = mainTake(M.pick) ? `main sim likes ${sur(M.pick)} (${sgnPct(M.side[M.pick].ev)}); Classic 2.0 ${v.why} — left out` : `Classic 2.0 ${v.why}`; return; }
+  const k = v.back;
+  if(mainTake(1 - k)){ r.cnote = `models split: Classic 2.0 backs ${sur(k)}, the main sim backs ${sur(1 - k)} — left out`; return; }
+  // chance used for the stake and the parlay slip: a favorite TAKE = the two models averaged; a fade = the tested fade edge,
+  // taken as +15% at this price (it returned +20.7% at closing lines) because Classic's own number is the one being faded
+  const d = r.best[k].d, p = v.kind === "take" ? (M.side[k].p + (k ? 1 - c.p : c.p)) / 2 : Math.min(0.95, 1.15 / d), ev = p * d - 1, kelly = ev / (d - 1);
+  r.pick = k; r.side[k] = { ...r.side[k], p, ev, kelly };
+  r.agree = M.side[k].ev >= 0;
+  r.take = !r.noBook && !r.xdiv;
+  r.stake = !r.take ? 0 : v.kind === "take" ? Math.max(0.5, Math.min(3, 25 * kelly)) : Math.max(0.5, Math.min(1.5, 12.5 * kelly));
+  r.cnote = v.kind === "take" ? `Classic 2.0 favorite edge ${sgnPct(v.ev)} · main sim ${sgnPct(M.side[k].ev)}`
+    : `fade: Classic 2.0's own pick is the veteran against a 3-fight fighter (those picks went 9–43) · main sim ${sgnPct(M.side[k].ev)}`;
+}
+async function consensusPass(){
+  const run = ++C20.runId, rows = scanRows.filter(r => r.side && r.main);
+  C20.state = "loading"; consInfo();
+  const ok = await c20Load(); if(run !== C20.runId || !CONS()) return;
+  if(!ok){ C20.state = "failed"; for(const r of rows){ r.cpending = false; r.cv = null; r.take = r.main.take; r.stake = r.main.stake; } }
+  else { C20.state = "ready";
+    for(const r of rows){ consensusRow(r); await new Promise(z => setTimeout(z, 0)); if(run !== C20.runId || !CONS()) return; } }
+  consInfo(); renderScan(); renderSlip();
+}
+function consInfo(){
+  const t = scanRows.filter(r => r.take).length, b = $("wkTakes"), n = $("wkCons"); if(b) b.textContent = `${t} bet${t === 1 ? "" : "s"}`;
+  if(n) n.textContent = C20.state === "loading" ? " (checking Classic 2.0…)" : C20.state === "failed" ? " (Classic 2.0 could not be loaded: showing the main sim's proven rule)" : C20.state === "ready" ? " backed by Classic 2.0" : "";
+}
+function consCall(r, sur){ // the Call cell of a scanner row in consensus mode
+  if(r.cpending) return `<span class="dimtxt">…</span><div class="sub">checking Classic 2.0</div>`;
+  const k = r.pick, x = r.side[k];
+  if(r.take) return `<span class="ok">✅ ${r.cv.kind === "fade" ? "FADE → " : "TAKE "}${sur(k)}</span>${r.agree ? ` <span class="badge early" title="The main sim's own edge on this side is not negative">both agree</span>` : ""}<div class="sub">${r.cnote} · stake ${r.stake.toFixed(1)}% at ${bookName(x.book)}</div>`;
+  return `<span class="dimtxt">pass</span><div class="sub">${r.cv.back != null && r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.cv.back != null && r.noBook ? "not offered at your books" : r.cnote}</div>`;
+}
+// calculator: one line with Classic 2.0's chance and its call at the moneylines in the table
+async function c20Note(A, B, rounds){
+  const el = $("c20note"); el.textContent = ""; C20.calc = null;
+  if(!(await c20Load()) || calcA !== A || calcB !== B) return;
+  const c = c20Api()(A.name, B.name, rounds, 10000); if(calcA !== A || calcB !== B) return;
+  C20.calc = c ? { ...c, A, B } : { none: true, A, B };
+  c20NoteRender(); setTimeout(c20NoteRender, 800); setTimeout(c20NoteRender, 2500); // the moneylines are auto-filled a moment later
+}
+function c20NoteRender(){
+  const el = $("c20note"), c = C20.calc; if(!c || c.A !== calcA || c.B !== calcB){ return; }
+  if(c.none){ el.textContent = "Classic 2.0 does not have both fighters in its roster."; return; }
+  const d = [0, 1].map(i => { const inp = document.querySelector(`#calcBody .oddsin[data-i="${i}"]`); return inp ? amToDec(inp.value) : null; }), sA = surname(c.A.name), sB = surname(c.B.name);
+  let txt = `Classic 2.0: ${sA} ${pct(c.p)} · ${sB} ${pct(1 - c.p)}`;
+  if(d[0] && d[1]){ const v = c20View(c.p, noVig(d[0], d[1]), d, [c.nA, c.nB]);
+    txt += v.back != null ? ` — ${v.kind === "fade" ? "fade → " : "backs "}${v.back ? sB : sA}` : ` — ${v.why}` + (CONS() ? ". Leave the moneyline out." : ""); }
+  el.textContent = txt;
+}
+$("calcBody").addEventListener("input", c20NoteRender);
+$("betMode").addEventListener("change", c20NoteRender);
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));

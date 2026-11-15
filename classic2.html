@@ -3654,6 +3654,22 @@ for(const id of ["fa","fb"]){
   $(id).addEventListener("keydown", e => { if(e.key === "Enter") oppFill(id, true); }); // runs before Enter-to-simulate, so the pair is complete
 }
 
+// ---- API for the main sim (index.html calls this through the Classic 2.0 frame; consensus mode) ----
+// classic20(nameA, nameB, rounds, sims) -> { p, nA, nB, a, b } or null when either fighter is not in this roster (or the
+// name is shared by two fighters). p = A's Classic 2.0 win chance, age markdown included, no short notice. Cached per pair.
+const API_CACHE = new Map();
+function classic20(nameA, nameB, rounds, sims){
+  const pick = n => byName[String(n).trim().toLowerCase()] || oppIdx.get(oppNm(String(n))) || null;
+  const A = pick(nameA), B = pick(nameB); if(!A || !B || A === B) return null;
+  const r = rounds === 5 ? 5 : 3, key = A.name + "|" + B.name + "|" + r;
+  if(!API_CACHE.has(key)){
+    const t = simulate(A, B, r, sims || 4000);
+    API_CACHE.set(key, sig(logit(blend(t.A / (t.A + t.B), A, B)) - AGE_K * (ageOver(A) - ageOver(B))));
+  }
+  return { p: API_CACHE.get(key), nA: A.w + A.l, nB: B.w + B.l, a: A.name, b: B.name };
+}
+if(typeof window !== "undefined") window.classic20 = classic20;
+
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));
 </script>

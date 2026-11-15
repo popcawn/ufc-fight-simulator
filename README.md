@@ -40,6 +40,12 @@ automatically. To update on demand, go to the **Actions** tab → **Update stats
 
 ## This week, parlays and your bet log
 
+- **Mode: 2.0 + main sim** (the default since 2026-11-15). A TAKE is a moneyline **Classic 2.0 backs** (a favorite edge of 4-50% with
+  4+ UFC fights each, or the fade of a 3-fight newcomer), left out when the main sim backs the other side. Main-sim edges that
+  Classic 2.0 does not back are shown as "left out". Backtest on the same fights and prices, 2022-26 (`ufc-data/v2/tests/consensus.mjs`):
+  2.0-backed legs +22.8% at opening lines / +16.8% at closing lines; main-sim TAKEs alone +14.6% / -5.0%; both agreeing +25.6% / +19.2%.
+  The main sim asks Classic 2.0 through its page (`classic2.html`, `classic20()`); if that page cannot load it says so and uses the
+  proven rule. The old modes (Find +EV, Proven only) are still in the Mode menu.
 - **This week** scans every UFC line from ~10 US sportsbooks with the backtested rule and lists the
   TAKE bets, the best price at the books you pick, and a stake. **+ Parlay** builds a slip that only
   uses TAKE legs from different fights and prices it at one book (hit chance, EV, capped stake).
