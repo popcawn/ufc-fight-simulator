@@ -244,6 +244,7 @@
     <li><b>Distance now leans on each fighter's own record.</b> How often each fighter's UFC fights have gone to a decision predicts distance far better than the simulation does. When 2.0 says 20–30%, fights went the distance 29% of the time (v1: said 26%, real 40%).</li>
     <li><b>Favorites vs underdogs.</b> At real prices (2021–25 closing lines, 2026 DraftKings/FanDuel), favorites the model liked more than the book went 110–59 (+11.4%). Underdog edges went 186–334 (−5.8%): they won 36% of the time, the book's number, not the model's 47%. So 2.0 calls only the favorites a TAKE.</li>
     <li><b>Distance bets.</b> With v1's numbers, round-total bets lost 6.2% (1,324 bets). With 2.0's numbers the same bets lost 2.6% overall — but edges of 4–20% in fights where both fighters have 4+ UFC fights went 161–149 (+15.8%, up in 5 of 6 seasons). That is a LEAN at a small stake, not a proven bet: the test used over/under 2.5 rounds (4.5 in five-rounders), not the exact distance prop, and the books still out-predict the model overall.</li>
+    <li><b>Short underdogs (added Nov 17, 2026).</b> An underdog priced +100 to +149 with a 25–50% model edge (both fighters 4+ UFC fights) went 49–41 (+22.9%) when bet at the <b>opening line</b> in 2021–26, with no losing year; 66 of 90 got shorter by fight time. Picked at closing prices the same rule lost 8.3%. So it is a small stake (about 1%), only while the price is still near where it opened. This pattern was found after looking at the results: promising, not proven. Longer underdogs (+150 and up) with big edges lost (−40.7% at the opener).</li>
     <li><b>Distance rows in a PASS THIS FIGHT fight stay info only.</b> Inside those fights the same lean went 30–29 (+6.4% on 59 bets; the goes-the-distance side 20–18, −1.0%) — too few bets to trust.</li>
     <li><b>Method props are information only.</b> There is no price history to test them, so 2.0 never recommends one.</li>
     <li><b>Kept from v1 because they tested well:</b> PASS THIS FIGHT (those would-be bets lost 16–45%), LEAN PASS on fighters with under 4 UFC fights (those picks lost 2–29%), and passing on edges above 50%.</li>
@@ -3302,6 +3303,8 @@ function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw 
 //   kept from v1   PASS THIS FIGHT (those would-be bets lost 16-45%), LEAN PASS on thin data, EV above 50% = pass
 //   new            a FAVORITE the model likes more than the book = TAKE (110-59, +11.4%)
 //                  an UNDERDOG edge = not a proven bet (186-334, -5.8%: they won 36%, the book's number, not the model's 47%)
+//                  SHORT UNDERDOG (2026-11-17, tests/dog-open.mjs): priced +100..+150 with a 25-50% edge = small stake at the
+//                    OPENING line (49-41, +22.9% at openers, no losing year; -8.3% when picked at closing lines; found after the fact)
 //                  distance rows: a LEAN only at a 4-20% edge with 4+ UFC fights each (161-149, +15.8% on round-total lines)
 //                  method props: shown for information, never recommended (no price history to test them)
 //                  short-notice fighter: never a TAKE
@@ -3360,7 +3363,12 @@ function verdictFor(entered, A, B, pA, ctx){
       return { status:"take", title:"TAKE THIS BET", bestIndex:ml.i, leanIndex, short:`<b>${ml.label}</b> · +${(ml.ev*100).toFixed(1)}% EV · stake about ${stake}% of bankroll.${alsoShort}`, body:
         `<b>${ml.label}</b> at your entered odds — <b>+${(ml.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(ml.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%). Favorites the model likes more than the book went 110–59 (+11.4%) in the 2021–26 test.${also}` };
     }
-    return { status:"caution", title:"UNDERDOG EDGE — NOT A PROVEN BET", bestIndex:ml.i, leanIndex, mlNote:"unproven", short:`<b>${ml.label}</b> shows +${(ml.ev*100).toFixed(1)}%, but underdog edges lost money in testing. Keep it small or skip.${alsoShort}`, body:
+    if(ml.dec < 2.5 && ml.ev >= 0.25){
+      const stake = Math.max(0.5, Math.min(1, 12.5 * 0.10 / (ml.dec - 1))).toFixed(1);
+      return { status:"lean", title:"SHORT UNDERDOG — SMALL STAKE", bestIndex:ml.i, dogIndex:ml.i, leanIndex, short:`<b>${ml.label}</b> · +${(ml.ev*100).toFixed(1)}% · only at the opening line · stake about ${stake}% of bankroll.${alsoShort}`, body:
+        `<b>${ml.label}</b> is a short underdog (+100 to +149) with a big model edge (+${(ml.ev*100).toFixed(1)}%). In the 2021–26 test, underdogs like this went 49–41 (<b>+22.9%</b>) when bet at the <b>opening line</b>, with no losing year, and 66 of 90 got shorter by fight time. Picked at closing prices, the same rule lost 8.3%. So bet it only if the price is still about where it opened; if it has already shortened, skip. Stake ~<b>${stake}% of bankroll</b> (⅛-Kelly on an assumed +10% edge, capped at 1%). This pattern was found after looking at the results — promising, not proven.${also}` };
+    }
+    return { status:"caution", title:"UNDERDOG EDGE — NOT A PROVEN BET", bestIndex:ml.i, leanIndex, mlNote:"unproven", short:`<b>${ml.label}</b> shows +${(ml.ev*100).toFixed(1)}%, but underdog edges lost money in testing (short ones, +100 to +149 at a 25%+ edge, are the exception). Keep it small or skip.${alsoShort}`, body:
       `The model has <b>${ml.label}</b> at +${(ml.ev*100).toFixed(1)}% EV. In the 2021–26 test, underdog edges like this went 186–334 (−5.8%): they won 36% of the time, which is what the books said, not the 47% the model said. They lost in 4 of 6 seasons (2022 and 2026 were up). Classic v1 calls this a TAKE; if you bet it, keep it small.${also}` };
   }
 
@@ -3403,6 +3411,7 @@ function computeVerdict(){
     if(i === v.fadeIndex){ ev.className = "evcell lean"; ev.innerHTML = `${(e.ev*100).toFixed(1)}%<span class="tag">fade</span>`; } // model's EV is negative here; the bet comes from the fade test
     else if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
     else if(i === v.bestIndex && v.status === "take") tag("best", "★ best");
+    else if(i === v.dogIndex) tag("lean", "short dog");
     else if(i === v.leanIndex) tag("lean", "lean");
     else if(i <= 1){ // moneyline rows
       if(v.status === "take") tag("ok", "value");

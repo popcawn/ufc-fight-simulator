@@ -2204,6 +2204,10 @@ if(document.addEventListener) document.addEventListener("keydown", e => { if(e.k
 // moneyline Classic 2.0 backs (favorite edge of 4-50% with 4+ UFC fights each, or the fade of a 3-fight newcomer), and it is
 // left out when the main sim backs the other side. Classic 2.0's numbers come from classic2.html, loaded in its (hidden) frame;
 // if that page can't be reached the scanner says so and falls back to the main sim's proven rule.
+// SHORT UNDERDOG (2026-11-17, ufc-data/v2/tests/dog-open.mjs): an underdog priced +100..+150 that Classic 2.0 gives a 25-50% edge
+// (4+ UFC fights each) went 49-41, +22.9% at OPENING lines (2021-26, no losing year; 66 of 90 shortened by fight time). Picked at
+// closing lines the same rule lost 8.3%, so it is a small-stake bet only while the price is still near where it opened.
+// Found after looking at the results: promising, not proven.
 const sgnPct = x => (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "%";
 // pure: Classic 2.0's moneyline call. p = its chance for side 0, pMkt = the market's no-vig chance for side 0,
 // d = [price 0, price 1] (decimal), n = [UFC fights 0, UFC fights 1]
@@ -2214,6 +2218,7 @@ function c20View(p, pMkt, d, n){
   for(const s of [0, 1]){
     if(!(ev[s] >= 0.04 && ev[s] <= 0.50)) continue;
     if(!thin && d[s] < 2) return { back: s, kind: "take", ev: ev[s] };
+    if(!thin && d[s] < 2.5 && ev[s] >= 0.25) return { back: s, kind: "dog", ev: ev[s] };
     if(n[s] >= 4 && n[1 - s] === 3) return { back: 1 - s, kind: "fade", ev: ev[s] };
     if(thin) return { back: null, kind: null, why: "says skip (a fighter has under 4 UFC fights)" };
     return { back: null, kind: null, why: "only sees an underdog edge (unproven)" };
@@ -2248,15 +2253,23 @@ function consensusRow(r){ // sets r.cv; when Classic 2.0 backs a side the row po
   if(c) v.p = c.p;
   if(v.back == null){ r.cnote = mainTake(M.pick) ? `main sim likes ${sur(M.pick)} (${sgnPct(M.side[M.pick].ev)}); Classic 2.0 ${v.why} — left out` : `Classic 2.0 ${v.why}`; return; }
   const k = v.back;
+  if(v.kind === "dog"){ // only while the line is still near its opener (market no-vig chance for this side up no more than 2 pts)
+    const ob = Object.values(r.f.open || {}).filter(x => x && x[0] > 1 && x[1] > 1), avgO = i => ob.reduce((t, x) => t + x[i], 0) / ob.length;
+    const pO = ob.length ? noVig(avgO(0), avgO(1)) : null, side = p => k ? 1 - p : p;
+    if(pO == null || side(r.pMkt) - side(pO) > 0.02){ v.back = null; v.why = pO == null ? "sees a short-underdog edge, but there is no opening price to check it against" : `sees a short-underdog edge on ${sur(k)}, but the line has moved ${Math.round(100 * (side(r.pMkt) - side(pO)))} pts toward that side since it opened (the edge was in the opener)`;
+      r.cnote = `Classic 2.0 ${v.why} — left out`; return; }
+  }
   if(mainTake(1 - k)){ r.cnote = `models split: Classic 2.0 backs ${sur(k)}, the main sim backs ${sur(1 - k)} — left out`; return; }
   // chance used for the stake and the parlay slip: a favorite TAKE = the two models averaged; a fade = the tested fade edge,
   // taken as +15% at this price (it returned +20.7% at closing lines) because Classic's own number is the one being faded
-  const d = r.best[k].d, p = v.kind === "take" ? (M.side[k].p + (k ? 1 - c.p : c.p)) / 2 : Math.min(0.95, 1.15 / d), ev = p * d - 1, kelly = ev / (d - 1);
+  // a short underdog = assumed +10% edge (it returned +22.9% at opening lines, found after the fact)
+  const d = r.best[k].d, p = v.kind === "take" ? (M.side[k].p + (k ? 1 - c.p : c.p)) / 2 : v.kind === "dog" ? 1.10 / d : Math.min(0.95, 1.15 / d), ev = p * d - 1, kelly = ev / (d - 1);
   r.pick = k; r.side[k] = { ...r.side[k], p, ev, kelly };
   r.agree = M.side[k].ev >= 0;
   r.take = !r.noBook && !r.xdiv;
-  r.stake = !r.take ? 0 : v.kind === "take" ? Math.max(0.5, Math.min(3, 25 * kelly)) : Math.max(0.5, Math.min(1.5, 12.5 * kelly));
+  r.stake = !r.take ? 0 : v.kind === "take" ? Math.max(0.5, Math.min(3, 25 * kelly)) : v.kind === "dog" ? Math.max(0.5, Math.min(1, 12.5 * kelly)) : Math.max(0.5, Math.min(1.5, 12.5 * kelly));
   r.cnote = v.kind === "take" ? `Classic 2.0 favorite edge ${sgnPct(v.ev)} · main sim ${sgnPct(M.side[k].ev)}`
+    : v.kind === "dog" ? `short underdog: Classic 2.0 edge ${sgnPct(v.ev)}, line still near its opener — small stake, bet it before it moves (promising, not proven) · main sim ${sgnPct(M.side[k].ev)}`
     : `fade: Classic 2.0's own pick is the veteran against a 3-fight fighter (those picks went 9–43) · main sim ${sgnPct(M.side[k].ev)}`;
 }
 async function consensusPass(){
@@ -2275,7 +2288,7 @@ function consInfo(){
 function consCall(r, sur){ // the Call cell of a scanner row in consensus mode
   if(r.cpending) return `<span class="dimtxt">…</span><div class="sub">checking Classic 2.0</div>`;
   const k = r.pick, x = r.side[k];
-  if(r.take) return `<span class="ok">✅ ${r.cv.kind === "fade" ? "FADE → " : "TAKE "}${sur(k)}</span>${r.agree ? ` <span class="badge early" title="The main sim's own edge on this side is not negative">both agree</span>` : ""}<div class="sub">${r.cnote} · stake ${r.stake.toFixed(1)}% at ${bookName(x.book)}</div>`;
+  if(r.take) return `<span class="ok">✅ ${r.cv.kind === "fade" ? "FADE → " : r.cv.kind === "dog" ? "SHORT DOG " : "TAKE "}${sur(k)}</span>${r.agree ? ` <span class="badge early" title="The main sim's own edge on this side is not negative">both agree</span>` : ""}<div class="sub">${r.cnote} · stake ${r.stake.toFixed(1)}% at ${bookName(x.book)}</div>`;
   return `<span class="dimtxt">pass</span><div class="sub">${r.cv.back != null && r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.cv.back != null && r.noBook ? "not offered at your books" : r.cnote}</div>`;
 }
 // calculator: one line with Classic 2.0's chance and its call at the moneylines in the table
@@ -2292,7 +2305,7 @@ function c20NoteRender(){
   const d = [0, 1].map(i => { const inp = document.querySelector(`#calcBody .oddsin[data-i="${i}"]`); return inp ? amToDec(inp.value) : null; }), sA = surname(c.A.name), sB = surname(c.B.name);
   let txt = `Classic 2.0: ${sA} ${pct(c.p)} · ${sB} ${pct(1 - c.p)}`;
   if(d[0] && d[1]){ const v = c20View(c.p, noVig(d[0], d[1]), d, [c.nA, c.nB]);
-    txt += v.back != null ? ` — ${v.kind === "fade" ? "fade → " : "backs "}${v.back ? sB : sA}` : ` — ${v.why}` + (CONS() ? ". Leave the moneyline out." : ""); }
+    txt += v.back != null ? ` — ${v.kind === "fade" ? "fade → " : v.kind === "dog" ? "short underdog (small stake, opening line only) → " : "backs "}${v.back ? sB : sA}` : ` — ${v.why}` + (CONS() ? ". Leave the moneyline out." : ""); }
   el.textContent = txt;
 }
 $("calcBody").addEventListener("input", c20NoteRender);

@@ -46,6 +46,9 @@ automatically. To update on demand, go to the **Actions** tab → **Update stats
   2.0-backed legs +22.8% at opening lines / +16.8% at closing lines; main-sim TAKEs alone +14.6% / -5.0%; both agreeing +25.6% / +19.2%.
   The main sim asks Classic 2.0 through its page (`classic2.html`, `classic20()`); if that page cannot load it says so and uses the
   proven rule. The old modes (Find +EV, Proven only) are still in the Mode menu.
+  **SHORT DOG** (2026-11-17, `ufc-data/v2/tests/dog-open.mjs`): an underdog at +100 to +149 that Classic 2.0 gives a 25-50% edge,
+  shown only while the market is within 2 points of its opening line, at a small stake (about 1%). At opening lines 2021-26 these went
+  49-41 (+22.9%, no losing year); picked at closing lines -8.3%. Found after looking at the results: promising, not proven.
 - **This week** scans every UFC line from ~10 US sportsbooks with the backtested rule and lists the
   TAKE bets, the best price at the books you pick, and a stake. **+ Parlay** builds a slip that only
   uses TAKE legs from different fights and prices it at one book (hit chance, EV, capped stake).
