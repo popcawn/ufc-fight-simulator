@@ -231,6 +231,7 @@
     <li><b>Fair</b> is the model's price with no book margin. <b>Market</b> is the book's chance with its margin removed (on the two-way win and distance markets). <b>EV</b> is your expected return per dollar at the odds you typed (e.g. <code>-150</code> or <code>+220</code>).</li>
     <li><b>Best</b> is the one row to bet if you only bet one. <b>Value</b> rows are the same fight, so treat them as one position. When the verdict says pass, positive rows are marked <b>suspect</b>.</li>
     <li>Props are estimated from the simulation's method and round mix.</li>
+    <li><b>Over / Under rounds rows</b> (added Nov 17, 2026): the total-rounds line (2.5, or 4.5 with "5 rounds" checked). v1's own numbers: its "goes the distance" chance with the finishes spread over the rounds the way its simulation spreads them, and its usual verdict rules. In testing v1 rated fights about 8 points too likely to end early (52% go long vs 60% real), so its "under" calls lean the wrong way more often.</li>
     <li><b>"Classic 2.0" badge</b> (added Nov 17, 2026): the row Classic 2.0 would bet at the prices you typed: <b>TAKE</b> (a favorite, or the fade of a 3-fight newcomer), <b>SHORT DOG</b> or <b>LEAN</b> (small stakes). It is 2.0's call, shown for comparison; it does not change any v1 number or verdict. This page has no short-notice switch, so the badge assumes neither fighter is a late replacement.</li>
     <li><b>Next opponent.</b> Type or pick a fighter and the other box switches to their next scheduled opponent. If that replaced a name, the note under the boxes has an <b>undo</b>.</li>
     <li>Model-based suggestion, not financial advice. Bet only what you can afford to lose.</li>
@@ -3237,17 +3238,18 @@ let calcProps = [], calcA = null, calcB = null;
 function renderCalc(props, A, B){
   calcProps = props; calcA = A; calcB = B;
   const sA = lastNm(A.name), sB = lastNm(B.name);
-  const shortLab = t => (sA === sB ? t : t.replace(A.name, sA).replace(B.name, sB)).replace("Goes the distance", "Goes distance").replace("Ends inside the distance", "Ends inside");
+  const shortLab = t => (sA === sB ? t : t.replace(A.name, sA).replace(B.name, sB)).replace("Goes the distance", "Goes distance").replace("Ends inside the distance", "Ends inside").replace(" rounds", " rds");
   const lab = t => `<span class="full">${t}</span><span class="short">${shortLab(t)}</span>`;
   $("calcBody").innerHTML = props.map((p,i)=>
-    `<tr id="row${i}" class="${i>=2 && i<=7 ? "g-meth" : i>=10 ? "g-dc" : ""}"><td>${lab(p[0])}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
+    `<tr id="row${i}" class="${i>=2 && i<=7 ? "g-meth" : i>=10 && i<=15 ? "g-dc" : ""}"><td>${lab(p[0])}</td><td>${(p[1]*100).toFixed(1)}%</td><td>${amOdds(p[1])}</td>`+
     `<td><input class="oddsin" data-i="${i}" placeholder="—"></td>`+
     `<td class="mktcell c-mkt" id="mkt${i}">—</td><td class="evcell" id="ev${i}">—</td></tr>`).join("");
+  { const r9 = document.getElementById("row9"); [17, 16].forEach(i => { const r = document.getElementById("row"+i); if(r && r9) r9.after(r); }); } // over/under rounds rows sit under the distance rows
   document.querySelectorAll("#calcBody .oddsin").forEach(inp => inp.addEventListener("input", computeVerdict));
   computeVerdict();
 }
 // two-way markets that can be de-vigged against their partner: moneyline (0,1), distance (8,9)
-const pairOf = i => i===0?1 : i===1?0 : i===8?9 : i===9?8 : -1;
+const pairOf = i => i===0?1 : i===1?0 : i===8?9 : i===9?8 : i===16?17 : i===17?16 : -1; // + over/under rounds
 function marketPct(i, m){ // book's implied prob; no-vig for two-way pairs, raw for method props
   const e = m[i]; if(!e) return null;
   const raw = 1/e.dec, j = pairOf(i);
@@ -3428,7 +3430,7 @@ $("go").onclick = () => {
     `</div>`;
   $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
-  renderCalc(propsFor(t, probA, A, B), A, B);
+  renderCalc(v1WithOU(propsFor(t, probA, A, B), t, nRounds), A, B); // + over/under rounds rows (ou.js)
   { const p2 = sig(logit(probA) - V2CALL.AGE_K*(V2CALL.ageOver(A) - V2CALL.ageOver(B))); v2Props = V2CALL.propsFor(V2CALL.methodModel(t, p2, A, B, nRounds), p2, A, B); v2Badge(); } // Classic 2.0 badge (display only)
 
   $("result").classList.remove("hidden");
@@ -3590,6 +3592,28 @@ for(const id of ["fa","fb"]){
   $(id).addEventListener("keydown", e => { if(e.key === "Enter") oppFill(id, true); }); // runs before Enter-to-simulate, so the pair is complete
 }
 
+// ---- OVER / UNDER ROUNDS rows (added 2026-11-17) ----
+// The books' total-rounds line: 2.5 in a 3-round fight, 4.5 in a 5-rounder. "Under" = the fight is finished before the
+// halfway point (2:30) of the last counted round. fin[k] = chance the fight is finished in round k+1; 0.456 = the share of a
+// round's finishes that come before 2:30 (real UFC fights; the same number the Classic 2.0 distance tests used).
+function ouRows(props, fin, nRounds){
+  const k = nRounds === 5 ? 4 : 2; let over = 1;
+  for(let j = 0; j < k; j++) over -= fin[j] || 0;
+  over -= 0.456 * (fin[k] || 0);
+  over = Math.min(1, Math.max(0, over));
+  return props.concat([[`Over ${k}.5 rounds`, over], [`Under ${k}.5 rounds`, 1 - over]]);
+}
+// Classic v1's version: v1's own "goes the distance" number (row 8) with the finishes spread over the rounds the way v1's
+// simulation spread them (t.rdA / t.rdB). No new model: it is the round mix v1 already shows on its Breakdown tab.
+function v1WithOU(props, t, nRounds){
+  const fins = [], all = {};
+  for(const [k, v] of Object.entries(t.rdA)) all[k] = (all[k] || 0) + v;
+  for(const [k, v] of Object.entries(t.rdB)) all[k] = (all[k] || 0) + v;
+  const tot = Object.values(all).reduce((a, b) => a + b, 0), inside = 1 - props[8][1];
+  for(let r = 1; r <= nRounds; r++) fins.push(tot ? inside * (all[r] || 0) / tot : 0);
+  return ouRows(props, fins, nRounds);
+}
+
 // ---- V2CALL BEGIN: Classic 2.0's call, for the "Classic 2.0" badge only (generated from ufc-data/v2/method.js + verdict.js) ----
 const V2CALL = (() => {
 // ---- CLASSIC 2.0 METHOD MODEL ----
@@ -3630,7 +3654,7 @@ function methodModel(t, pA, A, B, nRounds){
 // so the six method rows always add up to the two win rows, and no fighter is stuck at 0% by decision).
 function propsFor(m, pA, A, B){
   const pB = 1-pA, { koA, subA, decA, koB, subB, decB } = m, dist = m.D;
-  return [
+  return ouRows([
     [`${A.name} to win`, pA], [`${B.name} to win`, pB],
     [`${A.name} by KO/TKO`, koA], [`${A.name} by submission`, subA], [`${A.name} by decision`, decA],
     [`${B.name} by KO/TKO`, koB], [`${B.name} by submission`, subB], [`${B.name} by decision`, decB],
@@ -3638,7 +3662,7 @@ function propsFor(m, pA, A, B){
     // double chance (2-of-3 methods for one fighter) — exact sums of the method props above
     [`${A.name} by KO/TKO or submission`, koA+subA], [`${A.name} by KO/TKO or decision`, koA+decA], [`${A.name} by submission or decision`, subA+decA],
     [`${B.name} by KO/TKO or submission`, koB+subB], [`${B.name} by KO/TKO or decision`, koB+decB], [`${B.name} by submission or decision`, subB+decB],
-  ];
+  ], m.rounds, m.rounds.length); // + Over/Under X.5 rounds (rows 16, 17; see ou.js)
 }
 // ---- VERDICT ENGINE 2.0: turn the filled-in odds into one call ----
 // Every rule here was checked against real prices (walk-forward Classic predictions, 2021-25 closing lines + 2026 DK/FD):
@@ -3673,7 +3697,7 @@ function verdictFor(entered, A, B, pA, ctx){
     e.kelly = e.ev / (e.dec - 1);
     e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < 0.04 ? "thin" : "take";
   });
-  const isML = e => e.i <= 1, isDist = e => e.i === 8 || e.i === 9;
+  const isML = e => e.i <= 1, isDist = e => e.i === 8 || e.i === 9 || e.i === 16 || e.i === 17; // 16/17 = over/under rounds
   const ml = entered.filter(e => isML(e) && e.tag === "take").sort((a,b) => b.ev - a.ev)[0];
   // distance rows: a lean only inside the tested window (4-20% edge, both fighters with 4+ UFC fights)
   const lean = lowData ? null : entered.filter(e => isDist(e) && e.ev >= 0.04 && e.ev <= 0.20).sort((a,b) => b.ev - a.ev)[0];
