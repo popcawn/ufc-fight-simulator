@@ -3517,6 +3517,29 @@ const OPP_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia me
 const oppNm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s*\([^)]*\)$/, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 const oppKey = s => { const k = oppNm(s); return OPP_ALIAS[k] || k; };
 const oppIdx = new Map(); fighters.forEach(f => { const k = oppNm(f.name); oppIdx.set(k, oppIdx.has(k) ? null : f); }); // null = two fighters share the name: never guess
+// sportsbook spelling -> roster fighter, the same steps as findFighter in index.html ("Daniel Hooker" = Dan Hooker,
+// "Asu Almabaev" = Asu Almabayev); null when unsure, never a guess
+const oppSur = k => { const p = k.split(" "); return p.length > 1 && /^(jr|sr|ii|iii|iv)$/.test(p[p.length - 1]) ? p[p.length - 2] : p[p.length - 1]; };
+const oppEd = (a, b) => { const d = [...Array(a.length + 1)].map((_, i) => [i]); for(let j = 1; j <= b.length; j++) d[0][j] = j;
+  for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] !== b[j - 1])); return d[a.length][b.length]; };
+const oppKeys = fighters.map(f => { const q = oppNm(f.name); return { f, q, sq: q.replace(/ /g, ""), sk: q.replace(/[aeiouy ]/g, ""), so: q.split(" ").sort().join(" ") }; });
+const oppFindCache = new Map();
+function oppFind(n){
+  const k = oppKey(n); if(oppFindCache.has(k)) return oppFindCache.get(k);
+  const r = (() => {
+    if(oppIdx.has(k)) return oppIdx.get(k);                                                          // 1. exact (null = shared name)
+    const sq = k.replace(/ /g, ""), sk = k.replace(/[aeiouy ]/g, "");
+    const near = sq.length >= 9 ? oppKeys.filter(x => x.sk === sk && oppEd(x.sq, sq) <= 2) : [];     // 2. vowels differ
+    if(near.length === 1) return near[0].f;
+    const so = k.split(" ").sort().join(" "), swap = oppKeys.filter(x => x.so === so);               // 3. other word order
+    if(swap.length === 1) return swap[0].f;
+    const last = oppSur(k), first = k.split(" ")[0], c = oppKeys.filter(x => oppSur(x.q) === last && x.q[0] === k[0]);
+    if(c.length === 1) return c[0].q.slice(0, 2) === k.slice(0, 2) ? c[0].f : null;                 // 4. surname + first two letters
+    const pre = c.filter(x => { const fq = x.q.split(" ")[0]; return fq.startsWith(first) || first.startsWith(fq); });
+    return pre.length === 1 ? pre[0].f : null;                                                       // 5. short form of the first name
+  })();
+  oppFindCache.set(k, r || null); return r || null;
+}
 let OPP = null;
 const oppReady = (typeof fetch === "function" && typeof location !== "undefined" && location.protocol !== "file:")
   ? fetch("odds.json", { cache:"no-store" }).then(r => r.ok ? r.json() : null).then(j => { OPP = j; }).catch(() => {}) : Promise.resolve();
@@ -3526,10 +3549,10 @@ function nextFight(F){ // -> { name, t, opp } for F's soonest listed fight (opp 
   if(oppIdx.get(me) !== F) return null;
   for(const f of Object.values(OPP.fights)){
     const t = new Date(f.t).getTime(); if(f.seen !== OPP.updated || !(t > now) || t > lim) continue;
-    const other = oppKey(f.a) === me ? f.b : oppKey(f.b) === me ? f.a : null;
+    const other = oppFind(f.a) === F ? f.b : oppFind(f.b) === F ? f.a : null;
     if(other && (!best || t < best.t)) best = { name: other, t };
   }
-  return best ? { ...best, opp: oppIdx.get(oppKey(best.name)) || null } : null;
+  return best ? { ...best, opp: oppFind(best.name) } : null;
 }
 const oppDone = { fa:"", fb:"" }; // the value each box last set the fight from (so leaving the box or pressing Enter does not redo it)
 function oppNote(text, undo){
