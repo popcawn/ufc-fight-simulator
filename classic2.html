@@ -244,6 +244,7 @@
     <li><b>Distance now leans on each fighter's own record.</b> How often each fighter's UFC fights have gone to a decision predicts distance far better than the simulation does. When 2.0 says 20–30%, fights went the distance 29% of the time (v1: said 26%, real 40%).</li>
     <li><b>Favorites vs underdogs.</b> At real prices (2021–25 closing lines, 2026 DraftKings/FanDuel), favorites the model liked more than the book went 110–59 (+11.4%). Underdog edges went 186–334 (−5.8%): they won 36% of the time, the book's number, not the model's 47%. So 2.0 calls only the favorites a TAKE.</li>
     <li><b>Distance bets.</b> With v1's numbers, round-total bets lost 6.2% (1,324 bets). With 2.0's numbers the same bets lost 2.6% overall — but edges of 4–20% in fights where both fighters have 4+ UFC fights went 161–149 (+15.8%, up in 5 of 6 seasons). That is a LEAN at a small stake, not a proven bet: the test used over/under 2.5 rounds (4.5 in five-rounders), not the exact distance prop, and the books still out-predict the model overall.</li>
+    <li><b>"Classic v1: TAKE" badge (added Nov 17, 2026).</b> The row Classic v1 would bet at the prices you typed gets a gold badge, so you can see where the two agree without switching pages. It is v1's own call (its original model and rules, unchanged), not a 2.0 recommendation: v1's underdog and distance TAKEs lost money in testing (underdog edges −5.8%; when the two disagree on the distance side, v1's side lost 14.7%).</li>
     <li><b>Short underdogs (added Nov 17, 2026).</b> An underdog priced +100 to +149 with a 25–50% model edge (both fighters 4+ UFC fights) went 49–41 (+22.9%) when bet at the <b>opening line</b> in 2021–26, with no losing year; 66 of 90 got shorter by fight time. Picked at closing prices the same rule lost 8.3%. So it is a small stake (about 1%), only while the price is still near where it opened. This pattern was found after looking at the results: promising, not proven. Longer underdogs (+150 and up) with big edges lost (−40.7% at the opener).</li>
     <li><b>Distance rows in a PASS THIS FIGHT fight stay info only.</b> Inside those fights the same lean went 30–29 (+6.4% on 59 bets; the goes-the-distance side 20–18, −1.0%) — too few bets to trust.</li>
     <li><b>Method props are information only.</b> There is no price history to test them, so 2.0 never recommends one.</li>
@@ -3398,12 +3399,23 @@ function computeVerdict(){
   });
   const entered = Object.values(m);
   const v = verdictFor(entered, calcA, calcB, calcProps.length ? calcProps[0][1] : 0.5, calcCtx);
+  // Classic v1's call at the same prices (its own frozen probabilities + verdict rules, copied unchanged from v1 as
+  // v1PropsFor / v1VerdictFor), so the row v1 would bet gets a "Classic v1: TAKE" badge without switching pages.
+  let v1Take = null;
+  if(calcCtx.v1 && entered.length){
+    const p1 = calcCtx.v1, e1 = entered.map(e => ({ i:e.i, label:p1[e.i][0], prob:p1[e.i][1], dec:e.dec, ev:p1[e.i][1]*e.dec - 1 }));
+    const w = v1VerdictFor(e1, calcA, calcB, p1[0][1]);
+    if(w.status === "take") v1Take = w.bestIndex;
+  }
   // style every row's Market % and EV cell, reconciled with the verdict
   calcProps.forEach((p,i) => {
     const row = $("row"+i), mkt = $("mkt"+i), ev = $("ev"+i);
     if(row) row.classList.remove("rec");
     const e = m[i];
     if(row) row.classList.toggle("has", !!e); // a row with a typed price stays visible when its group is folded
+    const c0 = row && row.cells[0];
+    if(c0){ const b = c0.querySelector(".v1b"); if(b) b.remove();
+      if(i === v1Take) c0.insertAdjacentHTML("beforeend", `<span class="v1b" title="Classic v1 (the original model and rules) would bet this row at these prices" style="display:inline-block; margin-left:8px; padding:0 6px; border:1px solid var(--gold); border-radius:6px; color:var(--gold); font-size:11px; font-weight:700; line-height:16px; white-space:nowrap;"><span class="full">Classic v1: TAKE</span><span class="short">v1 ✓</span></span>`); }
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell c-mkt"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
     const plus = "+"+(e.ev*100).toFixed(1)+"%";
@@ -3526,7 +3538,7 @@ $("go").onclick = () => {
     `</div>`;
   $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
-  renderCalc(propsFor(m, probA, A, B), A, B, { notice: sn });
+  renderCalc(propsFor(m, probA, A, B), A, B, { notice: sn, v1: v1PropsFor(t, blend(t.A/N, A, B), A, B) });
 
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({behavior:"smooth"});
@@ -3702,6 +3714,64 @@ function classic20(nameA, nameB, rounds, sims){
   return { p: API_CACHE.get(key), nA: A.w + A.l, nB: B.w + B.l, a: A.name, b: B.name };
 }
 if(typeof window !== "undefined") window.classic20 = classic20;
+
+// ---- CLASSIC v1's call (unchanged copy of v1's propsFor + verdictFor, renamed) ----
+function v1PropsFor(t, pA, A, B){
+  const pB = 1-pA, r = (cnt,w) => w ? cnt/w : 0;
+  const koA=pA*r(t.mA.KO,t.A), subA=pA*r(t.mA.SUB,t.A), decA=pA*r(t.mA.DEC,t.A);
+  const koB=pB*r(t.mB.KO,t.B), subB=pB*r(t.mB.SUB,t.B), decB=pB*r(t.mB.DEC,t.B);
+  const dist=decA+decB;
+  return [
+    [`${A.name} to win`, pA], [`${B.name} to win`, pB],
+    [`${A.name} by KO/TKO`, koA], [`${A.name} by submission`, subA], [`${A.name} by decision`, decA],
+    [`${B.name} by KO/TKO`, koB], [`${B.name} by submission`, subB], [`${B.name} by decision`, decB],
+    [`Goes the distance`, dist], [`Ends inside the distance`, 1-dist],
+    // double chance (2-of-3 methods for one fighter) — exact sums of the method props above
+    [`${A.name} by KO/TKO or submission`, koA+subA], [`${A.name} by KO/TKO or decision`, koA+decA], [`${A.name} by submission or decision`, subA+decA],
+    [`${B.name} by KO/TKO or submission`, koB+subB], [`${B.name} by KO/TKO or decision`, koB+decB], [`${B.name} by submission or decision`, subB+decB],
+  ];
+}
+function v1VerdictFor(entered, A, B, pA){
+  if(!entered.length) return { status:"none" };
+  const pB = 1 - pA;
+  const minFights = Math.min(A.w + A.l, B.w + B.l);
+  const thinName = (A.w + A.l) <= (B.w + B.l) ? A.name : B.name;
+  const lowData = minFights < 4;
+  const rel = i => ((i >= 2 && i <= 7) || i >= 10) ? 0.7 : 1.0; // method props + double-chance combos are the noisier part of the model
+
+  // Fight-level red flag: NO-VIG market high on a favorite the model rates materially lower.
+  const mlA = entered.find(e => e.i === 0), mlB = entered.find(e => e.i === 1);
+  if(mlA && mlB){
+    const rawA = 1/mlA.dec, rawB = 1/mlB.dec, tot = rawA + rawB;
+    const dvA = rawA/tot, dvB = rawB/tot; // de-vigged market probabilities
+    const fav = dvA > dvB ? { dv:dvA, name:A.name, mp:pA } : { dv:dvB, name:B.name, mp:pB };
+    if(fav.dv > 0.70 && (fav.dv - fav.mp) > 0.08)
+      return { status:"pass", title:"PASS THIS FIGHT", body:
+        `The no-vig market has <b>${fav.name}</b> at ${Math.round(fav.dv*100)}% but the model only ${Math.round(fav.mp*100)}% — a ${Math.round((fav.dv-fav.mp)*100)}-point gap on a clear favorite. When a thin-data model disagrees with a sharp line this hard, the model is the one missing something. The underdog "value" is almost certainly an illusion.` };
+  }
+
+  entered.forEach(e => {
+    e.kelly = e.ev / (e.dec - 1);
+    e.score = e.kelly * rel(e.i);
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < 0.04 ? "thin" : "take";
+  });
+  const takes = entered.filter(e => e.tag === "take").sort((a,b) => b.score - a.score);
+
+  if(takes.length){
+    const best = takes[0], stake = Math.min(3, 25 * best.kelly).toFixed(1);
+    if(lowData) return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:best.i, body:
+      `The model flags <b>${best.label}</b> (+${(best.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable. Lean pass unless you have outside info.` };
+    const extra = takes.length > 1 ? ` The other ${takes.length-1} green row${takes.length-1===1?"":"s"} are correlated with this (same fight) — treat them as one position, don't stack.` : "";
+    return { status:"take", title:"TAKE THIS BET", bestIndex:best.i, body:
+      `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%).${extra}` };
+  }
+  const tooGood = entered.find(e => e.tag === "toogood");
+  if(tooGood) return { status:"pass", title:"PASS", body:
+    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
+  if(entered.some(e => e.ev > 0)) return { status:"pass", title:"PASS", body:
+    `Only razor-thin edges (under 4%) — inside the model's margin of error. Not worth a bet.` };
+  return { status:"pass", title:"PASS", body:`No positive expected value at these prices. The book's lines look efficient here.` };
+}
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));
