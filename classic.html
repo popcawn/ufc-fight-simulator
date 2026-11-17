@@ -231,6 +231,7 @@
     <li><b>Fair</b> is the model's price with no book margin. <b>Market</b> is the book's chance with its margin removed (on the two-way win and distance markets). <b>EV</b> is your expected return per dollar at the odds you typed (e.g. <code>-150</code> or <code>+220</code>).</li>
     <li><b>Best</b> is the one row to bet if you only bet one. <b>Value</b> rows are the same fight, so treat them as one position. When the verdict says pass, positive rows are marked <b>suspect</b>.</li>
     <li>Props are estimated from the simulation's method and round mix.</li>
+    <li><b>"Classic 2.0" badge</b> (added Nov 17, 2026): the row Classic 2.0 would bet at the prices you typed: <b>TAKE</b> (a favorite, or the fade of a 3-fight newcomer), <b>SHORT DOG</b> or <b>LEAN</b> (small stakes). It is 2.0's call, shown for comparison; it does not change any v1 number or verdict. This page has no short-notice switch, so the badge assumes neither fighter is a late replacement.</li>
     <li><b>Next opponent.</b> Type or pick a fighter and the other box switches to their next scheduled opponent. If that replaced a name, the note under the boxes has an <b>undo</b>.</li>
     <li>Model-based suggestion, not financial advice. Bet only what you can afford to lose.</li>
   </ul>
@@ -3428,6 +3429,7 @@ $("go").onclick = () => {
   $("tape").innerHTML = header + tapeHtml + scoreHtml;
 
   renderCalc(propsFor(t, probA, A, B), A, B);
+  { const p2 = sig(logit(probA) - V2CALL.AGE_K*(V2CALL.ageOver(A) - V2CALL.ageOver(B))); v2Props = V2CALL.propsFor(V2CALL.methodModel(t, p2, A, B, nRounds), p2, A, B); v2Badge(); } // Classic 2.0 badge (display only)
 
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({behavior:"smooth"});
@@ -3587,6 +3589,170 @@ for(const id of ["fa","fb"]){
   $(id).addEventListener("change", () => oppFill(id, true));
   $(id).addEventListener("keydown", e => { if(e.key === "Enter") oppFill(id, true); }); // runs before Enter-to-simulate, so the pair is complete
 }
+
+// ---- V2CALL BEGIN: Classic 2.0's call, for the "Classic 2.0" badge only (generated from ufc-data/v2/method.js + verdict.js) ----
+const V2CALL = (() => {
+// ---- CLASSIC 2.0 METHOD MODEL ----
+// v1 scaled the simulation's raw method mix to the blended win probability. Tested walk-forward on 2,439 real fights
+// (2021-26) that split scored WORSE than a blind guess (six-way log-loss 2.11; a coin-flip-style guess is ~1.70).
+// 2.0 keeps the same win probability and splits it with three small trained pieces (log-loss 1.60, better in both halves):
+//   1. goes the distance  = the simulation's distance rate + both fighters' own UFC decision rates
+//   2. who wins, given a decision / given a finish = the win probability (favorites take a larger share of the finishes)
+//   3. KO vs submission   = the winner's own finish history + how the loser has been finished before (+ a little simulation)
+// Coefficients are fit on 3,166 UFC fights (2019 - Oct 2026); see ufc-data/v2/ for the tests.
+const M2 = { D:[0.0513, 0.1591, 1.0438], AD:0.8984, AF:[1.0876, 0.1901], KO:[-0.2627, 0.081, 0.6806, 0.426],
+  RSH:{ 3:[0.515, 0.326, 0.16], 5:[0.301, 0.31, 0.185, 0.111, 0.093] } }; // RSH = share of real finishes by round
+const SHORT_NOTICE = 0.4; // logit penalty for a late replacement (a 50% fighter becomes ~40%); an estimate, see the 2.0 notes
+// Age (added 2026-11-12, tests/age-adj.mjs): the Classic's straight-line age term under-rates how fast fighters fade late.
+// Each year over 36 costs 0.06 logit on top of it (walk-forward fit; better log-loss on 38+ fights in 2021-23 AND 2024-26,
+// bets in those fights -5.9% -> +3.3%). A 43-year-old vs a 30-year-old: 50% -> ~40%.
+const AGE_K = 0.06, ageOver = f => Math.max(0, (+f.age || 0) - 36);
+const decRate = f => { const n = f.w + f.l, dec = Math.max(0, n - f.koW - f.subW - f.koL - f.subL); return (dec + 2.5) / (n + 5); };
+const koWinLg  = f => logit((f.koW + 1.3) / (f.koW + f.subW + 2)); // share of this fighter's finish wins that are KOs
+const koLossLg = f => logit((f.koL + 1.3) / (f.koL + f.subL + 2)); // share of this fighter's finish losses that are KOs
+function methodModel(t, pA, A, B, nRounds){
+  const N = t.A + t.B, dSim = (t.mA.DEC + t.mB.DEC + 0.5) / (N + 1);
+  const D = sig(M2.D[0] + M2.D[1]*logit(dSim) + M2.D[2]*(logit(decRate(A)) + logit(decRate(B)))/2);
+  const fA = t.A - t.mA.DEC, fB = t.B - t.mB.DEC, qf = (fA + 0.5) / (fA + fB + 1);
+  const zd = M2.AD*logit(pA), zf = M2.AF[0]*logit(pA) + M2.AF[1]*logit(qf);
+  // one shared shift so decisions + finishes add back up to the headline win probability exactly
+  let lo = -12, hi = 12, dl = 0;
+  for(let i=0;i<60;i++){ dl = (lo+hi)/2; if(D*sig(zd+dl) + (1-D)*sig(zf+dl) < pA) lo = dl; else hi = dl; }
+  const pd = sig(zd+dl), pf = sig(zf+dl);
+  const simKO = (k, s) => logit((k + 0.5) / (k + s + 1));
+  const kA = sig(M2.KO[0] + M2.KO[1]*simKO(t.mA.KO, t.mA.SUB) + M2.KO[2]*koWinLg(A) + M2.KO[3]*koLossLg(B));
+  const kB = sig(M2.KO[0] + M2.KO[1]*simKO(t.mB.KO, t.mB.SUB) + M2.KO[2]*koWinLg(B) + M2.KO[3]*koLossLg(A));
+  const finA = (1-D)*pf, finB = (1-D)*(1-pf);
+  const sh = M2.RSH[nRounds] || M2.RSH[3], tot = sh.reduce((a,b)=>a+b,0);
+  return { D, koA:finA*kA, subA:finA*(1-kA), decA:D*pd, koB:finB*kB, subB:finB*(1-kB), decB:D*(1-pd), rounds: sh.map(v => (1-D)*v/tot) };
+}
+// joint outcome probabilities for the matchup: moneyline + each method + distance props (all from the 2.0 method model,
+// so the six method rows always add up to the two win rows, and no fighter is stuck at 0% by decision).
+function propsFor(m, pA, A, B){
+  const pB = 1-pA, { koA, subA, decA, koB, subB, decB } = m, dist = m.D;
+  return [
+    [`${A.name} to win`, pA], [`${B.name} to win`, pB],
+    [`${A.name} by KO/TKO`, koA], [`${A.name} by submission`, subA], [`${A.name} by decision`, decA],
+    [`${B.name} by KO/TKO`, koB], [`${B.name} by submission`, subB], [`${B.name} by decision`, decB],
+    [`Goes the distance`, dist], [`Ends inside the distance`, 1-dist],
+    // double chance (2-of-3 methods for one fighter) — exact sums of the method props above
+    [`${A.name} by KO/TKO or submission`, koA+subA], [`${A.name} by KO/TKO or decision`, koA+decA], [`${A.name} by submission or decision`, subA+decA],
+    [`${B.name} by KO/TKO or submission`, koB+subB], [`${B.name} by KO/TKO or decision`, koB+decB], [`${B.name} by submission or decision`, subB+decB],
+  ];
+}
+// ---- VERDICT ENGINE 2.0: turn the filled-in odds into one call ----
+// Every rule here was checked against real prices (walk-forward Classic predictions, 2021-25 closing lines + 2026 DK/FD):
+//   kept from v1   PASS THIS FIGHT (those would-be bets lost 16-45%), LEAN PASS on thin data, EV above 50% = pass
+//   new            a FAVORITE the model likes more than the book = TAKE (110-59, +11.4%)
+//                  an UNDERDOG edge = not a proven bet (186-334, -5.8%: they won 36%, the book's number, not the model's 47%)
+//                  SHORT UNDERDOG (2026-11-17, tests/dog-open.mjs): priced +100..+150 with a 25-50% edge = small stake at the
+//                    OPENING line (49-41, +22.9% at openers, no losing year; -8.3% when picked at closing lines; found after the fact)
+//                  distance rows: a LEAN only at a 4-20% edge with 4+ UFC fights each (161-149, +15.8% on round-total lines)
+//                  method props: shown for information, never recommended (no price history to test them)
+//                  short-notice fighter: never a TAKE
+function verdictFor(entered, A, B, pA, ctx){
+  if(!entered.length) return { status:"none" };
+  ctx = ctx || {};
+  const pB = 1 - pA, nA = A.w + A.l, nB = B.w + B.l;
+  const minFights = Math.min(nA, nB);
+  const thinName = nA <= nB ? A.name : B.name;
+  const lowData = minFights < 4;
+
+  // Fight-level red flag: NO-VIG market high on a favorite the model rates materially lower.
+  const mlA = entered.find(e => e.i === 0), mlB = entered.find(e => e.i === 1);
+  if(mlA && mlB){
+    const rawA = 1/mlA.dec, rawB = 1/mlB.dec, tot = rawA + rawB;
+    const dvA = rawA/tot, dvB = rawB/tot; // de-vigged market probabilities
+    const fav = dvA > dvB ? { dv:dvA, name:A.name, mp:pA } : { dv:dvB, name:B.name, mp:pB };
+    if(fav.dv > 0.70 && (fav.dv - fav.mp) > 0.08)
+      return { status:"pass", title:"PASS THIS FIGHT", short:`Books have <b>${fav.name}</b> at ${Math.round(fav.dv*100)}%, the model only ${Math.round(fav.mp*100)}%. Gaps this big on a favorite lose.`, body:
+        `The no-vig market has <b>${fav.name}</b> at ${Math.round(fav.dv*100)}% but the model only ${Math.round(fav.mp*100)}% — a ${Math.round((fav.dv-fav.mp)*100)}-point gap on a clear favorite. When a thin-data model disagrees with a sharp line this hard, the model is the one missing something. The underdog "value" is almost certainly an illusion.` };
+  }
+
+  entered.forEach(e => {
+    e.kelly = e.ev / (e.dec - 1);
+    e.tag = e.ev <= 0 ? "noev" : e.ev > 0.50 ? "toogood" : e.ev < 0.04 ? "thin" : "take";
+  });
+  const isML = e => e.i <= 1, isDist = e => e.i === 8 || e.i === 9;
+  const ml = entered.filter(e => isML(e) && e.tag === "take").sort((a,b) => b.ev - a.ev)[0];
+  // distance rows: a lean only inside the tested window (4-20% edge, both fighters with 4+ UFC fights)
+  const lean = lowData ? null : entered.filter(e => isDist(e) && e.ev >= 0.04 && e.ev <= 0.20).sort((a,b) => b.ev - a.ev)[0];
+  const leanIndex = lean ? lean.i : null;
+  const leanStake = e => Math.min(1.5, 12.5 * e.kelly).toFixed(1);
+  const leanRec = `Distance edges like this (4–20%, both fighters with 4+ UFC fights) went 161–149 (+15.8%) in the 2021–26 test, up in 5 of 6 seasons. That test used over/under 2.5 rounds (4.5 in five-rounders), not this exact prop — promising, not proven.`;
+
+  if(ml){
+    const me = ml.i === 0 ? A : B, opp = ml.i === 0 ? B : A, nMe = me.w + me.l, nOpp = opp.w + opp.l;
+    const alsoShort = lean ? ` Small lean: <b>${lean.label}</b> (+${(lean.ev*100).toFixed(1)}%).` : "";
+    const also = lean ? ` Separately, <b>${lean.label}</b> shows a small lean (+${(lean.ev*100).toFixed(1)}%).` : "";
+    if(lowData){
+      // fade rule, re-tested 2026-11-12 (tests/thin-why.mjs, real prices 2021-26): betting the newcomer when the model's edge pick is
+      // the 4+ veteran only worked when the newcomer had exactly 3 UFC fights (43-9, +20.7% at closing prices, +30.2% at opening,
+      // up 5 of 6 years). With 1 or 2 fights it lost (-2.5% / -6.6%); debuts were never tested.
+      let fade, fadeShort, fadeIndex = null;
+      if(nMe >= 4 && nOpp === 3) fade = ` <b>Fade rule:</b> the suspect pick is the veteran and <b>${opp.name}</b> has exactly 3 UFC fights. The model badly underrates fighters at that stage: fading picks like this went 43–9 (+20.7% at closing prices, +30% at opening prices, up 5 of 6 years). Small stake.`, fadeShort = `Fade: bet <b>${opp.name}</b> (3-fight newcomers beat these picks 43–9).`, fadeIndex = 1 - ml.i;
+      else if(nMe >= 4 && nOpp < 3) fade = ` <b>Fade rule:</b> <b>${opp.name}</b> has ${nOpp === 0 ? "no UFC fights (debut — never tested)" : `only ${nOpp} UFC fight${nOpp===1?"":"s"}; fades of 1–2-fight newcomers lost (−2.5% / −6.6% at closing prices)`}. Skip.`, fadeShort = `No fade here — skip.`;
+      else if(nMe < 4 && nOpp >= 4) fade = ` <b>Fade rule:</b> the suspect pick is the newcomer — skip. Betting against picks like this lost 18.6%.`, fadeShort = `No fade here — skip.`;
+      else fade = ` Both fighters are newcomers, so there is no tested fade here.`, fadeShort = `Both are newcomers — skip.`;
+      return { status:"caution", title:"LEAN PASS — THIN DATA", bestIndex:fadeIndex, fadeIndex, leanIndex:null, mlNote:"suspect", short:`<b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}, so the model's pick is unreliable. ${fadeShort}`, body:
+        `The model flags <b>${ml.label}</b> (+${(ml.ev*100).toFixed(1)}% EV), but <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"} — its rating sits near baseline and ignores any pre-UFC record, so the edge is unreliable.${fade}` };
+    }
+    if(ctx.notice && ctx.notice[ml.i])
+      return { status:"caution", title:"LEAN PASS — SHORT NOTICE", bestIndex:ml.i, leanIndex, mlNote:"suspect", short:`The edge is on a short-notice fighter. Not a bet.${alsoShort}`, body:
+        `The model still shows <b>${ml.label}</b> at +${(ml.ev*100).toFixed(1)}% EV after the short-notice adjustment, but that adjustment is an estimate: in the 25 late-replacement fights that could be identified, the replacement won 24% when the Classic said 48% and the books said 42%. Not a bet.${also}` };
+    if(ml.dec < 2){
+      const stake = Math.min(3, 25 * ml.kelly).toFixed(1);
+      return { status:"take", title:"TAKE THIS BET", bestIndex:ml.i, leanIndex, short:`<b>${ml.label}</b> · +${(ml.ev*100).toFixed(1)}% EV · stake about ${stake}% of bankroll.${alsoShort}`, body:
+        `<b>${ml.label}</b> at your entered odds — <b>+${(ml.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(ml.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly, capped at 3%). Favorites the model likes more than the book went 110–59 (+11.4%) in the 2021–26 test.${also}` };
+    }
+    if(ml.dec < 2.5 && ml.ev >= 0.25){
+      const stake = Math.max(0.5, Math.min(1, 12.5 * 0.10 / (ml.dec - 1))).toFixed(1);
+      return { status:"lean", title:"SHORT UNDERDOG — SMALL STAKE", bestIndex:ml.i, dogIndex:ml.i, leanIndex, short:`<b>${ml.label}</b> · +${(ml.ev*100).toFixed(1)}% · only at the opening line · stake about ${stake}% of bankroll.${alsoShort}`, body:
+        `<b>${ml.label}</b> is a short underdog (+100 to +149) with a big model edge (+${(ml.ev*100).toFixed(1)}%). In the 2021–26 test, underdogs like this went 49–41 (<b>+22.9%</b>) when bet at the <b>opening line</b>, with no losing year, and 66 of 90 got shorter by fight time. Picked at closing prices, the same rule lost 8.3%. So bet it only if the price is still about where it opened; if it has already shortened, skip. Stake ~<b>${stake}% of bankroll</b> (⅛-Kelly on an assumed +10% edge, capped at 1%). This pattern was found after looking at the results — promising, not proven.${also}` };
+    }
+    return { status:"caution", title:"UNDERDOG EDGE — NOT A PROVEN BET", bestIndex:ml.i, leanIndex, mlNote:"unproven", short:`<b>${ml.label}</b> shows +${(ml.ev*100).toFixed(1)}%, but underdog edges lost money in testing (short ones, +100 to +149 at a 25%+ edge, are the exception). Keep it small or skip.${alsoShort}`, body:
+      `The model has <b>${ml.label}</b> at +${(ml.ev*100).toFixed(1)}% EV. In the 2021–26 test, underdog edges like this went 186–334 (−5.8%): they won 36% of the time, which is what the books said, not the 47% the model said. They lost in 4 of 6 seasons (2022 and 2026 were up). Classic v1 calls this a TAKE; if you bet it, keep it small.${also}` };
+  }
+
+  const tooGood = entered.find(e => isML(e) && e.tag === "toogood");
+  if(lean){
+    const side = tooGood ? ` The moneyline edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is too large to be real — pass on that.` : "";
+    return { status:"lean", title:"LEAN — SMALL STAKE", bestIndex:lean.i, leanIndex, mlNote:"suspect", short:`<b>${lean.label}</b> · +${(lean.ev*100).toFixed(1)}% EV · stake about ${leanStake(lean)}% of bankroll.`, body:
+      `<b>${lean.label}</b> at your entered odds — <b>+${(lean.ev*100).toFixed(1)}% EV</b> by the 2.0 distance model, hits ~${Math.round(lean.prob*100)}%. Suggested stake ~<b>${leanStake(lean)}% of bankroll</b> (⅛-Kelly, capped at 1.5%). ${leanRec}${side}` };
+  }
+  if(tooGood) return { status:"pass", title:"PASS", mlNote:"suspect", short:`A +${(tooGood.ev*100).toFixed(0)}% edge is too big to be real.`, body:
+    `The biggest edge (<b>${tooGood.label}</b>, +${(tooGood.ev*100).toFixed(0)}%) is implausibly large — that's the model miscalibrated, not free money. Real edges are single digits. Pass.` };
+  if(entered.some(e => isML(e) && e.ev > 0)) return { status:"pass", title:"PASS", mlNote:"suspect", short:`The edge is under 4%. Not worth a bet.`, body:
+    `Only a razor-thin moneyline edge (under 4%) — inside the model's margin of error. Not worth a bet.` };
+  const bigDist = entered.find(e => isDist(e) && e.ev > 0.20);
+  if(bigDist) return { status:"pass", title:"PASS", short:`Distance edges above 20% did not hold up in testing.`, body:
+    `<b>${bigDist.label}</b> shows +${(bigDist.ev*100).toFixed(0)}%, but distance edges above 20% did not hold up in testing (and thin-data fights are excluded). Pass.` };
+  if(entered.some(e => !isML(e) && !isDist(e) && e.ev > 0)) return { status:"pass", title:"NO RECOMMENDED BET", short:`Method props are info only.`, body:
+    `Method props are shown for information only — there is no price history to test them against, so 2.0 never recommends one.` };
+  return { status:"pass", title:"PASS", short:`No edge at these prices.`, body:`No positive expected value at these prices. The book's lines look efficient here.` };
+}
+return { methodModel, propsFor, verdictFor, AGE_K, ageOver };
+})();
+let v2Props = null;
+function v2Badge(){
+  document.querySelectorAll("#calcBody .v2b").forEach(b => b.remove());
+  if(!v2Props || !calcA) return;
+  const entered = [];
+  v2Props.forEach((p,i) => { const inp = document.querySelector(`#calcBody .oddsin[data-i="${i}"]`), dec = inp ? amToDec(inp.value) : null;
+    if(dec !== null) entered.push({ i, label:p[0], prob:p[1], dec, ev:p[1]*dec - 1 }); });
+  if(!entered.length) return;
+  const v = V2CALL.verdictFor(entered, calcA, calcB, v2Props[0][1], { notice:[false, false] }), marks = {};
+  if(v.status === "take" && v.bestIndex != null) marks[v.bestIndex] = ["TAKE", "2.0 ✓", "--green"];
+  if(v.fadeIndex != null) marks[v.fadeIndex] = ["TAKE (fade)", "2.0 ✓", "--green"];
+  if(v.dogIndex != null) marks[v.dogIndex] = ["SHORT DOG", "2.0 dog", "--gold"];
+  if(v.leanIndex != null && marks[v.leanIndex] == null) marks[v.leanIndex] = ["LEAN", "2.0 lean", "--gold"];
+  for(const [i, [full, short, col]] of Object.entries(marks)){
+    const row = $("row"+i), c0 = row && row.cells[0]; if(!c0) continue;
+    c0.insertAdjacentHTML("beforeend", `<span class="v2b" title="Classic 2.0 (rebuilt rules, tested on real prices) would bet this row at these prices" style="display:inline-block; margin-left:8px; padding:0 6px; border:1px solid var(${col}); border-radius:6px; color:var(${col}); font-size:11px; font-weight:700; line-height:16px; white-space:nowrap;"><span class="full">Classic 2.0: ${full}</span><span class="short">${short}</span></span>`);
+  }
+}
+{ const cb = document.getElementById("calcBody"); if(cb) cb.addEventListener("input", () => v2Badge()); } // runs after each box's own verdict update
+// ---- V2CALL END ----
 
 // allow Enter key to simulate
 ["fa","fb"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") $("go").click(); }));
