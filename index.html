@@ -3,38 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LINE SHOP</title>
-<script>try{ if(localStorage.getItem('sims_theme')==='dim') document.documentElement.dataset.theme='dim'; }catch(e){}</script>
+<title>UFC Fight Simulator — Monte Carlo</title>
 <style>
-  @font-face{font-family:Inter;src:url(/fonts/inter-latin.woff2) format("woff2");font-weight:100 900;font-display:optional}
-  @font-face{font-family:"Space Grotesk";src:url(/fonts/spacegrotesk-latin.woff2) format("woff2");font-weight:300 700;font-display:optional}
-  @font-face{font-family:"JetBrains Mono";src:url(/fonts/jetbrainsmono-latin.woff2) format("woff2");font-weight:100 800;font-display:optional}
-  /* LINE SHOP's look (2026-11-20, user: "make the ufc tab look like the other tabs"): light by default, 🌙 dim (sims_theme, one
-     setting for every sport). The page keeps its own variable names: --gold is the accent (buttons, prices), --redtxt / --bluetxt
-     the corner colors as text. The Classic v1 / 2.0 pages (frames) keep their own dark look. */
   :root{
-    --bg:#eef2f8; --panel:#ffffff; --panel2:#f4f7fb; --line:#e2e8f0; --line2:#d2dbe7;
-    --text:#0f1726; --ink:#0f1726; --ink2:#3b485c; --dim:#66758b; --ink3:#66758b;
-    --red:#d93a48; --blue:#2f6fe4; --redtxt:#c62f3d; --bluetxt:#2459c2;
-    --gold:#2f6fe4; --onacc:#ffffff; --green:#0b9a5e; --warn:#a86f00; --accent:#2f6fe4; --accent2:#6a55f0;
-    --tint:rgba(47,111,228,.10); --goodtint:rgba(11,154,94,.12); --warntint:rgba(168,111,0,.12); --badtint:rgba(217,58,72,.10);
-    --topbg:rgba(255,255,255,.86); --shadow:0 1px 2px rgba(15,23,38,.05), 0 10px 28px -16px rgba(15,23,38,.22);
-    --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --head:"Space Grotesk",Inter,system-ui,sans-serif;
-    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; --gap:12px;
-  }
-  :root[data-theme="dim"]{
-    --bg:#121822; --panel:#1b2332; --panel2:#232d40; --line:#2b3649; --line2:#38465e;
-    --text:#eef3fa; --ink:#eef3fa; --ink2:#b6c2d4; --dim:#8b99ae; --ink3:#8b99ae;
-    --red:#ff6b6b; --blue:#5aa2ff; --redtxt:#ff8a8a; --bluetxt:#8cbcff;
-    --gold:#5aa2ff; --onacc:#06121f; --green:#2fd38c; --warn:#ffc24b; --accent:#5aa2ff; --accent2:#8f84ff;
-    --tint:rgba(90,162,255,.12); --goodtint:rgba(47,211,140,.13); --warntint:rgba(255,194,75,.13); --badtint:rgba(255,107,107,.12);
-    --topbg:rgba(18,24,34,.86); --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 30px -16px rgba(0,0,0,.65);
+    --bg:#0e0f13; --panel:#171922; --panel2:#1e2130; --line:#2b2f42;
+    --text:#e8eaf2; --dim:#8b91a7; --red:#e23b3b; --blue:#3b6fe2;
+    --gold:#d4a843; --green:#3ec97e; --gap:12px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
-  body{background:var(--bg); color:var(--text); font-family:var(--sans); font-size:13.5px; -webkit-font-smoothing:antialiased;
+  body{background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; font-size:13px;
        display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;}
-  button{padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.5px; background:var(--gold); color:var(--onacc); border:none; border-radius:8px; cursor:pointer; white-space:nowrap; font-family:inherit;}
+  button{padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.5px; background:var(--gold); color:#14130c; border:none; border-radius:8px; cursor:pointer; white-space:nowrap; font-family:inherit;}
   button:hover{filter:brightness(1.1);}
   button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
   code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
@@ -42,47 +22,6 @@
   .dimtxt{color:var(--dim); font-size:12px;}
   .ok{color:var(--green); font-weight:700;} .miss{color:var(--red); font-weight:700;}
 
-  /* ---- LINE SHOP header, same as the NFL / NBA / NHL pages: brand · sports · the pot · theme, then the tabs ---- */
-  .lstop{flex:none; position:relative; z-index:70; background:var(--topbg); backdrop-filter:blur(14px) saturate(1.4); -webkit-backdrop-filter:blur(14px) saturate(1.4); border-bottom:1px solid var(--line);}
-  .lstopin{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:10px clamp(14px,2.6vw,32px) 6px;}
-  .lsbrand{display:flex; align-items:center; gap:9px; font-family:var(--head); font-weight:700; font-size:20px; letter-spacing:-.3px; color:var(--ink); text-decoration:none; white-space:nowrap;}
-  .lsbrand i{width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 6px 16px -6px var(--accent);}
-  .lssports{display:flex; gap:4px; padding:4px; background:var(--panel2); border:1px solid var(--line); border-radius:999px; flex-wrap:nowrap;}
-  .lssports a{padding:6px 14px; border-radius:999px; color:var(--ink2); font-weight:700; font-size:14px; text-decoration:none; white-space:nowrap;}
-  .lssports a.on{background:var(--ink); color:var(--bg);}
-  .lspot{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;}
-  .lspot .stat{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:5px 12px; line-height:1.2; min-width:64px;}
-  .lspot .stat small{display:block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); white-space:nowrap;}
-  .lspot .stat b{font-family:var(--mono); font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap;} .lspot .stat.big b{font-size:18px;}
-  .lspot .stat .up{color:var(--green);} .lspot .stat .dn{color:var(--red);} .lspot a{color:var(--accent);}
-  .lstop .themebtn{border:1px solid var(--line2); background:var(--panel); color:var(--ink2); border-radius:999px; width:36px; height:36px; font-size:16px; cursor:pointer; flex:0 0 auto; padding:0; letter-spacing:0; font-weight:400;}
-  .lstabs{display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; padding:0 clamp(14px,2.6vw,32px);} .lstabs::-webkit-scrollbar{display:none;}
-  .lstabs button{background:none; border:0; border-bottom:2px solid transparent; border-radius:0; padding:8px 14px 10px; font-weight:700; font-size:15px; letter-spacing:0; color:var(--ink3); white-space:nowrap;}
-  .lstabs button:hover{color:var(--ink); filter:none;} .lstabs button.on{color:var(--ink); border-bottom-color:var(--accent);}
-  @media(max-width:760px){
-    .lstopin{gap:8px; padding:8px 12px;} .lsbrand{font-size:17px;} .lsbrand i{width:22px; height:22px;}
-    .lstop .themebtn{order:2; margin-left:auto; width:32px; height:32px; font-size:14px;}
-    .lssports{order:3; width:100%;} .lssports a{flex:1; text-align:center; padding:6px 4px;}
-    .lspot{order:4; margin-left:0; width:100%; flex-wrap:nowrap; gap:6px;}
-    .lspot .stat{flex:1 1 0; min-width:0; padding:4px 7px;} .lspot .stat small{font-size:9px; letter-spacing:.03em; overflow:hidden; text-overflow:ellipsis;} .lspot .stat b,.lspot .stat.big b{font-size:14px;}
-    .lstabs{padding:0 6px;} .lstabs button{padding:8px 10px 9px; font-size:14px;}
-  }
-  .betsview{flex:1; overflow:auto; display:none;}
-  body.bv-on .betsview{display:block;}
-  body.bv-on > header.topbar, body.bv-on > nav#tabs, body.bv-on > main#result{display:none !important;}
-  .bvin{max-width:720px; margin:0 auto; padding:14px 16px 48px;}
-  .bvhead{font-size:12.5px; color:var(--dim); margin-bottom:12px; line-height:1.7;} .bvhead > b{color:var(--text); font-family:var(--head); font-size:21px; letter-spacing:-.3px; display:block;}
-  .bvcard{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow);}
-  .bvtop{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; font-size:12px;}
-  .bvtag{font-size:11px; font-weight:800; letter-spacing:.8px; padding:2px 9px; border-radius:999px; background:var(--goodtint); color:var(--green);}
-  .bvtag.dog{background:var(--warntint); color:var(--warn);} .bvtag.fade{background:var(--tint); color:var(--accent);}
-  .bvwho{font-size:17px;} .bvnums{margin:4px 0; font-size:13.5px;} .bvprice{font-family:var(--mono); font-weight:700; font-size:15px; color:var(--ink);}
-  .bvstake{font-size:15px; margin:8px 0 6px;} .bvstake b{color:var(--green); font-size:17px;}
-  .bvbtns{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-  .bvbtns .mini-btn{font-size:13.5px; padding:8px 14px; margin:0; border-radius:10px;}
-  a.mini-btn{text-decoration:none; display:inline-block; color:var(--text);} a.bvopen{background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--onacc); border-color:transparent; font-weight:700; border-radius:10px;} a.bvopen.ghost{background:var(--panel2); color:var(--text); border-color:var(--line);}
-  .bvwhy{margin-top:8px; line-height:1.45;}
-  .bvpass summary{cursor:pointer; color:var(--dim); font-size:13px; margin:16px 0 6px;} .bvpass > div{font-size:12px; color:var(--dim); line-height:1.75;}
   /* ---- top bar ---- */
   .topbar{display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:relative; flex:none;}
   .brand{font-size:18px; font-weight:800; letter-spacing:1px; white-space:nowrap;} .brand span{color:var(--gold);}
@@ -100,13 +39,13 @@
   .oppnote{position:absolute; right:14px; top:100%; margin-top:6px; color:var(--dim); font-size:12px; z-index:5; background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:6px; max-width:calc(100% - 28px);}
   .oppnote:empty{display:none;}
   .oppundo{font:inherit; color:var(--gold); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
-  .err{position:absolute; left:14px; top:100%; margin-top:6px; color:var(--redtxt); font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
+  .err{position:absolute; left:14px; top:100%; margin-top:6px; color:#ff7a7a; font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
   .err:empty{display:none;}
 
   /* ---- dashboard: three panels that fill the window; panels scroll inside, the page never does ---- */
   .tabs{display:none;}
   .tabs button{flex:1; padding:7px 4px; font-size:12px; background:var(--panel2); color:var(--dim); border:1px solid var(--line); font-weight:600;}
-  .tabs button.on{background:var(--gold); color:var(--onacc); border-color:var(--gold);}
+  .tabs button.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
   .dash{flex:1; min-height:0; display:grid; gap:var(--gap); padding:var(--gap);
         grid-template-columns:minmax(290px,1fr) minmax(240px,.8fr) minmax(430px,1.75fr); grid-template-areas:"res tape calc";}
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; overflow:auto; min-height:0; min-width:0;}
@@ -118,7 +57,7 @@
 
   /* result */
   .names{display:flex; justify-content:space-between; gap:10px; font-size:16px; font-weight:700;}
-  .names .r{color:var(--redtxt);} .names .b{color:var(--bluetxt); text-align:right;}
+  .names .r{color:#ff7a7a;} .names .b{color:#7aa3ff; text-align:right;}
   .probs{display:flex; justify-content:space-between; font-size:26px; font-weight:800; margin:2px 0 6px;}
   .probs .pcol:last-child{text-align:right;}
   .odds{font-size:12px; font-weight:600; color:var(--dim);}
@@ -131,16 +70,16 @@
   .mrow:last-child{border-bottom:none;} .mrow .lab{color:var(--dim); text-align:center;}
   .driver{font-size:13px; padding:calc(4px + var(--rp,0px)) 0; border-bottom:1px solid var(--line); line-height:1.35;}
   .driver:last-child{border-bottom:none;} .driver .who{font-weight:700;}
-  .who.r{color:var(--redtxt);} .who.b{color:var(--bluetxt);}
+  .who.r{color:#ff7a7a;} .who.b{color:#7aa3ff;}
 
   /* tale of the tape */
   .taphd{border-bottom:1px solid var(--line); margin-bottom:2px;}
-  .taphd .r{color:var(--redtxt); font-weight:700;} .taphd .b{color:var(--bluetxt); font-weight:700; text-align:right;}
+  .taphd .r{color:#ff7a7a; font-weight:700;} .taphd .b{color:#7aa3ff; font-weight:700; text-align:right;}
   .twin{color:var(--green); font-weight:700;} .tlose{color:var(--dim);} .tval{color:var(--text);}
   .tapescore{margin-top:10px; padding-top:8px; border-top:1px solid var(--line);}
   .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:2px;}
   .ts-nums{display:flex; justify-content:space-between; font-size:16px; font-weight:800;}
-  .ts-nums .r{color:var(--redtxt);} .ts-nums .b{color:var(--bluetxt);}
+  .ts-nums .r{color:#ff7a7a;} .ts-nums .b{color:#7aa3ff;}
   .ts-bar{height:10px; border-radius:5px; overflow:hidden; display:flex; background:var(--blue); margin:3px 0 6px;}
   .ts-fill{background:var(--red); height:100%;}
   .ts-verdict{font-size:13px;} .ts-verdict b{color:var(--gold);}
@@ -154,15 +93,15 @@
   .verdict-box{margin:0 0 8px; padding:8px 10px; border-radius:8px; font-size:12.5px; line-height:1.45; border:1px solid;}
   .verdict-box .vh{font-size:13.5px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:2px;}
   .verdict-box .vsmall{font-size:10.5px; color:var(--dim); margin-top:4px;}
-  .verdict-box.take{background:var(--goodtint); border-color:var(--green);} .verdict-box.take .vh{color:var(--green);}
-  .verdict-box.pass{background:var(--badtint); border-color:var(--red);} .verdict-box.pass .vh{color:var(--redtxt);}
-  .verdict-box.caution{background:var(--warntint); border-color:var(--gold);} .verdict-box.caution .vh{color:var(--gold);}
+  .verdict-box.take{background:rgba(62,201,126,.12); border-color:var(--green);} .verdict-box.take .vh{color:var(--green);}
+  .verdict-box.pass{background:rgba(226,59,59,.10); border-color:var(--red);} .verdict-box.pass .vh{color:#ff7a7a;}
+  .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);} .verdict-box.caution .vh{color:var(--gold);}
   .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .calctable{width:100%; border-collapse:collapse; font-size:12.5px;}
   .calctable th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:1px; text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
   .calctable td{padding:2px 6px; border-bottom:1px solid var(--line); white-space:nowrap; height:calc(26px + 2*var(--rp,0px));}
   .calctable tr:last-child td{border-bottom:none;}
-  .oc .r{color:var(--redtxt); font-weight:600;} .oc .b{color:var(--bluetxt); font-weight:600;}
+  .oc .r{color:#ff7a7a; font-weight:600;} .oc .b{color:#7aa3ff; font-weight:600;}
   .oddsin{width:68px; padding:2px 6px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:12.5px; font-family:inherit;}
   .oddsin:focus{border-color:var(--gold); outline:none;}
   .blcell{color:var(--gold); font-weight:700;}
@@ -170,7 +109,7 @@
   .evcell.suspect{color:var(--gold); font-weight:600; opacity:.75;}
   .evcell.best{color:var(--gold); font-weight:800; letter-spacing:.3px;}
   .mktcell{color:var(--text);}
-  tr.rec td{background:var(--warntint);}                 /* best-bet row: gold tint */
+  tr.rec td{background:rgba(212,168,67,.15);}                 /* best-bet row: gold tint */
   tr.rec td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
   .legend{font-size:11px; color:var(--dim); margin-top:6px; line-height:1.5;}
   .calctable.dc-off tr.dc{display:none;}
@@ -214,17 +153,17 @@
   table.scan{width:100%; border-collapse:collapse; font-size:13px;}
   table.scan th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:1px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line);}
   table.scan td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
-  table.scan .r{color:var(--redtxt); font-weight:600;} table.scan .b{color:var(--bluetxt); font-weight:600;}
+  table.scan .r{color:#ff7a7a; font-weight:600;} table.scan .b{color:#7aa3ff; font-weight:600;}
   table.scan span.thinf{color:var(--dim); font-weight:500; cursor:help;}  /* under 4 UFC fights: thin data */
   .ufcn{font-size:9.5px; font-weight:700; letter-spacing:.4px; border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:4px; color:var(--dim); white-space:nowrap;}
-  table.scan tr.take td{background:var(--goodtint);}
+  table.scan tr.take td{background:rgba(62,201,126,.08);}
   table.scan tr.dayrow td{color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding-top:12px;}
   table.scan tr.unscored td{opacity:.6;}
   .sub{font-size:11px; color:var(--dim); font-weight:400;} .bk{font-size:11px; color:var(--dim);}
   .badge{font-size:9.5px; font-weight:800; letter-spacing:.8px; padding:1px 5px; border-radius:4px; border:1px solid var(--line); color:var(--dim); margin-left:4px; cursor:help; white-space:nowrap;}
   .badge.early{color:var(--green); border-color:var(--green);}
   .mini-btn{padding:3px 8px; font-size:11.5px; font-weight:600; letter-spacing:0; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; margin:1px 2px;}
-  .mini-btn.on{background:var(--gold); color:var(--onacc); border-color:var(--gold);}
+  .mini-btn.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
   .mini-btn:disabled{opacity:.55; cursor:default; filter:none;}
   .mini-btn.x{background:none; border:none; color:var(--dim); font-size:15px; padding:0 4px;}
   .acts{white-space:nowrap;}
@@ -260,14 +199,8 @@
 </head>
 <body>
 
-<header class="lstop" id="lsTop"><div class="lstopin"><a class="lsbrand" href="../" title="LINE SHOP — every sport, one bankroll"><i></i>LINE SHOP</a><nav class="lssports" id="sportBar"><a href="../nfl-td-predictor/nfl-td-predictor.html">🏈 NFL</a><a href="../nba-prop-predictor/nba-prop-predictor.html">🏀 NBA</a><a href="../nhl-prop-predictor/nhl-prop-predictor.html">🏒 NHL</a><a class="on" href="./">🥊 UFC</a></nav><div class="lspot" id="potChip"></div><script>try{ const h=localStorage.getItem('sims_chip'); if(h) document.getElementById('potChip').innerHTML=h; }catch(e){}</script><button class="themebtn" id="themeBtn" title="switch to dim">🌙</button></div>
-<nav class="lstabs" id="lsTabs"><button data-v="bets" class="on">⚡ Bets</button><button data-v="sim">🥊 Sim</button><button data-v="log">📓 Bet log</button><button data-v="all">🔎 All fights</button></nav></header>
-<section class="betsview" id="betsView"><div class="bvin"><div class="bvhead" id="bvHead">Loading lines…</div><div id="bvList"></div>
-  <details class="bvpass hidden" id="bvPassBox"><summary id="bvPassSum"></summary><div id="bvPass"></div></details>
-  <p class="dimtxt" style="margin-top:18px;line-height:1.55">A bet shows when Classic 2.0 and the main sim agree (the default "2.0 + main sim" mode: +21.5% on 221 bets at opening lines, 2022–26 — the only UFC rule that made money; pure line shopping lost at your books). Stakes are dollars from your LINE SHOP bankroll. 📲 opens the book's bet slip with the fight in it — check the price, type the stake, then tap Log bet. Bets settle by themselves from ESPN's results.</p>
-</div></section>
 <header class="topbar">
-  <div class="brand">UFC <span>LINES</span></div>
+  <div class="brand">UFC <span>SIM</span></div>
   <div class="pick red"><input id="fa" autocomplete="off" spellcheck="false" placeholder="Red corner — type a fighter" aria-label="Red corner"></div>
   <div class="vs">VS</div>
   <div class="pick blue"><input id="fb" autocomplete="off" spellcheck="false" placeholder="Blue corner — type a fighter" aria-label="Blue corner"></div>
@@ -306,7 +239,7 @@
       <div class="tblwrap" id="wkbody"></div>
       <div class="slip" id="slip"></div>
     </div>
-    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>Grayed names</b> with a "2 UFC"-style badge have under 4 UFC fights (thin data): moneyline stakes are halved and props aren't judged. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. Backtested on 1,787 real UFC round lines (2021–26): the books priced rounds better than the model and betting its edges lost money, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are in <b>dollars</b>: a % of your LINE SHOP bankroll (the one pot for every sport; ¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights), and while 💰 Bankroll limit is on, open bets across all four sports never go above it. <b>⚡ Pull fresh lines</b> gets every book's price right now with your Odds API key. <b>Sim</b> opens the fight with these prices filled in.</p></details>
+    <details class="howto"><summary>How to read this</summary><p class="note"><b>Fair win %</b> blends the market with the model. <b>Grayed names</b> with a "2 UFC"-style badge have under 4 UFC fights (thin data): moneyline stakes are halved and props aren't judged. <b>EARLY</b> = the line first appeared under 72h ago and hasn't moved 3+ pts, so it uses opening-line weights: the backtested rule (+8–9% ROI, beat the closing line 70%). <b>LATE</b> = fight-week weights: smaller edges, promising in the backtest (+6%) but not proven. <b>TAKE</b> = fair % beats the best available price by 5–20% (smaller edges were noise in the backtest; bigger ones were usually the model being wrong). <b>Total rounds</b> (the one prop in the sportsbook feed) shows the market's odds next to the model's, for information only. Backtested on 1,787 real UFC round lines (2021–26): the books priced rounds better than the model and betting its edges lost money, so it's never flagged as a bet. Hover a fight's call to see it without the toggle. Method props (KO/sub/decision, double chance) aren't in the feed: click Sim and type them into the calculator. Moneylines only, the one market with a proven edge. Stakes are % of bankroll (¼-Kelly, max 3%, halved when a fighter has under 4 UFC fights). <b>Sim</b> opens the fight with these prices filled in.</p></details>
   </div>
 </div>
 <div class="modal hidden" id="betcard" role="dialog" aria-modal="true" aria-label="My bets">
@@ -316,7 +249,7 @@
     <div id="betsum"></div>
     <div class="tblwrap" id="betbody"></div>
     <div class="slipbtns"><button class="mini-btn" id="betexp">Export</button><button class="mini-btn" id="betimp">Import</button><input type="file" id="betfile" accept=".json,application/json" hidden></div>
-    <p class="note"><b>CLV</b> (closing-line value) = your price vs the de-vigged consensus line at fight time. Positive means you beat the market's final number, the fastest proof of a real edge (about 50 bets, vs hundreds for win/loss). It shows "live" until the fight starts. Right after you bet it is usually slightly negative (you just paid the book's cut); it turns positive when the line moves your way by fight time. Stakes are dollars from your LINE SHOP bankroll, and every settled bet moves it. Bets settle by themselves from ESPN's results (or click W / L / P), and the log rides in ☁ Sync with the other sports (set up on the NFL, NBA or NHL page).</p>
+    <p class="note"><b>CLV</b> (closing-line value) = your price vs the de-vigged consensus line at fight time. Positive means you beat the market's final number, the fastest proof of a real edge (about 50 bets, vs hundreds for win/loss). It shows "live" until the fight starts. Right after you bet it is usually slightly negative (you just paid the book's cut); it turns positive when the line moves your way by fight time. Units: 1u = 1% of bankroll. Click W / L / P to settle. Saved in this browser only: Export on one computer, Import on another.</p>
   </div>
 </div>
 
@@ -1596,7 +1529,7 @@ function verdictFor(entered, A, B, pA, anchor, eligible, xdiv){
     const sg = x => (x >= 0 ? "+" : "") + x;
     const thinNote = half ? ` <b>${thinName}</b> has only ${minFights} UFC fight${minFights===1?"":"s"}: anchored edges on fights like this were positive but weaker in the backtest (${TRACK ? sg(TRACK.thin.roi) : "+4"}% ROI vs ${TRACK ? sg(TRACK.est.roi) : "+10"}% with established fighters), so the stake is halved.` : "";
     return { status:"take", title: half ? "TAKE — HALF STAKE (THIN DATA)" : "TAKE THIS BET", bestIndex:best.i, body:
-      `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${pctUsd(stake)}</b> (¼-Kelly${half ? ", halved" : ""}, capped at 3%).${thinNote}${extra}${propNote}` };
+      `<b>${best.label}</b> at your entered odds — <b>+${(best.ev*100).toFixed(1)}% EV</b>, hits ~${Math.round(best.prob*100)}%. Suggested stake ~<b>${stake}% of bankroll</b> (¼-Kelly${half ? ", halved" : ""}, capped at 3%).${thinNote}${extra}${propNote}` };
   }
   const un = entered.filter(e => e.tag === "unanch" && e.ev >= TH).sort((a,b) => b.ev - a.ev)[0];
   if(un && xdiv) return { status:"caution", title:"NO BET — WEIGHT-CLASS CHANGE", body:
@@ -1707,7 +1640,7 @@ $("lineTiming").addEventListener("change", computeVerdict);
 $("betMode").value = betMode;
 $("betMode").addEventListener("change", () => { betMode = $("betMode").value; try { localStorage.setItem("ufcsim.mode", betMode); } catch(e){}
   if(calcA) computeVerdict(); // no fight simulated yet: nothing to re-judge (this used to throw and skip the scanner refresh)
-  if(typeof buildScan === "function" && ODDS && (!$("wkcard").classList.contains("hidden") || document.body.classList.contains("bv-on"))) buildScan(); });
+  if(typeof buildScan === "function" && ODDS && !$("wkcard").classList.contains("hidden")) buildScan(); });
 // probability -> American moneyline, rounded to the nearest 5 like a sportsbook
 const amOdds = p => {
   p = Math.min(0.995, Math.max(0.005, p));
@@ -1928,7 +1861,6 @@ async function loadOdds(){
   for(const u of ODDS_URLS){
     try { const r = await fetch(u + "?t=" + Date.now()); if(!r.ok) continue; ODDS = await r.json(); ODDS._at = Date.now(); break; } catch(e){}
   }
-  if(ODDS) applyLive(ODDS); // your latest ⚡ pull, when it is newer than the bot's file
   if(ODDS && typeof bets !== "undefined") bets.forEach(b => b.legs.forEach(legClose)); // save closing lines before the feed drops old fights
   return ODDS;
 }
@@ -1963,12 +1895,10 @@ function scoreFight(id, f){
 }
 async function openScan(){
   $("wkcard").classList.remove("hidden");
-  if(ODDS && scanRows.length && Date.now() - ODDS._at < 10 * 60e3){ renderScan(); renderSlip(); return; } // the ⚡ Bets screen just scanned these lines
   $("wkinfo").textContent = "Loading lines…";
   const O = await loadOdds();
   if(!O){ $("wkinfo").textContent = "Couldn't load the odds feed — check your internet connection (the feed lives on popcawn.github.io)."; $("wkbody").innerHTML = ""; renderSlip(); return; }
   buildScan();
-  if(pullDue(O)) pullLive(); // newest lines over 2 h old: get every book's price now
 }
 function buildScan(){
   const O = ODDS; if(!O) return;
@@ -1982,13 +1912,12 @@ function buildScan(){
   const h = (now - new Date(O.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + "h" : Math.round(h / 24) + " days";
   if(CONS()) consensusPrep();
   const takes = scanRows.filter(r => r.take).length;
-  $("wkinfo").innerHTML = `<b id="wkTakes">${takes} bet${takes === 1 ? "" : "s"}</b><span id="wkCons"></span> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, ${O.live ? "pulled" : "updated"} ${ago} ago <span class="pullbox">${pullHtml()}</span>`
+  $("wkinfo").innerHTML = `<b id="wkTakes">${takes} bet${takes === 1 ? "" : "s"}</b><span id="wkCons"></span> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`
     + (h > 36 ? ` <span class="warnline">⚠ stale — the "Scan odds" GitHub Action isn't refreshing (is the ODDS_API_KEY secret set?). Re-check prices at your book.</span>` : "");
   renderScan(); renderSlip();
   if(CONS()) consensusPass();
 }
 function renderScan(){
-  SP = stakePlan(scanRows); // dollar stakes for this render (the pot and the room left change as bets are logged and settled)
   let html = "", lastDay = "";
   const dayOf = r => r.t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   for(const r of scanRows){
@@ -2013,14 +1942,13 @@ function renderScan(){
       <td>${nm(0)} vs ${nm(1)} <span class="badge ${r.early ? "early" : ""}" title="${tip}">${r.early ? "EARLY" : "LATE"}</span></td>
       <td><b>${sur(0)} ${pct(r.pFair)}</b><div class="sub">market ${pct(r.pMkt)} · model ${pct(r.pModel)}</div></td>
       <td>${px(0)}<br>${px(1)}</td>
-      <td title="${r.totals ? r.totals.lines.map(x => `Rounds ${x.L}: market under ${x.mU == null ? "?" : pct(x.mU)} · model ${pct(x.pu)}`).join(" · ") : "No total-rounds line at your books"}">${CONS() && (r.cpending || r.cv) ? consCall(r, sur) : r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${stakeTxt(r)}${r.thin ? ` (halved: ${thinWho()})` : ""}</div>`
+      <td title="${r.totals ? r.totals.lines.map(x => `Rounds ${x.L}: market under ${x.mU == null ? "?" : pct(x.mU)} · model ${pct(x.pu)}`).join(" · ") : "No total-rounds line at your books"}">${CONS() && (r.cpending || r.cv) ? consCall(r, sur) : r.take ? `<span class="ok">✅ TAKE ${sur(k)}</span><div class="sub">+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${r.stake.toFixed(1)}%${r.thin ? ` (halved: ${thinWho()})` : ""}</div>`
         : `<span class="dimtxt">pass</span><div class="sub">${r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.noBook ? "not offered at your books" : `best edge ${(s.ev * 100).toFixed(1)}% (${sur(k)})`}</div>`}${showRds && r.totals ? r.totals.lines.map(x => `<div class="sub rds">Rounds ${x.L}: market under <b>${x.mU == null ? "?" : pct(x.mU)}</b> · model ${pct(x.pu)} · o ${x.over.d ? decAm(x.over.d) + " " + bookName(x.over.book) : "—"} / u ${x.under.d ? decAm(x.under.d) + " " + bookName(x.under.book) : "—"}</div>`).join("") : ""}</td>
       <td class="acts"><button class="mini-btn" data-sim="${r.id}">Sim</button>${r.take ? `<button class="mini-btn" data-slip="${r.id}" ${inSlip ? "disabled" : ""}>${inSlip ? "In slip" : "+ Parlay"}</button><button class="mini-btn" data-log="${r.id}">Log bet</button>` : ""}</td>
     </tr>`;
   }
   $("wkbody").innerHTML = html ? `<table class="scan"><thead><tr><th>Fight</th><th>Fair win %</th><th>Best price</th><th>Call</th><th></th></tr></thead><tbody>${html}</tbody></table>`
     : `<p class="dimtxt">No UFC lines in the next 45 days.</p>`;
-  renderBetsView();
 }
 function slipLegs(){
   return slip.map(l => { const r = scanRows.find(x => x.id === l.id); return r && r.side ? { r, k: l.k, p: r.side[l.k].p, name: r.name[l.k] } : null; }).filter(Boolean);
@@ -2047,7 +1975,7 @@ function renderSlip(){
     `<div class="slipstat">Hits about <b>1 in ${(1 / P).toFixed(1)}</b> (${pct(P)})</div>` +
     (top ? `<div class="slipstat">Best payout <b>${decAm(top.D)}</b> at ${bookName(top.b)} · EV <b class="${top.ev >= 0 ? "ok" : "miss"}">${top.ev >= 0 ? "+" : ""}${(top.ev * 100).toFixed(1)}%</b></div>` +
       offers.slice(1, 3).map(o => `<div class="sub">${bookName(o.b)} ${decAm(o.D)} · EV ${(o.ev * 100).toFixed(1)}%</div>`).join("") +
-      `<div class="slipstat">Stake <b>${pctUsd(stake.toFixed(2))}</b> <div class="sub">¼-Kelly, capped at 1% — parlays swing hard</div></div>`
+      `<div class="slipstat">Stake <b>${stake.toFixed(2)}%</b> of bankroll <div class="sub">¼-Kelly, capped at 1% — parlays swing hard</div></div>`
       : `<div class="warnline">No single book offers all of these legs.</div>`) +
     (thinLegs.length ? `<div class="warnline">⚠ Thin data: ${thinLegs.map(l => legThin(l).map(f => `${f.name} (${ufcCount(f)} UFC fight${ufcCount(f) === 1 ? "" : "s"})`).join(", ")).join("; ")}. High-variance leg${thinLegs.length === 1 ? "" : "s"}.</div>` : "") +
     (weak.length ? `<div class="warnline">⚠ ${weak.map(l => l.name).join(", ")}: edge is under 3% at ${top ? bookName(top.b) : "your books"} — ${weak.length === 1 ? "this leg drags" : "these legs drag"} the parlay down.</div>` : "") + goneNote +
@@ -2067,8 +1995,8 @@ $("wkbody").addEventListener("click", e => {
   if(b.dataset.sim) simFromScan(b.dataset.sim);
   else if(b.dataset.slip){ const r = scanRows.find(x => x.id === b.dataset.slip); if(r && !slipLegs().some(l => sameFight(l.r, r))) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); }
   else if(b.dataset.log){ const r = scanRows.find(x => x.id === b.dataset.log); if(!r) return; const s = r.side[r.pick];
-    const x = SP.m.get(r.id); logBet([{ fid: r.id, k: r.pick, name: r.name[r.pick], vs: r.name[1 - r.pick], t: r.f.t, price: s.d }], s.d, s.book, r.stake, x ? (x.got || x.want) : null);
-    b.textContent = "Logged ✓"; b.disabled = true; renderScan(); }
+    logBet([{ fid: r.id, k: r.pick, name: r.name[r.pick], vs: r.name[1 - r.pick], t: r.f.t, price: s.d }], s.d, s.book, r.stake);
+    b.textContent = "Logged ✓"; b.disabled = true; }
 });
 $("slip").addEventListener("click", e => {
   const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
@@ -2109,62 +2037,13 @@ async function autoFillOdds(A, B){
   ins[0].dispatchEvent(new Event("input"));
 }
 
-// ---- MY BETS → THE ONE POT (2026-11-20, user: "pull odds like the nfl and tell what to stake" + "maybe we should change the
-// name" → LINE SHOP). The UFC page is the 4th sport next to the NFL / NBA / NHL apps, on ONE bankroll. Same site
-// (popcawn.github.io), so the same browser storage: nfltd_bank = the pot, nfltd_oddskey = your Odds API key, nfltd_sync = the
-// ☁ Sync gist. Bets are stored in the pot's shape (ufcs_bets: usd, odds, result pending/win/loss/push, st = when it settled,
-// mt = last edit) so every sport's page and the phone-alert bot count them, and they ride in the same gist as ufc-sync.json.
-// The old log (ufcsim.bets, stakes in units) is copied over once and left where it was. CLV (legClose) works as before.
-const BETS_KEY = "ufcs_bets", TOMB_KEY = "ufcs_tomb", SYNC_FILE = "ufc-sync.json", LIVE_KEY = "ufcs_live";
-const lsJ = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } };
-const lsW = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } };
-const RES = { W: "win", L: "loss", P: "push" };
-function potShape(b){ // the fields the other sports' pages read: odds (American), game, player, market, ko, mt
-  const L = b.legs, one = L.length === 1;
-  return Object.assign(b, { odds: decAm(b.price), ko: L[0].t || b.ts, game: one ? `${L[0].name} vs ${L[0].vs}` : L.map(l => surname(l.name)).join(" + "),
-    player: one ? L[0].name : `${L.length}-leg parlay`, market: one ? "ML" : "Parlay", mt: b.mt || Date.parse(b.ts) || Date.now() });
-}
-let bets = lsJ(BETS_KEY, null), TOMB = lsJ(TOMB_KEY, {}) || {};
-if(!Array.isArray(bets)){ // first visit since the move: bring the old log over (bets settled before it never move the pot: st 0)
-  bets = (lsJ("ufcsim.bets", []) || []).filter(b => b && b.id && Array.isArray(b.legs) && b.legs.length)
-    .map(b => potShape({ ...b, result: RES[b.result] || "pending", ...(RES[b.result] ? { st: 0 } : {}), usd: null }));
-  lsW(BETS_KEY, bets); }
-const touch = b => { b.mt = Date.now(); };
-function saveBets(sync = true){ lsW(BETS_KEY, bets); lsW(TOMB_KEY, TOMB); renderPot(); if(sync) syncSoon(); }
-
-// ---- THE POT: what's in it now = the bankroll you typed (in any sport) + every sport's dollar P/L settled since
-const POT_KEYS = { nfl: "nfltd_bets", nba: "nbap_bets", nhl: "nhlp_bets", ufc: BETS_KEY };
-const amDec = s => { const a = parseFloat(String(s).replace("−", "-")); return a > 0 ? 1 + a / 100 : a < 0 ? 1 + 100 / -a : null; };
-const potBank = () => lsJ("nfltd_bank", {}) || {};
-const potAll = () => Object.entries(POT_KEYS).flatMap(([sp, k]) => (sp === "ufc" ? bets : lsJ(k, []) || []).map(b => ({ b, sp })));
-const usdOf = (b, B) => b.usd != null ? +b.usd : B.amt ? (+b.stake || 0) * B.amt / 100 : 0;
-function potNow(){ const B = potBank(); if(!(B.amt > 0)) return null; let x = B.amt;
-  for(const { b } of potAll()) if(b.st > B.at){ const u = usdOf(b, B), d = amDec(b.odds) || 1; x += b.result === "win" ? u * (d - 1) : b.result === "loss" ? -u : 0; }
-  return Math.max(0, x); }
-const potRiding = () => { const B = potBank(); return potAll().filter(({ b }) => b.result === "pending").reduce((a, { b }) => a + usdOf(b, B), 0); };
-const money = x => (x < 0 ? "−" : "") + "$" + (Math.abs(x) >= 20 ? Math.round(Math.abs(x)).toLocaleString() : Math.abs(x).toFixed(2));
-const potSafe = () => { try { return potNow(); } catch(e){ return null; } };
-const pctUsd = p => { const pot = potSafe(); return pot == null ? `${p}% of bankroll` : `$${Math.max(1, Math.round(+p / 100 * pot))} = ${p}% of your ${money(pot)} bankroll`; };
-// a scanner row's stake in DOLLARS: % of the pot NOW (the rules above), whole dollars. While 💰 Bankroll limit is on (it's one
-// switch for every sport) open bets across all four sports never go above the bankroll — the biggest stakes take the room first.
-// A side you already logged shows "logged" and takes no new room.
-const loggedFor = r => bets.find(b => b.result === "pending" && b.legs.length === 1 && b.legs[0].fid === r.id && b.legs[0].k === r.pick);
-let SP = { pot: null, m: new Map() };
-function stakePlan(rows){ const pot = potSafe(), B = potBank(), m = new Map(); if(pot == null) return { pot, m };
-  let room = B.lim === false ? Infinity : pot - potRiding();
-  for(const r of rows.filter(r => r.take && r.stake > 0 && !loggedFor(r)).sort((a, b) => b.stake - a.stake)){
-    const want = Math.max(1, Math.round(r.stake / 100 * pot)), got = Math.max(0, Math.min(want, Math.floor(room)));
-    m.set(r.id, { want, got }); room -= got; }
-  return { pot, m };
-}
-function stakeTxt(r){ const lg = loggedFor(r); if(lg) return `<b>logged ✓ ${lg.usd != null ? money(lg.usd) : ""}</b>`;
-  const x = SP.m.get(r.id); if(SP.pot == null || !x) return `${r.stake.toFixed(1)}% of bankroll`;
-  return x.got >= x.want ? `<b>$${x.got}</b>` : x.got > 0 ? `<b>$${x.got}</b> (bankroll limit; full $${x.want})` : `<b>no room</b> (bankroll limit: open bets fill your ${money(SP.pot)})`; }
-
-function logBet(legs, price, book, stake, usd){
-  const pot = potSafe(); if(usd == null && pot != null) usd = Math.max(1, Math.round(stake / 100 * pot));
-  bets.unshift(potShape({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), legs, price, book,
-    stake: +(+stake).toFixed(2), usd: usd == null ? null : +usd, result: "pending", mt: Date.now() }));
+// ---- MY BETS: local bet log with closing-line value (CLV). Beating the close proves an edge in ~50 bets;
+// win/loss needs hundreds. Stored in this browser; Export/Import moves it between computers.
+const BETS_KEY = "ufcsim.bets";
+let bets = (() => { try { return JSON.parse(localStorage.getItem(BETS_KEY)) || []; } catch(e){ return []; } })();
+const saveBets = () => { try { localStorage.setItem(BETS_KEY, JSON.stringify(bets)); } catch(e){} };
+function logBet(legs, price, book, stake){
+  bets.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), legs, price, book, stake: +(+stake).toFixed(2), result: null });
   saveBets();
 }
 function legClose(l){ // de-vigged consensus for this leg's side: the closing line once the fight has started, else the live line
@@ -2174,260 +2053,50 @@ function legClose(l){ // de-vigged consensus for this leg's side: the closing li
   if(!v.length) return null;
   const p0 = noVig(v.reduce((s, x) => s + x[0], 0) / v.length, v.reduce((s, x) => s + x[1], 0) / v.length), p = l.k ? 1 - p0 : p0;
   const final = new Date(f.t).getTime() <= Date.now();
-  if(final){ l.closeP = +p.toFixed(4); saveBets(false); } // keep it: odds.json drops old fights after 60 days
+  if(final){ l.closeP = +p.toFixed(4); saveBets(); } // keep it: odds.json drops old fights after 45 days
   return { p, final };
 }
 function renderBets(){
-  let n = 0, staked = 0, pl = 0, cN = 0, cSum = 0, cWin = 0; const B = potBank();
+  let n = 0, staked = 0, pl = 0, cN = 0, cSum = 0, cWin = 0;
   const rows = bets.map((b, i) => {
     const cl = b.legs.map(legClose), have = cl.every(Boolean), fin = have && cl.every(c => c.final);
     const clv = have ? b.legs.reduce((s, l, j) => s * l.price * cl[j].p, 1) - 1 : null;
     if(fin){ cN++; cSum += clv; if(clv > 0) cWin++; }
-    if(b.result !== "pending"){ const u = usdOf(b, B); n++; if(b.result !== "push") staked += u; pl += b.result === "win" ? u * (b.price - 1) : b.result === "loss" ? -u : 0; }
+    if(b.result){ n++; staked += b.stake; pl += b.result === "W" ? b.stake * (b.price - 1) : b.result === "L" ? -b.stake : 0; }
     const what = b.legs.length > 1 ? `${b.legs.length}-leg parlay <span class="sub">${b.legs.map(l => surname(l.name)).join(" + ")}</span>` : `${b.legs[0].name} <span class="sub">${b.legs[0].kind === "tot" ? "" : "vs "}${b.legs[0].vs}</span>`;
     return `<tr><td>${new Date(b.legs[0].t || b.ts).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</td><td>${what}</td>
       <td><input class="oddsin" data-price="${i}" value="${decAm(b.price)}" aria-label="Price"> <span class="bk">${bookName(b.book)}</span></td>
-      <td>$<input class="oddsin stakein" data-stake="${i}" value="${b.usd != null ? b.usd : ""}" placeholder="${b.stake}%" aria-label="Stake in dollars"></td>
+      <td><input class="oddsin stakein" data-stake="${i}" value="${b.stake}" aria-label="Stake (units)"></td>
       <td>${clv === null ? "—" : `<span class="${clv >= 0 ? "ok" : "miss"}">${clv >= 0 ? "+" : ""}${(clv * 100).toFixed(1)}%</span>${fin ? "" : ` <span class="sub">live</span>`}`}</td>
-      <td class="acts">${["W", "L", "P"].map(r => `<button class="mini-btn ${b.result === RES[r] ? "on" : ""}" data-res="${i}" data-r="${r}">${r}</button>`).join("")}<button class="mini-btn x" data-del="${i}" aria-label="Delete">×</button>${b.auto ? ` <span class="sub" title="settled automatically from ESPN's results — click a letter to change it">auto</span>` : ""}</td></tr>`;
+      <td class="acts">${["W", "L", "P"].map(r => `<button class="mini-btn ${b.result === r ? "on" : ""}" data-res="${i}" data-r="${r}">${r}</button>`).join("")}<button class="mini-btn x" data-del="${i}" aria-label="Delete">×</button></td></tr>`;
   }).join("");
+  const sg = x => (x >= 0 ? "+" : "") + x;
   $("betsum").innerHTML = bets.length
-    ? `Settled <b>${n}</b> · P/L <b class="${pl >= 0 ? "ok" : "miss"}">${pl >= 0 ? "+" : ""}${money(pl)}</b>${staked ? ` · ROI <b>${(pl >= 0 ? "+" : "") + (100 * pl / staked).toFixed(1)}%</b>` : ""} · beat the closing line <b>${cWin}/${cN}</b>${cN ? ` (${Math.round(100 * cWin / cN)}%, avg CLV ${(cSum >= 0 ? "+" : "") + (100 * cSum / cN).toFixed(1)}%)` : ""}`
+    ? `Settled <b>${n}</b> · P/L <b class="${pl >= 0 ? "ok" : "miss"}">${sg(pl.toFixed(2))}u</b>${staked ? ` · ROI <b>${sg((100 * pl / staked).toFixed(1))}%</b>` : ""} · beat the closing line <b>${cWin}/${cN}</b>${cN ? ` (${Math.round(100 * cWin / cN)}%, avg CLV ${sg((100 * cSum / cN).toFixed(1))}%)` : ""}`
     : "";
-  $("betbody").innerHTML = bets.length ? `<table class="scan"><thead><tr><th>Fight</th><th>Bet</th><th>Price</th><th>Stake</th><th>CLV</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`
+  $("betbody").innerHTML = bets.length ? `<table class="scan"><thead><tr><th>Fight</th><th>Bet</th><th>Price</th><th>Units</th><th>CLV</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`
     : `<p class="dimtxt">No bets logged yet — use "Log bet" or "Log parlay" in This week.</p>`;
 }
 $("betbody").addEventListener("click", e => {
   const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
-  if(b.dataset.res !== undefined){ const x = bets[+b.dataset.res], r = RES[b.dataset.r]; if(!x) return;
-    if(x.result === r){ x.result = "pending"; delete x.st; } else { x.result = r; x.st = Date.now(); }
-    delete x.auto; touch(x); saveBets(); renderBets(); }
-  else if(b.dataset.del !== undefined && confirm("Delete this bet from your log?")){ const x = bets[+b.dataset.del]; if(!x) return; TOMB[x.id] = Date.now(); bets.splice(+b.dataset.del, 1); saveBets(); renderBets(); }
+  if(b.dataset.res !== undefined){ const x = bets[+b.dataset.res]; x.result = x.result === b.dataset.r ? null : b.dataset.r; saveBets(); renderBets(); }
+  else if(b.dataset.del !== undefined && confirm("Delete this bet from your log?")){ bets.splice(+b.dataset.del, 1); saveBets(); renderBets(); }
 });
 $("betbody").addEventListener("change", e => {
   const t = e.target; if(!t || !t.dataset) return;
-  if(t.dataset.price !== undefined){ const d = amToDec(t.value), x = bets[+t.dataset.price]; if(x && d && d > 1){ x.price = d; x.odds = decAm(d); if(x.legs.length === 1) x.legs[0].price = d; touch(x); saveBets(); } renderBets(); }
-  if(t.dataset.stake !== undefined){ const v = parseFloat(String(t.value).replace(/[$,]/g, "")), x = bets[+t.dataset.stake], pot = potSafe();
-    if(x && v >= 0){ x.usd = +v.toFixed(2); if(pot) x.stake = +(100 * v / pot).toFixed(2); touch(x); saveBets(); } renderBets(); }
+  if(t.dataset.price !== undefined){ const d = amToDec(t.value), x = bets[+t.dataset.price]; if(d && d > 1){ x.price = d; if(x.legs.length === 1) x.legs[0].price = d; saveBets(); } renderBets(); }
+  if(t.dataset.stake !== undefined){ const v = parseFloat(t.value); if(v >= 0){ bets[+t.dataset.stake].stake = v; saveBets(); } renderBets(); }
 });
-$("mb").onclick = async () => { $("betcard").classList.remove("hidden"); await loadOdds(); renderBets(); autoSettle(); };
-$("betexp").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(bets, null, 1)], { type: "application/json" })); a.download = "ufc-bets.json"; a.click(); };
+$("mb").onclick = async () => { $("betcard").classList.remove("hidden"); await loadOdds(); renderBets(); };
+$("betexp").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(bets, null, 1)], { type: "application/json" })); a.download = "ufc-sim-bets.json"; a.click(); };
 $("betimp").onclick = () => $("betfile").click();
 $("betfile").onchange = async e => {
   const file = e.target.files && e.target.files[0]; if(!file) return;
-  try { const have = new Set(bets.map(b => b.id));
-    for(const b of JSON.parse(await file.text())) if(b && b.id && Array.isArray(b.legs) && b.legs.length && !have.has(b.id))
-      bets.push(potShape({ ...b, ...(b.result == null || RES[b.result] ? { result: RES[b.result] || "pending", ...(RES[b.result] ? { st: 0 } : {}), usd: b.usd != null ? b.usd : null } : {}) }));
+  try { const have = new Set(bets.map(b => b.id)); for(const b of JSON.parse(await file.text())) if(b && b.id && b.legs && !have.has(b.id)) bets.push(b);
     bets.sort((x, y) => (y.ts > x.ts) - (y.ts < x.ts)); saveBets(); renderBets(); }
-  catch(err){ alert("Couldn't read that file — pick a ufc-bets.json (or old ufc-sim-bets.json) export."); }
+  catch(err){ alert("Couldn't read that file — pick a ufc-sim-bets.json export."); }
   e.target.value = "";
 };
-
-// ---- ✅ AUTO-SETTLE from ESPN's UFC results (site.api.espn.com scoreboard ?dates=YYYYMMDD — the event's date): a pending bet
-// whose fights are all over gets W / L / P by itself (draw or no contest = push; a parlay drops a pushed leg and pays the rest),
-// like the NFL / NBA / NHL logs. A fight ESPN doesn't list (other promotions) or names that don't match stay for you to click.
-const ESPN_SB = "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=", espnCache = new Map();
-async function espnDay(ymd){ const c = espnCache.get(ymd); if(c && Date.now() - c.at < 10 * 60e3) return c.v;
-  const v = [];
-  try { const r = await fetch(ESPN_SB + ymd, { cache: "no-store" }); if(!r.ok) return null; const j = await r.json();
-    for(const ev of j.events || []) for(const c of ev.competitions || []){ const cs = c.competitors || [], st = (c.status && c.status.type) || {};
-      v.push({ done: !!st.completed, n: cs.map(x => nmz((x.athlete && (x.athlete.displayName || x.athlete.fullName)) || "")), w: cs.map(x => !!x.winner) }); } }
-  catch(e){ return null; }
-  espnCache.set(ymd, { at: Date.now(), v }); return v; }
-const ymdOf = t => new Date(t).toISOString().slice(0, 10).replace(/-/g, "");
-const sameMan = (a, b) => { const A = nmz(a), B = nmz(b); return !!A && !!B && (A === B || (surname(A) === surname(B) && A[0] === B[0])); };
-async function legResult(l){ if(l.kind === "tot" || !l.vs) return null; const t = Date.parse(l.t); if(!(t < Date.now() - 20 * 60e3)) return null;
-  for(const ymd of [ymdOf(t), ymdOf(t - 864e5)]){ const day = await espnDay(ymd); if(!day) return null;
-    const c = day.find(c => c.n.length === 2 && ((sameMan(c.n[0], l.name) && sameMan(c.n[1], l.vs)) || (sameMan(c.n[1], l.name) && sameMan(c.n[0], l.vs))));
-    if(!c) continue; if(!c.done) return null;
-    const i = sameMan(c.n[0], l.name) && sameMan(c.n[1], l.vs) ? 0 : 1; return c.w[i] ? "win" : c.w[1 - i] ? "loss" : "push"; }
-  return null; }
-let settling = false;
-async function autoSettle(){ if(settling) return 0; settling = true; let n = 0;
-  try { for(const b of bets){ if(b.result !== "pending") continue;
-      const rs = []; for(const l of b.legs){ const r = await legResult(l); if(!r) break; rs.push(r); }
-      if(rs.length !== b.legs.length) continue;
-      if(rs.includes("loss")) b.result = "loss"; else if(rs.every(r => r === "push")) b.result = "push";
-      else { b.result = "win"; if(rs.includes("push")){ b.price = +b.legs.reduce((p, l, i) => rs[i] === "push" ? p : p * l.price, 1).toFixed(4); b.odds = decAm(b.price); } }
-      b.st = Date.now(); b.auto = "ESPN"; touch(b); n++; } }
-  finally { settling = false; }
-  if(n){ saveBets(); if(!$("betcard").classList.contains("hidden")) renderBets(); }
-  return n; }
-
-// ---- ⚡ PULL FRESH LINES (like the NFL / NBA / NHL ⚡ Pull): the bot refreshes odds.json 3x a day; this pulls every US book's
-// moneylines + total rounds right now with YOUR Odds API key (the one the other sports use, 4 credits a pull) and lays them over
-// the bot's file: a book's first price stays its opener, a fight not in the pull is treated as pulled from the books. Kept in
-// this browser 12 h (ufcs_live). Opening This week pulls by itself when the newest lines are over 2 h old.
-const ODDS_LIVE = "https://api.the-odds-api.com/v4/sports/mma_mixed_martial_arts/odds";
-const oddsKeyLS = () => { try { return localStorage.getItem("nfltd_oddskey") || ""; } catch(e){ return ""; } };
-let pulling = false, pullMsg = "";
-function applyLive(O){ const L = lsJ(LIVE_KEY, null); if(!O || !O.fights || !L || !Array.isArray(L.ev)) return O;
-  if(!(L.at > Date.parse(O.updated)) || Date.now() - L.at > 12 * 36e5) return O;
-  const iso = new Date(L.at).toISOString();
-  for(const e of L.ev){ let f = O.fights[e.id];
-    if(!f) f = O.fights[e.id] = { a: e.a, b: e.b, t: e.t, first: iso, open: {}, now: {} };
-    const same = f.a === e.a && f.b === e.b, flip = f.a === e.b && f.b === e.a; if(!same && !flip) continue;
-    f.t = e.t; f.seen = iso; f.open = f.open || {}; f.now = f.now || {};
-    for(const [bk, px] of Object.entries(e.now || {})){ const p = flip ? [px[1], px[0]] : px; if(!(bk in f.open)) f.open[bk] = p; f.now[bk] = p; }
-    if(e.tot && Object.keys(e.tot).length) f.tot = e.tot;
-    if(e.links){ f.links = {}; for(const [bk, L] of Object.entries(e.links)) f.links[bk] = flip ? [L[1], L[0]] : L; } }
-  O.books = Object.assign({}, O.books, L.titles || {}); O.updated = iso; O.live = L.at; if(isFinite(L.rem)) O.liveRem = L.rem;
-  return O; }
-const pullDue = O => !!oddsKeyLS() && !pulling && O && Date.now() - Date.parse(O.updated) > 2 * 36e5 && !(Date.now() - ((lsJ(LIVE_KEY, null) || {}).at || 0) < 15 * 60e3);
-function pullHtml(){ return pulling ? `<span class="dimtxt">⚡ pulling every book's lines…</span>`
-  : `<button class="mini-btn pullnow" title="Pull every US book's moneylines + total rounds right now with your Odds API key (4 credits)">⚡ Pull fresh lines</button>${pullMsg ? ` <span class="dimtxt">${pullMsg}</span>` : ""}`; }
-async function pullLive(){
-  const key = oddsKeyLS();
-  if(!key){ pullMsg = "no Odds API key in this browser — paste it once on the NFL page (Price this game → The Odds API key); every sport uses it"; paintPull(); return; }
-  if(pulling) return; pulling = true; { paintPull(); }
-  try {
-    const r = await fetch(`${ODDS_LIVE}?regions=us,us2&markets=h2h,totals&oddsFormat=decimal&includeLinks=true&includeSids=true&apiKey=${encodeURIComponent(key)}`, { cache: "no-store" });
-    if(!r.ok) throw new Error(r.status === 401 ? "the key was refused (401)" : r.status === 429 ? "out of API credits (429)" : "HTTP " + r.status);
-    const feed = await r.json(), rem = +r.headers.get("x-requests-remaining"), titles = {}, ev = [];
-    for(const e of feed){ const x = { id: e.id, a: e.home_team, b: e.away_team, t: e.commence_time, now: {}, tot: {} };
-      for(const bk of e.bookmakers || []){ titles[bk.key] = bk.title;
-        const m = (bk.markets || []).find(q => q.key === "h2h"), pa = m && m.outcomes.find(o => o.name === x.a), pb = m && m.outcomes.find(o => o.name === x.b);
-        if(pa && pb && pa.price > 1 && pb.price > 1) x.now[bk.key] = [pa.price, pb.price];
-        if(pa && pb && (pa.link || pb.link) && usableBook(bk.key)) (x.links ||= {})[bk.key] = [pa.link || "", pb.link || ""]; // bet-slip links, your books only (storage)
-        const mt = (bk.markets || []).find(q => q.key === "totals");
-        if(mt){ const t = {}; for(const o of mt.outcomes) if(o.point != null) (t[o.point] ||= [0, 0])[o.name === "Over" ? 0 : 1] = o.price;
-          for(const [pt, v] of Object.entries(t)) if(v[0] > 1 && v[1] > 1) (x.tot[bk.key] ||= {})[pt] = v; } }
-      ev.push(x); }
-    if(!lsW(LIVE_KEY, { at: Date.now(), rem, titles, ev })) throw new Error("this browser's storage is full");
-    pullMsg = isFinite(rem) ? `${rem.toLocaleString()} API credits left` : "";
-    if(ODDS) ODDS._at = 0; await loadOdds();
-  } catch(e){ pullMsg = `pull failed: ${e.message || e} — showing the bot's lines`; }
-  pulling = false;
-  if(ODDS) buildScan(); else paintPull();
-}
-
-// ---- ☁ SYNC: the gist the other sports use (☁ Sync is set up on the NFL / NBA / NHL page; this page reads its token from the
-// shared storage). Own file ufc-sync.json: newest edit (mt) wins, a tie goes to the record that knows more, tombstones delete.
-// It also reads the other three sports' files READ-ONLY (the same merge as their pullOtherSports), so the pot here matches the phone.
-const syncCfg = () => { const s = lsJ("nfltd_sync", null); return s && s.token && s.gistId ? s : null; };
-let syncT = 0, syncing = false, syncMsg = "";
-function syncSoon(ms = 2500){ clearTimeout(syncT); if(syncCfg()) syncT = setTimeout(syncNow, ms); }
-const knows = x => (x.result && x.result !== "pending" ? 2 : 0) + (x.closeOdds || (x.legs && x.legs.some(l => l.closeP)) ? 1 : 0);
-function mergeIn(L, R, tb){ const m = new Map(L.map(r => [r.id, r]));
-  for(const r of R || []){ if(!r || !r.id) continue; const a = m.get(r.id), ma = a ? a.mt || 0 : -1, mr = r.mt || 0; if(!a || (mr !== ma ? mr > ma : knows(r) > knows(a))) m.set(r.id, r); }
-  return [...m.values()].filter(r => !(tb[r.id] >= (r.mt || 0))).sort((x, y) => String(y.ts).localeCompare(String(x.ts))); }
-const gistJson = async f => !f ? null : JSON.parse(f.truncated && f.raw_url ? await (await fetch(f.raw_url, { cache: "no-store" })).text() : f.content);
-const OTHER_FILES = { nfl: ["nfl-td-sync.json", "nfltd_bets", "nfltd_tomb"], nba: ["nba-sync.json", "nbap_bets", "nbap_tomb"], nhl: ["nhl-sync.json", "nhlp_bets", "nhlp_tomb"] };
-async function pullOtherSports(g){ let changed = false;
-  for(const [sp, [file, bk, tk]] of Object.entries(OTHER_FILES)){
-    try { const R = await gistJson(g && g.files && g.files[file]); if(!R || !Array.isArray(R.bets)) continue;
-      const nfl = sp === "nfl", T = lsJ(tk, null) || (nfl ? { bets: {}, slip: {} } : {}), T0 = JSON.stringify(T), tb = nfl ? (T.bets = T.bets || {}) : T, rt = (nfl ? R.tomb && R.tomb.bets : R.tomb) || {};
-      for(const [k, t] of Object.entries(rt)) if(!(tb[k] >= t)) tb[k] = t;
-      const L = lsJ(bk, []) || [], out = mergeIn(L, R.bets.filter(r => r && r.id), tb);
-      if(JSON.stringify(T) !== T0) lsW(tk, T);
-      if(JSON.stringify(out) !== JSON.stringify(L)){ lsW(bk, out); changed = true; }
-      const B = potBank(); if(R.bank && (R.bank.mt || 0) > (B.mt || 0)){ lsW("nfltd_bank", R.bank); changed = true; } } catch(e){} }
-  return changed; }
-async function syncNow(){ const S = syncCfg(); if(!S || syncing) return; syncing = true;
-  try {
-    const H = { Authorization: "Bearer " + S.token, Accept: "application/vnd.github+json" }, U = "https://api.github.com/gists/" + S.gistId;
-    const r = await fetch(U, { headers: H, cache: "no-store" }); if(!r.ok) throw new Error("GitHub " + r.status);
-    const g = await r.json(); let R = null; try { R = await gistJson(g.files && g.files[SYNC_FILE]); } catch(e){}
-    const before = JSON.stringify(bets);
-    if(R){ for(const [k, t] of Object.entries(R.tomb || {})) if(!(TOMB[k] >= t)) TOMB[k] = t; }
-    bets = mergeIn(bets, R && Array.isArray(R.bets) ? R.bets.filter(x => x && Array.isArray(x.legs)) : [], TOMB);
-    const other = await pullOtherSports(g);
-    lsW(BETS_KEY, bets); lsW(TOMB_KEY, TOMB);
-    if(!R || JSON.stringify(R.bets || []) !== JSON.stringify(bets) || JSON.stringify(R.tomb || {}) !== JSON.stringify(TOMB)){
-      const content = JSON.stringify({ app: "ufc-line-shop", v: 1, at: new Date().toISOString(), bets, tomb: TOMB, bank: potBank() });
-      const w = await fetch(U, { method: "PATCH", headers: Object.assign({ "Content-Type": "application/json" }, H), body: JSON.stringify({ files: { [SYNC_FILE]: { content } } }) });
-      if(!w.ok) throw new Error("GitHub " + w.status); }
-    syncMsg = "☁ synced " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    if(before !== JSON.stringify(bets) || other) potChanged();
-  } catch(e){ syncMsg = "☁ sync failed (" + (e.message || e) + ")"; }
-  syncing = false; renderPot(); }
-
-// ---- the LINE SHOP bar: the pot + what's riding, on every sport's page
-const usdX = x => { const a = Math.abs(x), r = Math.round(a * 100) / 100; return (x < 0 ? "−" : "") + "$" + (Number.isInteger(r) ? r.toLocaleString() : r.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })); };
-function renderPot(){ const c = $("potChip"); if(!c) return; const pot = potSafe(), B = potBank(), AB = potAll().map(x => x.b), open = AB.filter(b => b.result === "pending").length;
-  const mon = (d => { d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); })(new Date());
-  const W = AB.filter(b => b.st >= mon && ["win", "loss", "push"].includes(b.result)), wpl = W.reduce((a, b) => { const u = usdOf(b, B), d = amDec(b.odds) || 1; return a + (b.result === "win" ? u * (d - 1) : b.result === "loss" ? -u : 0); }, 0);
-  const st = (cls, lbl, v, tip) => `<div class="stat ${cls}" title="${tip}"><small>${lbl}</small><b>${v}</b></div>`;
-  c.innerHTML = st("big", "Bankroll", pot != null ? usdX(pot) : '<a href="../nfl-td-predictor/nfl-td-predictor.html">set it</a>', "one pot for every sport" + (syncCfg() && syncMsg ? " · " + syncMsg : ""))
-    + (pot != null && W.length ? st("", "This week", `<span class="${wpl > 0.004 ? "up" : wpl < -0.004 ? "dn" : ""}">${wpl >= 0 ? "+" : ""}${usdX(wpl)}</span>`, "won / lost on bets settled since Monday — every sport") : "")
-    + st("", "Bets", AB.length, "every bet you've logged — every sport") + st("", "Open", open, "bets still waiting on a result — every sport");
-  try { localStorage.setItem("sims_chip", c.innerHTML); } catch(e){} }
-// ---- look: light (default) or 🌙 dim — one setting for every sport (same site, same storage)
-function setTheme(v){ document.documentElement.dataset.theme = v; const b = $("themeBtn"); if(b){ b.textContent = v === "dim" ? "☀" : "🌙"; b.title = v === "dim" ? "switch to light" : "switch to dim"; }
-  try { localStorage.setItem("sims_theme", v); } catch(e){} }
-setTheme(document.documentElement.dataset.theme === "dim" ? "dim" : "light");
-$("themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "dim" ? "light" : "dim");
-window.addEventListener("storage", e => { if(e.key === "sims_theme" && e.newValue && e.newValue !== document.documentElement.dataset.theme) setTheme(e.newValue); });
-function potChanged(){ renderPot(); if(!$("betcard").classList.contains("hidden")) renderBets(); if(ODDS && scanRows.length) { renderScan(); renderSlip(); } }
-window.addEventListener("storage", e => {
-  if(e.key === BETS_KEY){ const L = lsJ(BETS_KEY, null); if(Array.isArray(L)){ bets = L; TOMB = lsJ(TOMB_KEY, {}) || {}; potChanged(); } }
-  else if(e.key === "nfltd_bank" || Object.values(POT_KEYS).includes(e.key)) potChanged();
-  else if(e.key === "nfltd_sync") syncSoon(300); });
-document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible"){ syncSoon(500); autoSettle(); } });
-renderPot(); syncSoon(800); setTimeout(autoSettle, 1500); setInterval(autoSettle, 15 * 60e3);
-
-// ---- ⚡ BETS: the tab's front screen, like the NFL / NBA / NHL apps (2026-11-20, user: "make it like the other tabs as in it pulls
-// odds and give me links with stake amount"). Same engine as "This week" (scanRows: consensus mode by default, the backtested
-// rule), shown as one card per bet: the price at your best book, the stake in dollars from the pot, a 📲 button that opens that
-// book's bet slip (links come with ⚡ Pull — The Odds API's includeLinks/includeSids, no extra credits; BetMGM / Caesars need
-// your state from the NFL page's odds settings), and Log bet. 🥊 Sim = the old dashboard; 📓 Bet log; 🔎 All fights = the full scanner.
-const BOOK_HOME = { fanduel: "https://sportsbook.fanduel.com/", draftkings: "https://sportsbook.draftkings.com/", betmgm: "https://sports.betmgm.com/",
-  williamhill_us: "https://sportsbook.caesars.com/", fanatics: "https://sportsbook.fanatics.com/", espnbet: "https://espnbet.com/", hardrockbet: "https://app.hardrock.bet/",
-  betrivers: "https://www.betrivers.com/", ballybet: "https://www.ballybet.com/", betparx: "https://www.betparx.com/" };
-const escA = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-function betLink(r, k, book){
-  const st = String((lsJ("nfltd_oddscfg", {}) || {}).state || "").toLowerCase().trim();
-  let u = r.f.links && r.f.links[book] && r.f.links[book][k];
-  if(u && u.includes("{state}")) u = st ? u.split("{state}").join(st) : null;
-  if(u && /\{[a-zA-Z]+\}/.test(u)) u = null; // other placeholders (BetRivers' stake / pick type): not a usable slip link
-  if(u) return `<a class="mini-btn bvopen" href="${escA(u)}" target="_blank" rel="noopener" title="opens ${escA(bookName(book))} with this bet in the slip — check the price there, then type the stake">📲 Open on ${escA(bookName(book))}</a>`;
-  const h = BOOK_HOME[book], why = r.f.links && r.f.links[book] ? "BetMGM / Caesars links need your state (set it once on the NFL page: ⚙ odds settings)" : "no bet-slip link for this price yet — ⚡ Pull fresh lines gets one";
-  return h ? `<a class="mini-btn bvopen ghost" href="${h}" target="_blank" rel="noopener" title="${escA(why)}">🔎 Open ${escA(bookName(book))}</a>` : `<span class="dimtxt">bet it at ${escA(bookName(book))}</span>`;
-}
-function paintPull(){ for(const p of document.querySelectorAll(".pullbox")) p.innerHTML = pullHtml(); }
-document.addEventListener("click", e => { const b = e.target && e.target.closest ? e.target.closest(".pullnow") : null; if(b) pullLive(); });
-function renderBetsView(){ const L = $("bvList"); if(!L) return;
-  if(!ODDS){ $("bvHead").innerHTML = "Loading lines…"; L.innerHTML = ""; return; }
-  const takes = scanRows.filter(r => r.take && r.side), checking = CONS() && C20.state === "loading" && scanRows.some(r => r.cpending);
-  const h = (Date.now() - new Date(ODDS.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + "h" : Math.round(h / 24) + " days";
-  const mine = myBooks ? myBooks.map(bookName).join(", ") : "every US book";
-  $("bvHead").innerHTML = `<b>${checking ? "Checking Classic 2.0…" : `${takes.length} bet${takes.length === 1 ? "" : "s"} this week`}</b>
-    <div>${scanRows.filter(r => r.side).length} UFC fights scored · your books: ${escA(mine)} · lines ${ODDS.live ? "pulled" : "updated"} ${ago} ago <span class="pullbox">${pullHtml()}</span></div>
-    ${SP.pot == null ? `<div class="warnline">Set your bankroll once (any sport's 💰 Bankroll) to see stakes in dollars.</div>` : ""}`;
-  const card = r => { const k = r.pick, s = r.side[k], x = SP.m.get(r.id), lg = loggedFor(r), kind = (r.cv && r.cv.kind) || "take";
-    const when = r.t.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const stake = lg ? `<span class="ok">Logged ✓ ${lg.usd != null ? money(lg.usd) : ""}</span>` : SP.pot == null || !x ? `Stake <b>${r.stake.toFixed(1)}%</b> of bankroll`
-      : x.got >= x.want ? `Stake <b>$${x.got}</b>` : x.got > 0 ? `Stake <b>$${x.got}</b> <span class="dimtxt">(bankroll limit; full $${x.want})</span>` : `<b class="miss">No room</b> <span class="dimtxt">— open bets already fill your ${money(SP.pot)} bankroll</span>`;
-    return `<article class="bvcard"><div class="bvtop"><span class="bvtag ${kind}">${kind === "fade" ? "FADE" : kind === "dog" ? "SHORT DOG" : "TAKE"}</span><span class="dimtxt">${when}</span></div>
-      <div class="bvwho"><b>${escA(r.name[k])}</b> <span class="dimtxt">to beat ${escA(r.name[1 - k])}</span></div>
-      <div class="bvnums"><span class="bvprice">${decAm(s.d)}</span> at <b>${escA(bookName(s.book))}</b> <span class="dimtxt">· fair ${pct(s.p)} · edge ${sgnPct(s.ev)}</span></div>
-      <div class="bvstake">${stake}</div>
-      <div class="bvbtns">${betLink(r, k, s.book)}${lg ? "" : `<button class="mini-btn" data-bvlog="${r.id}">Log bet</button>`}</div>
-      ${r.cnote ? `<div class="sub bvwhy">${r.cnote}</div>` : ""}</article>`; };
-  L.innerHTML = takes.length ? takes.sort((a, b) => a.t - b.t).map(card).join("")
-    : checking ? "" : `<p class="dimtxt">No bets right now — nothing on the UFC board passes the rule at your books. New lines come in through the week (⚡ Pull fresh lines).</p>`;
-  const pass = scanRows.filter(r => r.side && !r.take && !r.cpending);
-  $("bvPassBox").classList.toggle("hidden", !pass.length);
-  $("bvPassSum").textContent = `${pass.length} fight${pass.length === 1 ? "" : "s"} passed — why`;
-  $("bvPass").innerHTML = pass.map(r => `<div><b>${escA(surname(r.name[0]))}–${escA(surname(r.name[1]))}</b> <span class="dimtxt">${r.t.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span> · ${r.cnote || (r.xdiv ? "weight-class change — untested, no bet" : "no edge at your books")}</div>`).join("");
-}
-$("bvList").addEventListener("click", e => { const b = e.target && e.target.closest ? e.target.closest("button[data-bvlog]") : null; if(!b) return;
-  const r = scanRows.find(x => x.id === b.dataset.bvlog); if(!r || !r.take) return; const s = r.side[r.pick], x = SP.m.get(r.id);
-  logBet([{ fid: r.id, k: r.pick, name: r.name[r.pick], vs: r.name[1 - r.pick], t: r.f.t, price: s.d }], s.d, s.book, r.stake, x ? (x.got || x.want) : null);
-  renderScan(); });
-let bvStarted = false;
-async function startBets(){ if(bvStarted && ODDS) return renderBetsView(); bvStarted = true; renderBetsView();
-  const O = await loadOdds(); if(!O){ $("bvHead").textContent = "Couldn't load the odds feed — check your internet connection."; bvStarted = false; return; }
-  buildScan(); if(pullDue(O)) pullLive(); }
-function setView(v){ const on = v !== "sim"; document.body.classList.toggle("bv-on", on);
-  for(const b of document.querySelectorAll("#lsTabs button[data-v]")) b.classList.toggle("on", b.dataset.v === (on ? "bets" : "sim"));
-  try { localStorage.setItem("ufcs_view", on ? "bets" : "sim"); } catch(e){}
-  if(on) startBets(); }
-$("lsTabs").addEventListener("click", e => { const b = e.target && e.target.closest ? e.target.closest("button[data-v]") : null; if(!b) return; const v = b.dataset.v;
-  if(v === "log") $("mb").click(); else if(v === "all") openScan(); else setView(v); });
-{ const v = (() => { try { return localStorage.getItem("ufcs_view") || "bets"; } catch(e){ return "bets"; } })();
-  document.body.classList.toggle("bv-on", v !== "sim"); setTimeout(() => setView(v), 0); } // after the rest of the script has run (Classic 2.0 block)
-setInterval(() => { if(document.body.classList.contains("bv-on") && document.visibilityState === "visible" && ODDS && Date.now() - ODDS._at > 30 * 60e3){ ODDS._at = 0; loadOdds().then(O => { if(O){ buildScan(); if(pullDue(O)) pullLive(); } }); } }, 5 * 60e3);
 const closeModal = id => $(id).classList.add("hidden");
 $("wkclose").addEventListener("click", () => closeModal("wkcard"));
 $("betclose").addEventListener("click", () => closeModal("betcard"));
@@ -2619,7 +2288,7 @@ function consInfo(){
 function consCall(r, sur){ // the Call cell of a scanner row in consensus mode
   if(r.cpending) return `<span class="dimtxt">…</span><div class="sub">checking Classic 2.0</div>`;
   const k = r.pick, x = r.side[k];
-  if(r.take) return `<span class="ok">✅ ${r.cv.kind === "fade" ? "FADE → " : r.cv.kind === "dog" ? "SHORT DOG " : "TAKE "}${sur(k)}</span>${r.agree ? ` <span class="badge early" title="The main sim's own edge on this side is not negative">both agree</span>` : ""}<div class="sub">${r.cnote} · stake ${stakeTxt(r)} at ${bookName(x.book)}</div>`;
+  if(r.take) return `<span class="ok">✅ ${r.cv.kind === "fade" ? "FADE → " : r.cv.kind === "dog" ? "SHORT DOG " : "TAKE "}${sur(k)}</span>${r.agree ? ` <span class="badge early" title="The main sim's own edge on this side is not negative">both agree</span>` : ""}<div class="sub">${r.cnote} · stake ${r.stake.toFixed(1)}% at ${bookName(x.book)}</div>`;
   return `<span class="dimtxt">pass</span><div class="sub">${r.cv.back != null && r.xdiv ? `weight-class change (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.cv.back != null && r.noBook ? "not offered at your books" : r.cnote}</div>`;
 }
 // calculator: one line with Classic 2.0's chance and its call at the moneylines in the table
