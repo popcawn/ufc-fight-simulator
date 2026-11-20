@@ -58,7 +58,49 @@
   .dtabs button,.dtabs a{background:none;border:0;border-bottom:2px solid transparent;padding:8px 14px 10px;font-weight:700;font-size:15px;color:var(--ink3);cursor:pointer;white-space:nowrap;text-decoration:none}
   .dtabs button:hover,.dtabs a:hover{color:var(--ink)}
   .dtabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
-  .wrap{max-width:760px;margin:0 auto;padding:20px clamp(14px,2.6vw,32px) 90px}
+  .wrap{max-width:1440px;margin:0 auto;padding:20px clamp(14px,2.6vw,32px) 90px}
+  #vLog{max-width:860px}
+  /* the pull: one big button (same as the NHL / NBA / NFL pages) */
+  .hero{background:linear-gradient(135deg,rgba(47,111,228,.12),rgba(106,85,240,.08)),var(--panel);border:1px solid rgba(47,111,228,.30);border-radius:22px;padding:18px 20px;box-shadow:var(--shadow)}
+  .herorow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .herorow>div:not(.herometa){flex:1 1 320px;min-width:0}
+  .hero .btn.big{font-size:17px;padding:14px 26px;border-radius:14px}
+  .herot{font-family:var(--head);font-size:22px;font-weight:700;letter-spacing:-.3px;line-height:1.25}
+  .herometa{margin-left:auto;text-align:right;font-size:13px;color:var(--ink3);line-height:1.5}
+  .hero details>summary{color:var(--ink3);cursor:pointer}
+  /* the bets to take, as cards */
+  .cardstat{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;font-family:var(--head);font-weight:900;font-size:16px;letter-spacing:.05em;padding:9px 14px;border-radius:12px;margin:4px 0 9px}
+  .cardstat span{font-family:var(--sans);font-weight:500;letter-spacing:0;font-size:12.5px;color:var(--ink2)}
+  .cardstat.done{background:var(--goodbg);border:1px solid var(--good);color:var(--good)}
+  .cardstat.new{background:var(--tint);border:1px solid var(--accent);color:var(--accent)}
+  .cardstat.none{background:var(--panel2);border:1px solid var(--line2);color:var(--ink2)}
+  .bgame{display:flex;align-items:center;gap:10px;margin:18px 0 9px;font-size:12.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3)}
+  .bgame:after{content:"";flex:1;height:1px;background:var(--line2)}
+  .bcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  .bcard{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px 15px 12px 19px;box-shadow:var(--shadow);overflow:hidden;transition:transform .12s ease,border-color .12s ease}
+  .bcard:hover{transform:translateY(-2px);border-color:var(--line2)}
+  .bcard:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--tc,var(--accent))}
+  .bcard.new{border-color:rgba(47,111,228,.55);box-shadow:0 0 0 1px rgba(47,111,228,.2) inset,var(--shadow)}
+  .bc1{display:flex;align-items:center;gap:8px;min-width:0}
+  .bcwho{font-weight:800;font-size:17px;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .newtag{background:var(--accent);color:var(--onacc);font-size:10.5px;font-weight:900;letter-spacing:.07em;border-radius:6px;padding:2px 7px;flex:0 0 auto;margin-left:auto}
+  .newtag.dog{background:var(--warn)} .newtag.fade{background:var(--accent2)}
+  .bcmkt{color:var(--ink2);font-size:14px;margin-top:1px}
+  .bc2{display:flex;align-items:flex-end;gap:10px;margin-top:8px}
+  .bcodds{font-family:var(--mono);font-weight:700;font-size:24px;letter-spacing:-.5px;line-height:1}
+  .bktag{font-family:var(--sans);font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:1px 5px;border-radius:5px;border:1px solid var(--line2);color:var(--ink2);margin-left:6px;vertical-align:5px}
+  .bcbet{margin-left:auto;text-align:right;line-height:1.1}
+  .bcbet small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3)}
+  .bcbet b{font-family:var(--mono);font-size:21px;color:var(--good)} .bcbet b.no{color:var(--bad);font-size:15px}
+  .bcbar{margin-top:11px;height:6px;border-radius:99px;background:var(--line);position:relative;overflow:hidden}
+  .bcbar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .bcbar u{position:absolute;top:0;bottom:0;width:2px;background:var(--ink)}
+  .bcwhy{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:12.5px;color:var(--ink3)}
+  .bcwhy b{font-family:var(--mono);font-weight:600;color:var(--ink2)} .bcwhy b.ev-pos{color:var(--good)}
+  .bclink{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .statussel,.ss{background:var(--panel);color:var(--ink);border:1px solid var(--line2);border-radius:10px;font-weight:600;font-size:13px;padding:5px 11px;cursor:pointer;text-decoration:none;display:inline-block}
+  .statussel:hover,.ss:hover{border-color:var(--accent)} a.statussel{color:var(--accent)}
+  .bclink .statussel,.bclink .ss{font-size:13px;padding:5px 11px}
   /* ⚡ Bets */
   .head h1{font-family:var(--head);font-size:24px;letter-spacing:-.4px;margin:0 0 2px}
   .head .sub{color:var(--ink3);font-size:13.5px;line-height:1.6}
@@ -101,6 +143,8 @@
     .stat{flex:1 1 0;min-width:0;padding:4px 7px} .stat small{font-size:9px;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis} .stat b,.stat.big b{font-size:14px}
     .dtabs{padding:0 6px} .dtabs button,.dtabs a{padding:8px 10px 9px;font-size:14px}
     .wrap{padding:14px 12px 90px}
+    .hero{padding:14px;border-radius:18px} .hero .btn.big{width:100%} .herometa{margin-left:0;text-align:left} .herot{font-size:19px}
+    .bcards{grid-template-columns:1fr} .herodesc{display:none}
   }
 </style>
 </head>
@@ -115,11 +159,21 @@
 </header>
 
 <main class="wrap" id="vBets">
-  <div class="head"><h1 id="bHead">Loading UFC lines…</h1><div class="sub" id="bSub"></div></div>
-  <details class="books" id="booksBox"><summary id="booksSum">Your books</summary><div class="chips" id="bookChips"></div></details>
-  <div id="bList"></div>
+  <div class="hero">
+    <div class="herorow">
+      <button class="btn big" id="pullBtn">⚡ Pull UFC fights</button>
+      <div><div class="herot" id="bHead">Loading UFC lines…</div><div class="muted herodesc" style="font-size:13.5px">Every UFC fight on the board, priced at every US book — the bets where Classic 2.0 and the main sim agree, with links that open them in your book.</div><div id="pullMsg" class="muted" style="font-size:13px"></div></div>
+      <div class="herometa"><span id="oddsLeft"></span><br><span id="builtLbl"></span></div>
+    </div>
+    <details id="oddsCfg" style="margin-top:10px;font-size:13px"><summary>odds settings</summary>
+      <div style="margin-top:6px;line-height:1.5"><b>My sportsbooks</b> <span class="muted">— you see the best price among these; every other book is "the market"</span>
+        <div class="chips" id="bookChips"></div>
+        <div class="muted" style="margin-top:4px">The Odds API key and your state (BetMGM / Caesars put it in their bet-slip links) are set once on the NFL page — every sport uses them. A pull costs 4 credits; the lines also refresh by themselves 3 times a day, and opening this tab pulls when they're over 2 hours old.</div></div>
+    </details>
+  </div>
+  <div id="bList" style="margin-top:14px"></div>
   <details class="pass" id="passBox" hidden><summary id="passSum"></summary><div id="passList"></div></details>
-  <div class="note">A bet shows when <b>Classic 2.0 and the main sim agree</b> — the one UFC rule that made money: +21.5% on 221 bets at opening lines, every year 2022–26 up (+19.9% at closing lines). Line shopping alone lost at your books, so the price only matters once the models pick a side. Stakes are dollars from your LINE SHOP bankroll (¼-Kelly, max 3%; short underdogs and fades smaller), held to your 💰 bankroll limit. 📲 opens the book's bet slip with the fight in it — check the price, type the stake, then tap <b>Log bet</b>. Bets settle themselves from ESPN's results.</div>
+  <div class="note">A bet shows when <b>Classic 2.0 and the main sim agree</b> — the one UFC rule that made money: +21.5% on 221 bets at opening lines, every year 2022–26 up (+19.9% at closing lines). Line shopping alone lost at your books, so the price only matters once the models pick a side. Stakes are dollars from your LINE SHOP bankroll (¼-Kelly, max 3%; short underdogs and fades smaller), held to your 💰 bankroll limit. 📲 opens the book's bet slip with the fight in it — check the price, type the stake, then tap <b>📓 Log</b>. Bets settle themselves from ESPN's results.</div>
 </main>
 
 <main class="wrap" id="vLog" hidden>
@@ -199,7 +253,7 @@ async function pullLive(){
           for(const [pt, v] of Object.entries(t)) if(v[0] > 1 && v[1] > 1) (x.tot[bk.key] ||= {})[pt] = v; } }
       ev.push(x); }
     if(!lsW(LIVE_KEY, { at: Date.now(), rem, titles, ev })) throw new Error("this browser's storage is full");
-    pullMsg = isFinite(rem) ? `${rem.toLocaleString()} API credits left` : "";
+    pullMsg = ""; if(isFinite(rem)) lsW("nfltd_oddsleft", rem); // the same count the NFL page shows
     await loadOdds();
   } catch(e){ pullMsg = `Pull failed: ${e.message || e} — showing the bot's lines.`; }
   pulling = false; await scan();
@@ -296,38 +350,49 @@ function slipLink(r){ const st = String((lsJ("nfltd_oddscfg", {}) || {}).state |
   let u = r.f.links && r.f.links[r.book] && r.f.links[r.book][r.k];
   if(u && u.includes("{state}")) u = st ? u.split("{state}").join(st) : null;
   if(u && /\{[a-zA-Z]+\}/.test(u)) u = null; // other placeholders (BetRivers' stake / pick type): not a usable slip link
-  if(u) return `<a class="btn" href="${esc(u)}" target="_blank" rel="noopener" title="opens ${esc(bookName(r.book))} with this bet in the slip — check the price, type the stake">📲 Open on ${esc(bookName(r.book))}</a>`;
-  const h = BOOK_HOME[r.book], why = r.f.links && r.f.links[r.book] ? "BetMGM / Caesars links need your state — set it once on the NFL page (odds settings)" : "no bet-slip link for this price yet — ⚡ Pull fresh lines gets one";
-  return h ? `<a class="btn sec" href="${h}" target="_blank" rel="noopener" title="${esc(why)}">🔎 Open ${esc(bookName(r.book))}</a>` : `<span class="muted">bet it at ${esc(bookName(r.book))}</span>`; }
+  if(u) return `<a class="statussel" href="${esc(u)}" target="_blank" rel="noopener" title="opens ${esc(bookName(r.book))} with this bet in the slip — check the price, type the stake">📲 Open on ${esc(bookName(r.book))}</a>`;
+  const h = BOOK_HOME[r.book], why = r.f.links && r.f.links[r.book] ? "BetMGM / Caesars links need your state — set it once on the NFL page (odds settings)" : "no bet-slip link for this price yet — ⚡ Pull UFC fights gets one";
+  return h ? `<a class="statussel" href="${h}" target="_blank" rel="noopener" title="${esc(why)}">🔎 Open ${esc(bookName(r.book))}</a>` : `<span class="muted">bet it at ${esc(bookName(r.book))}</span>`; }
+const KIND = { take: ["TAKE", "var(--accent)"], dog: ["SHORT DOG", "var(--warn)"], fade: ["FADE", "var(--accent2)"] };
+const cardStat = (cls, big, small) => `<div class="cardstat ${cls}">${big}${small ? ` <span>${small}</span>` : ""}</div>`;
 function renderBets(){
   SP = stakePlan(ROWS);
-  if(!ODDS){ $("bHead").textContent = "Couldn't load the UFC lines"; $("bSub").textContent = "Check your connection — the lines live on popcawn.github.io."; return; }
-  const takes = ROWS.filter(r => r.take), scored = ROWS.filter(r => !r.pending && !r.unscored).length;
-  const h = (Date.now() - Date.parse(ODDS.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + " h" : Math.round(h / 24) + " days";
-  $("bHead").textContent = ENGINE === "loading" ? "Checking the fights…" : ENGINE === "failed" ? "The models didn't load" : `${takes.length} bet${takes.length === 1 ? "" : "s"} this week`;
-  $("bSub").innerHTML = `${ENGINE === "ready" ? `${scored} UFC fights scored · ` : ""}lines ${ODDS.live ? "pulled" : "updated"} ${ago} ago from ${Object.keys(ODDS.books || {}).length} US books `
-    + (pulling ? `<span class="muted">· ⚡ pulling every book's lines…</span>` : `<button class="btn sec" id="pullBtn" style="padding:4px 11px;font-size:12.5px;margin-left:4px" title="every US book's moneylines right now, with your Odds API key (4 credits)">⚡ Pull fresh lines</button>`)
-    + (pullMsg ? ` <span class="muted">${esc(pullMsg)}</span>` : "")
-    + (ENGINE === "failed" ? `<div class="warn">The original sim or Classic 2.0 couldn't be loaded in the background — reload the page. No bets are shown without both.</div>` : "")
-    + (SP.pot == null ? `<div class="warn">Set your bankroll once (any sport's 💰 Bankroll) to see stakes in dollars.</div>` : "");
+  const pb = $("pullBtn"); pb.disabled = pulling; pb.textContent = pulling ? "⚡ Pulling…" : "⚡ Pull UFC fights";
+  const left = ODDS && isFinite(ODDS.liveRem) ? ODDS.liveRem : lsJ("nfltd_oddsleft", null);
+  $("oddsLeft").textContent = left != null && isFinite(left) ? `${Number(left).toLocaleString()} credits left` : "";
+  $("pullMsg").textContent = pullMsg;
+  if(!ODDS){ $("bHead").textContent = "Couldn't load the UFC lines"; $("builtLbl").textContent = ""; $("bList").innerHTML = cardStat("none", "NO LINES", "check your connection — the lines live on popcawn.github.io"); return; }
+  const up = new Date(ODDS.updated);
+  $("builtLbl").textContent = `lines ${up.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${up.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${ODDS.live ? " (your pull)" : ""}`;
+  // the next card: its date and how many fights it has
+  const base = ENGINE === "ready" ? ROWS.filter(r => !r.unscored) : ROWS; // once scored, other promotions / debut-only bouts don't set the card
+  const days = new Map(); for(const r of base){ const k = r.t.toDateString(); days.set(k, (days.get(k) || 0) + 1); }
+  const first = base[0], nDay = first ? days.get(first.t.toDateString()) : 0, dayLbl = first ? first.t.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) : null;
+  $("bHead").textContent = first ? `${dayLbl} · ${nDay} fight${nDay === 1 ? "" : "s"}${days.size > 1 ? ` · ${base.length} on the board` : ""}` : "No UFC fights on the board";
   const all = Object.keys(ODDS.books || {}).sort((a, b) => bookName(a).localeCompare(bookName(b)));
-  $("booksSum").textContent = `Your books: ${myBooks ? myBooks.map(bookName).join(", ") : "every US book"} — change`;
   $("bookChips").innerHTML = all.map(k => `<button class="chip ${usableBook(k) ? "on" : ""}" data-book="${k}">${esc(bookName(k))}</button>`).join("");
-  const card = r => { const x = SP.m.get(r.id), lg = loggedFor(r);
+  if(ENGINE !== "ready"){ $("bList").innerHTML = ENGINE === "failed" ? cardStat("none", "THE MODELS DIDN'T LOAD", "the original sim or Classic 2.0 couldn't load in the background — reload the page; no bets are shown without both")
+      : cardStat("none", "CHECKING THE FIGHTS…", "Classic 2.0 and the main sim are scoring every fight"); $("passBox").hidden = true; return; }
+  const takes = ROWS.filter(r => r.take), un = takes.filter(r => !loggedFor(r)), nIn = takes.length - un.length;
+  const want = r => { const x = SP.m.get(r.id); return x ? x.got : 0; }, tot = un.reduce((a, r) => a + want(r), 0);
+  const card = r => { const x = SP.m.get(r.id), [lbl, col] = KIND[r.kind] || KIND.take, imp = 1 / r.d, w = v => Math.max(0, Math.min(100, v * 100)).toFixed(1);
     const when = r.t.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const stake = lg ? `<span class="up">Logged ✓ ${lg.usd != null ? usd(+lg.usd) : ""}</span>` : SP.pot == null || !x ? `Stake <b>${r.stake.toFixed(1)}%</b> of bankroll`
-      : x.got >= x.want ? `Stake <b>$${x.got}</b>` : x.got > 0 ? `Stake <b>$${x.got}</b> <span class="muted">(bankroll limit; full $${x.want})</span>` : `<span class="dn"><b style="color:var(--bad)">No room</b></span> <span class="muted">— open bets already fill your ${usd(SP.pot)} bankroll</span>`;
-    return `<article class="card"><div class="ctop"><span class="tag ${r.kind}">${r.kind === "fade" ? "FADE" : r.kind === "dog" ? "SHORT DOG" : "TAKE"}</span><span>${when}</span></div>
-      <div class="who">${esc(r.name[r.k])} <span>to beat ${esc(r.name[1 - r.k])}</span></div>
-      <div class="nums"><span class="price">${decAm(r.d)}</span> at <b>${esc(bookName(r.book))}</b> · fair ${pct(r.p)} · edge ${sgnPct(r.ev)}</div>
-      <div class="stake">${stake}</div>
-      <div class="btns">${slipLink(r)}${lg ? "" : `<button class="btn sec" data-log="${r.id}">Log bet</button>`}</div>
-      <div class="why">${r.why}</div></article>`; };
-  $("bList").innerHTML = ENGINE !== "ready" ? "" : takes.length ? takes.map(card).join("")
-    : `<div class="card"><b>No bets right now.</b><div class="why">Nothing on the UFC board passes the rule at your books. Lines come in through the week — check back, or ⚡ Pull fresh lines.</div></div>`;
-  const pass = ROWS.filter(r => !r.pending && !r.take);
-  $("passBox").hidden = !pass.length || ENGINE !== "ready";
-  const nUn = pass.filter(r => r.unscored).length, nPass = pass.length - nUn;
+    const stake = SP.pot == null || !x ? `<b>${r.stake.toFixed(1)}%</b>` : x.got >= x.want ? `<b>$${x.got}</b>` : x.got > 0 ? `<b title="bankroll limit — full stake $${x.want}">$${x.got}</b>` : `<b class="no" title="open bets already fill your ${usd(SP.pot)} bankroll">no room</b>`;
+    return `<article class="bcard new" style="--tc:${col}"><div class="bc1"><span class="bcwho">${takes.indexOf(r) ? "" : "★ "}${esc(r.name[r.k])}</span><span class="newtag ${r.kind}">${lbl}</span></div>
+      <div class="bcmkt">to beat ${esc(r.name[1 - r.k])} <span class="muted">· ${when}</span></div>
+      <div class="bc2"><span class="bcodds">${decAm(r.d)}<span class="bktag">${esc(bookName(r.book))}</span></span><span class="bcbet"><small>Bet${x && x.got > 0 && x.got < x.want ? " (limit)" : ""}</small>${stake}</span></div>
+      <div class="bcbar" title="bar = its chance (${pct(r.p)}) · line = the chance the price pays for (${pct(imp)})"><i style="width:${w(r.p)}%"></i><u style="left:${w(imp)}%"></u></div>
+      <div class="bcwhy"><span>chance <b>${pct(r.p)}</b> · price <b>${pct(imp)}</b></span><span>EV <b class="ev-pos">${sgnPct(r.ev)}</b></span></div>
+      <div class="bcwhy"><span>${r.why}</span></div>
+      <div class="bclink">${slipLink(r)}<button class="ss" data-log="${r.id}">📓 Log</button></div></article>`; };
+  const byBook = new Map(); for(const r of un) (byBook.get(r.book) || byBook.set(r.book, []).get(r.book)).push(r);
+  $("bList").innerHTML = (un.length ? cardStat("new", `🆕 ${un.length} NEW BET${un.length > 1 ? "S" : ""}`, `${SP.pot != null ? `$${tot} to bet` : "stakes in % — set your bankroll in any sport"}${nIn ? ` · ${nIn} already logged` : ""} · best bet first`)
+      : takes.length ? cardStat("done", "✅ NO NEW BETS", `${takes.length > 1 ? `all ${takes.length} bets are` : "the bet is"} already in your log`)
+      : cardStat("none", "NO BETS THIS WEEK", "nothing clears the bar at your books"))
+    + (un.length ? "" : `<div class="muted" style="font-size:14px">${takes.length ? "They're in 📓 Bet log." : "Classic 2.0 and the main sim don't agree on an edge at your books right now — that's the normal case. New lines come in through the week."}</div>`)
+    + [...byBook].map(([b, L]) => `<div class="bgame">${esc(bookName(b))} · ${L.length} bet${L.length > 1 ? "s" : ""}${SP.pot != null ? ` · $${L.reduce((a, r) => a + want(r), 0)}` : ""}</div><div class="bcards">${L.map(card).join("")}</div>`).join("");
+  const pass = ROWS.filter(r => !r.pending && !r.take), nUn = pass.filter(r => r.unscored).length, nPass = pass.length - nUn;
+  $("passBox").hidden = !pass.length;
   $("passSum").textContent = `${nPass} fight${nPass === 1 ? "" : "s"} passed${nUn ? ` · ${nUn} not scored (debut, inactive or not UFC)` : ""} — why`;
   $("passList").innerHTML = pass.sort((a, b) => (a.unscored - b.unscored) || (a.t - b.t)).map(r => `<div><b>${esc(surname(r.name[0]))}–${esc(surname(r.name[1]))}</b> ${r.t.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${r.why}</div>`).join("");
 }
