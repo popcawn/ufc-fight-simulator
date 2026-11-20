@@ -4,17 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LINE SHOP</title>
+<script>try{ if(localStorage.getItem('sims_theme')==='dim') document.documentElement.dataset.theme='dim'; }catch(e){}</script>
 <style>
+  @font-face{font-family:Inter;src:url(/fonts/inter-latin.woff2) format("woff2");font-weight:100 900;font-display:optional}
+  @font-face{font-family:"Space Grotesk";src:url(/fonts/spacegrotesk-latin.woff2) format("woff2");font-weight:300 700;font-display:optional}
+  @font-face{font-family:"JetBrains Mono";src:url(/fonts/jetbrainsmono-latin.woff2) format("woff2");font-weight:100 800;font-display:optional}
+  /* LINE SHOP's look (2026-11-20, user: "make the ufc tab look like the other tabs"): light by default, 🌙 dim (sims_theme, one
+     setting for every sport). The page keeps its own variable names: --gold is the accent (buttons, prices), --redtxt / --bluetxt
+     the corner colors as text. The Classic v1 / 2.0 pages (frames) keep their own dark look. */
   :root{
-    --bg:#0e0f13; --panel:#171922; --panel2:#1e2130; --line:#2b2f42;
-    --text:#e8eaf2; --dim:#8b91a7; --red:#e23b3b; --blue:#3b6fe2;
-    --gold:#d4a843; --green:#3ec97e; --gap:12px;
+    --bg:#eef2f8; --panel:#ffffff; --panel2:#f4f7fb; --line:#e2e8f0; --line2:#d2dbe7;
+    --text:#0f1726; --ink:#0f1726; --ink2:#3b485c; --dim:#66758b; --ink3:#66758b;
+    --red:#d93a48; --blue:#2f6fe4; --redtxt:#c62f3d; --bluetxt:#2459c2;
+    --gold:#2f6fe4; --onacc:#ffffff; --green:#0b9a5e; --warn:#a86f00; --accent:#2f6fe4; --accent2:#6a55f0;
+    --tint:rgba(47,111,228,.10); --goodtint:rgba(11,154,94,.12); --warntint:rgba(168,111,0,.12); --badtint:rgba(217,58,72,.10);
+    --topbg:rgba(255,255,255,.86); --shadow:0 1px 2px rgba(15,23,38,.05), 0 10px 28px -16px rgba(15,23,38,.22);
+    --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --head:"Space Grotesk",Inter,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; --gap:12px;
+  }
+  :root[data-theme="dim"]{
+    --bg:#121822; --panel:#1b2332; --panel2:#232d40; --line:#2b3649; --line2:#38465e;
+    --text:#eef3fa; --ink:#eef3fa; --ink2:#b6c2d4; --dim:#8b99ae; --ink3:#8b99ae;
+    --red:#ff6b6b; --blue:#5aa2ff; --redtxt:#ff8a8a; --bluetxt:#8cbcff;
+    --gold:#5aa2ff; --onacc:#06121f; --green:#2fd38c; --warn:#ffc24b; --accent:#5aa2ff; --accent2:#8f84ff;
+    --tint:rgba(90,162,255,.12); --goodtint:rgba(47,211,140,.13); --warntint:rgba(255,194,75,.13); --badtint:rgba(255,107,107,.12);
+    --topbg:rgba(18,24,34,.86); --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 30px -16px rgba(0,0,0,.65);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
-  body{background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif; font-size:13px;
+  body{background:var(--bg); color:var(--text); font-family:var(--sans); font-size:13.5px; -webkit-font-smoothing:antialiased;
        display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;}
-  button{padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.5px; background:var(--gold); color:#14130c; border:none; border-radius:8px; cursor:pointer; white-space:nowrap; font-family:inherit;}
+  button{padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.5px; background:var(--gold); color:var(--onacc); border:none; border-radius:8px; cursor:pointer; white-space:nowrap; font-family:inherit;}
   button:hover{filter:brightness(1.1);}
   button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
   code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:11px;}
@@ -22,35 +42,45 @@
   .dimtxt{color:var(--dim); font-size:12px;}
   .ok{color:var(--green); font-weight:700;} .miss{color:var(--red); font-weight:700;}
 
-  /* ---- LINE SHOP site bar (one site, one bankroll: NFL · NBA · NHL · UFC) ---- */
-  .lsbar{display:flex; align-items:center; gap:12px; padding:6px 14px; background:#0a0b0f; border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap; font-size:13px;}
-  .lsbar a{color:var(--text); text-decoration:none;}
-  .lsbrand{font-weight:800; letter-spacing:1.5px; display:flex; align-items:center; gap:7px; white-space:nowrap;}
-  .lsbrand i{width:14px; height:14px; border-radius:4px; background:linear-gradient(135deg,#2f6fe4,#6a55f0); display:inline-block;}
-  .lssports{display:flex; gap:4px; flex-wrap:wrap;}
-  .lssports a{padding:3px 10px; border-radius:999px; color:var(--dim); border:1px solid transparent;}
-  .lssports a:hover{color:var(--text); background:var(--panel2);}
-  .lssports a.on{background:var(--panel2); color:var(--text); font-weight:700; border-color:var(--line);}
-  .lspot{margin-left:auto; white-space:nowrap;} .lspot b{color:var(--gold); font-size:14px;} .lspot span{color:var(--dim);} .lspot a{color:var(--gold);}
-  .lssync{color:var(--dim); font-size:11.5px; white-space:nowrap;}
-  /* ---- ⚡ Bets front screen + the tab row (like the other sports) ---- */
-  .lstabs{display:flex; gap:6px; padding:6px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex:none; overflow-x:auto;}
-  .lstabs button{padding:6px 12px; font-size:13px; font-weight:600; background:transparent; color:var(--dim); border:1px solid transparent; border-radius:8px; letter-spacing:0;}
-  .lstabs button.on{background:var(--panel2); color:var(--text); border-color:var(--line);}
+  /* ---- LINE SHOP header, same as the NFL / NBA / NHL pages: brand · sports · the pot · theme, then the tabs ---- */
+  .lstop{flex:none; position:relative; z-index:70; background:var(--topbg); backdrop-filter:blur(14px) saturate(1.4); -webkit-backdrop-filter:blur(14px) saturate(1.4); border-bottom:1px solid var(--line);}
+  .lstopin{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:10px clamp(14px,2.6vw,32px) 6px;}
+  .lsbrand{display:flex; align-items:center; gap:9px; font-family:var(--head); font-weight:700; font-size:20px; letter-spacing:-.3px; color:var(--ink); text-decoration:none; white-space:nowrap;}
+  .lsbrand i{width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 6px 16px -6px var(--accent);}
+  .lssports{display:flex; gap:4px; padding:4px; background:var(--panel2); border:1px solid var(--line); border-radius:999px; flex-wrap:nowrap;}
+  .lssports a{padding:6px 14px; border-radius:999px; color:var(--ink2); font-weight:700; font-size:14px; text-decoration:none; white-space:nowrap;}
+  .lssports a.on{background:var(--ink); color:var(--bg);}
+  .lspot{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;}
+  .lspot .stat{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:5px 12px; line-height:1.2; min-width:64px;}
+  .lspot .stat small{display:block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); white-space:nowrap;}
+  .lspot .stat b{font-family:var(--mono); font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap;} .lspot .stat.big b{font-size:18px;}
+  .lspot .stat .up{color:var(--green);} .lspot .stat .dn{color:var(--red);} .lspot a{color:var(--accent);}
+  .lstop .themebtn{border:1px solid var(--line2); background:var(--panel); color:var(--ink2); border-radius:999px; width:36px; height:36px; font-size:16px; cursor:pointer; flex:0 0 auto; padding:0; letter-spacing:0; font-weight:400;}
+  .lstabs{display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; padding:0 clamp(14px,2.6vw,32px);} .lstabs::-webkit-scrollbar{display:none;}
+  .lstabs button{background:none; border:0; border-bottom:2px solid transparent; border-radius:0; padding:8px 14px 10px; font-weight:700; font-size:15px; letter-spacing:0; color:var(--ink3); white-space:nowrap;}
+  .lstabs button:hover{color:var(--ink); filter:none;} .lstabs button.on{color:var(--ink); border-bottom-color:var(--accent);}
+  @media(max-width:760px){
+    .lstopin{gap:8px; padding:8px 12px;} .lsbrand{font-size:17px;} .lsbrand i{width:22px; height:22px;}
+    .lstop .themebtn{order:2; margin-left:auto; width:32px; height:32px; font-size:14px;}
+    .lssports{order:3; width:100%;} .lssports a{flex:1; text-align:center; padding:6px 4px;}
+    .lspot{order:4; margin-left:0; width:100%; flex-wrap:nowrap; gap:6px;}
+    .lspot .stat{flex:1 1 0; min-width:0; padding:4px 7px;} .lspot .stat small{font-size:9px; letter-spacing:.03em; overflow:hidden; text-overflow:ellipsis;} .lspot .stat b,.lspot .stat.big b{font-size:14px;}
+    .lstabs{padding:0 6px;} .lstabs button{padding:8px 10px 9px; font-size:14px;}
+  }
   .betsview{flex:1; overflow:auto; display:none;}
   body.bv-on .betsview{display:block;}
   body.bv-on > header.topbar, body.bv-on > nav#tabs, body.bv-on > main#result{display:none !important;}
   .bvin{max-width:720px; margin:0 auto; padding:14px 16px 48px;}
-  .bvhead{font-size:12.5px; color:var(--dim); margin-bottom:12px; line-height:1.7;} .bvhead > b{color:var(--text); font-size:18px; display:block;}
-  .bvcard{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px;}
+  .bvhead{font-size:12.5px; color:var(--dim); margin-bottom:12px; line-height:1.7;} .bvhead > b{color:var(--text); font-family:var(--head); font-size:21px; letter-spacing:-.3px; display:block;}
+  .bvcard{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow);}
   .bvtop{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; font-size:12px;}
-  .bvtag{font-size:11px; font-weight:800; letter-spacing:.8px; padding:2px 9px; border-radius:999px; background:rgba(62,201,126,.15); color:var(--green);}
-  .bvtag.dog{background:rgba(212,168,67,.16); color:var(--gold);} .bvtag.fade{background:rgba(59,111,226,.2); color:#8fb0ff;}
-  .bvwho{font-size:16px;} .bvnums{margin:4px 0; font-size:13.5px;} .bvprice{font-family:ui-monospace,Consolas,monospace; font-weight:800; font-size:15px; color:var(--gold);}
+  .bvtag{font-size:11px; font-weight:800; letter-spacing:.8px; padding:2px 9px; border-radius:999px; background:var(--goodtint); color:var(--green);}
+  .bvtag.dog{background:var(--warntint); color:var(--warn);} .bvtag.fade{background:var(--tint); color:var(--accent);}
+  .bvwho{font-size:17px;} .bvnums{margin:4px 0; font-size:13.5px;} .bvprice{font-family:var(--mono); font-weight:700; font-size:15px; color:var(--ink);}
   .bvstake{font-size:15px; margin:8px 0 6px;} .bvstake b{color:var(--green); font-size:17px;}
   .bvbtns{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-  .bvbtns .mini-btn{font-size:13px; padding:7px 12px; margin:0;}
-  a.mini-btn{text-decoration:none; display:inline-block; color:var(--text);} a.bvopen{background:var(--gold); color:#14130c; border-color:var(--gold); font-weight:700;} a.bvopen.ghost{background:var(--panel2); color:var(--text); border-color:var(--line);}
+  .bvbtns .mini-btn{font-size:13.5px; padding:8px 14px; margin:0; border-radius:10px;}
+  a.mini-btn{text-decoration:none; display:inline-block; color:var(--text);} a.bvopen{background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--onacc); border-color:transparent; font-weight:700; border-radius:10px;} a.bvopen.ghost{background:var(--panel2); color:var(--text); border-color:var(--line);}
   .bvwhy{margin-top:8px; line-height:1.45;}
   .bvpass summary{cursor:pointer; color:var(--dim); font-size:13px; margin:16px 0 6px;} .bvpass > div{font-size:12px; color:var(--dim); line-height:1.75;}
   /* ---- top bar ---- */
@@ -70,13 +100,13 @@
   .oppnote{position:absolute; right:14px; top:100%; margin-top:6px; color:var(--dim); font-size:12px; z-index:5; background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:6px; max-width:calc(100% - 28px);}
   .oppnote:empty{display:none;}
   .oppundo{font:inherit; color:var(--gold); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
-  .err{position:absolute; left:14px; top:100%; margin-top:6px; color:#ff7a7a; font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
+  .err{position:absolute; left:14px; top:100%; margin-top:6px; color:var(--redtxt); font-size:13px; z-index:5; background:var(--bg); border:1px solid var(--red); padding:3px 8px; border-radius:6px;}
   .err:empty{display:none;}
 
   /* ---- dashboard: three panels that fill the window; panels scroll inside, the page never does ---- */
   .tabs{display:none;}
   .tabs button{flex:1; padding:7px 4px; font-size:12px; background:var(--panel2); color:var(--dim); border:1px solid var(--line); font-weight:600;}
-  .tabs button.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
+  .tabs button.on{background:var(--gold); color:var(--onacc); border-color:var(--gold);}
   .dash{flex:1; min-height:0; display:grid; gap:var(--gap); padding:var(--gap);
         grid-template-columns:minmax(290px,1fr) minmax(240px,.8fr) minmax(430px,1.75fr); grid-template-areas:"res tape calc";}
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; overflow:auto; min-height:0; min-width:0;}
@@ -88,7 +118,7 @@
 
   /* result */
   .names{display:flex; justify-content:space-between; gap:10px; font-size:16px; font-weight:700;}
-  .names .r{color:#ff7a7a;} .names .b{color:#7aa3ff; text-align:right;}
+  .names .r{color:var(--redtxt);} .names .b{color:var(--bluetxt); text-align:right;}
   .probs{display:flex; justify-content:space-between; font-size:26px; font-weight:800; margin:2px 0 6px;}
   .probs .pcol:last-child{text-align:right;}
   .odds{font-size:12px; font-weight:600; color:var(--dim);}
@@ -101,16 +131,16 @@
   .mrow:last-child{border-bottom:none;} .mrow .lab{color:var(--dim); text-align:center;}
   .driver{font-size:13px; padding:calc(4px + var(--rp,0px)) 0; border-bottom:1px solid var(--line); line-height:1.35;}
   .driver:last-child{border-bottom:none;} .driver .who{font-weight:700;}
-  .who.r{color:#ff7a7a;} .who.b{color:#7aa3ff;}
+  .who.r{color:var(--redtxt);} .who.b{color:var(--bluetxt);}
 
   /* tale of the tape */
   .taphd{border-bottom:1px solid var(--line); margin-bottom:2px;}
-  .taphd .r{color:#ff7a7a; font-weight:700;} .taphd .b{color:#7aa3ff; font-weight:700; text-align:right;}
+  .taphd .r{color:var(--redtxt); font-weight:700;} .taphd .b{color:var(--bluetxt); font-weight:700; text-align:right;}
   .twin{color:var(--green); font-weight:700;} .tlose{color:var(--dim);} .tval{color:var(--text);}
   .tapescore{margin-top:10px; padding-top:8px; border-top:1px solid var(--line);}
   .ts-lab{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:2px;}
   .ts-nums{display:flex; justify-content:space-between; font-size:16px; font-weight:800;}
-  .ts-nums .r{color:#ff7a7a;} .ts-nums .b{color:#7aa3ff;}
+  .ts-nums .r{color:var(--redtxt);} .ts-nums .b{color:var(--bluetxt);}
   .ts-bar{height:10px; border-radius:5px; overflow:hidden; display:flex; background:var(--blue); margin:3px 0 6px;}
   .ts-fill{background:var(--red); height:100%;}
   .ts-verdict{font-size:13px;} .ts-verdict b{color:var(--gold);}
@@ -124,15 +154,15 @@
   .verdict-box{margin:0 0 8px; padding:8px 10px; border-radius:8px; font-size:12.5px; line-height:1.45; border:1px solid;}
   .verdict-box .vh{font-size:13.5px; font-weight:800; letter-spacing:.5px; display:block; margin-bottom:2px;}
   .verdict-box .vsmall{font-size:10.5px; color:var(--dim); margin-top:4px;}
-  .verdict-box.take{background:rgba(62,201,126,.12); border-color:var(--green);} .verdict-box.take .vh{color:var(--green);}
-  .verdict-box.pass{background:rgba(226,59,59,.10); border-color:var(--red);} .verdict-box.pass .vh{color:#ff7a7a;}
-  .verdict-box.caution{background:rgba(212,168,67,.12); border-color:var(--gold);} .verdict-box.caution .vh{color:var(--gold);}
+  .verdict-box.take{background:var(--goodtint); border-color:var(--green);} .verdict-box.take .vh{color:var(--green);}
+  .verdict-box.pass{background:var(--badtint); border-color:var(--red);} .verdict-box.pass .vh{color:var(--redtxt);}
+  .verdict-box.caution{background:var(--warntint); border-color:var(--gold);} .verdict-box.caution .vh{color:var(--gold);}
   .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .calctable{width:100%; border-collapse:collapse; font-size:12.5px;}
   .calctable th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:1px; text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
   .calctable td{padding:2px 6px; border-bottom:1px solid var(--line); white-space:nowrap; height:calc(26px + 2*var(--rp,0px));}
   .calctable tr:last-child td{border-bottom:none;}
-  .oc .r{color:#ff7a7a; font-weight:600;} .oc .b{color:#7aa3ff; font-weight:600;}
+  .oc .r{color:var(--redtxt); font-weight:600;} .oc .b{color:var(--bluetxt); font-weight:600;}
   .oddsin{width:68px; padding:2px 6px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:12.5px; font-family:inherit;}
   .oddsin:focus{border-color:var(--gold); outline:none;}
   .blcell{color:var(--gold); font-weight:700;}
@@ -140,7 +170,7 @@
   .evcell.suspect{color:var(--gold); font-weight:600; opacity:.75;}
   .evcell.best{color:var(--gold); font-weight:800; letter-spacing:.3px;}
   .mktcell{color:var(--text);}
-  tr.rec td{background:rgba(212,168,67,.15);}                 /* best-bet row: gold tint */
+  tr.rec td{background:var(--warntint);}                 /* best-bet row: gold tint */
   tr.rec td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
   .legend{font-size:11px; color:var(--dim); margin-top:6px; line-height:1.5;}
   .calctable.dc-off tr.dc{display:none;}
@@ -184,17 +214,17 @@
   table.scan{width:100%; border-collapse:collapse; font-size:13px;}
   table.scan th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:1px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line);}
   table.scan td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
-  table.scan .r{color:#ff7a7a; font-weight:600;} table.scan .b{color:#7aa3ff; font-weight:600;}
+  table.scan .r{color:var(--redtxt); font-weight:600;} table.scan .b{color:var(--bluetxt); font-weight:600;}
   table.scan span.thinf{color:var(--dim); font-weight:500; cursor:help;}  /* under 4 UFC fights: thin data */
   .ufcn{font-size:9.5px; font-weight:700; letter-spacing:.4px; border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:4px; color:var(--dim); white-space:nowrap;}
-  table.scan tr.take td{background:rgba(62,201,126,.08);}
+  table.scan tr.take td{background:var(--goodtint);}
   table.scan tr.dayrow td{color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding-top:12px;}
   table.scan tr.unscored td{opacity:.6;}
   .sub{font-size:11px; color:var(--dim); font-weight:400;} .bk{font-size:11px; color:var(--dim);}
   .badge{font-size:9.5px; font-weight:800; letter-spacing:.8px; padding:1px 5px; border-radius:4px; border:1px solid var(--line); color:var(--dim); margin-left:4px; cursor:help; white-space:nowrap;}
   .badge.early{color:var(--green); border-color:var(--green);}
   .mini-btn{padding:3px 8px; font-size:11.5px; font-weight:600; letter-spacing:0; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; margin:1px 2px;}
-  .mini-btn.on{background:var(--gold); color:#14130c; border-color:var(--gold);}
+  .mini-btn.on{background:var(--gold); color:var(--onacc); border-color:var(--gold);}
   .mini-btn:disabled{opacity:.55; cursor:default; filter:none;}
   .mini-btn.x{background:none; border:none; color:var(--dim); font-size:15px; padding:0 4px;}
   .acts{white-space:nowrap;}
@@ -230,8 +260,8 @@
 </head>
 <body>
 
-<nav class="lsbar" id="lsbar"><a class="lsbrand" href="../" title="LINE SHOP — every sport, one bankroll"><i></i>LINE SHOP</a><span class="lssports"><a href="../nfl-td-predictor/nfl-td-predictor.html">🏈 NFL</a><a href="../nba-prop-predictor/nba-prop-predictor.html">🏀 NBA</a><a href="../nhl-prop-predictor/nhl-prop-predictor.html">🏒 NHL</a><a class="on" href="./">🥊 UFC</a></span><span class="lspot" id="lsPot"></span><span class="lssync" id="lsSync"></span></nav>
-<nav class="lstabs" id="lsTabs"><button data-v="bets" class="on">⚡ Bets</button><button data-v="sim">🥊 Sim</button><button data-v="log">📓 Bet log</button><button data-v="all">🔎 All fights</button></nav>
+<header class="lstop" id="lsTop"><div class="lstopin"><a class="lsbrand" href="../" title="LINE SHOP — every sport, one bankroll"><i></i>LINE SHOP</a><nav class="lssports" id="sportBar"><a href="../nfl-td-predictor/nfl-td-predictor.html">🏈 NFL</a><a href="../nba-prop-predictor/nba-prop-predictor.html">🏀 NBA</a><a href="../nhl-prop-predictor/nhl-prop-predictor.html">🏒 NHL</a><a class="on" href="./">🥊 UFC</a></nav><div class="lspot" id="potChip"></div><script>try{ const h=localStorage.getItem('sims_chip'); if(h) document.getElementById('potChip').innerHTML=h; }catch(e){}</script><button class="themebtn" id="themeBtn" title="switch to dim">🌙</button></div>
+<nav class="lstabs" id="lsTabs"><button data-v="bets" class="on">⚡ Bets</button><button data-v="sim">🥊 Sim</button><button data-v="log">📓 Bet log</button><button data-v="all">🔎 All fights</button></nav></header>
 <section class="betsview" id="betsView"><div class="bvin"><div class="bvhead" id="bvHead">Loading lines…</div><div id="bvList"></div>
   <details class="bvpass hidden" id="bvPassBox"><summary id="bvPassSum"></summary><div id="bvPass"></div></details>
   <p class="dimtxt" style="margin-top:18px;line-height:1.55">A bet shows when Classic 2.0 and the main sim agree (the default "2.0 + main sim" mode: +21.5% on 221 bets at opening lines, 2022–26 — the only UFC rule that made money; pure line shopping lost at your books). Stakes are dollars from your LINE SHOP bankroll. 📲 opens the book's bet slip with the fight in it — check the price, type the stake, then tap Log bet. Bets settle by themselves from ESPN's results.</p>
@@ -2313,10 +2343,21 @@ async function syncNow(){ const S = syncCfg(); if(!S || syncing) return; syncing
   syncing = false; renderPot(); }
 
 // ---- the LINE SHOP bar: the pot + what's riding, on every sport's page
-function renderPot(){ const el = $("lsPot"); if(!el) return; const pot = potSafe();
-  el.innerHTML = pot == null ? `💰 <a href="../nfl-td-predictor/nfl-td-predictor.html" title="type it once in any sport — one bankroll for all four">set your bankroll</a>`
-    : `💰 <b>${money(pot)}</b><span> · ${money(potRiding())} riding</span>`;
-  const s = $("lsSync"); if(s) s.textContent = syncCfg() ? syncMsg : ""; }
+const usdX = x => { const a = Math.abs(x), r = Math.round(a * 100) / 100; return (x < 0 ? "−" : "") + "$" + (Number.isInteger(r) ? r.toLocaleString() : r.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })); };
+function renderPot(){ const c = $("potChip"); if(!c) return; const pot = potSafe(), B = potBank(), AB = potAll().map(x => x.b), open = AB.filter(b => b.result === "pending").length;
+  const mon = (d => { d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); })(new Date());
+  const W = AB.filter(b => b.st >= mon && ["win", "loss", "push"].includes(b.result)), wpl = W.reduce((a, b) => { const u = usdOf(b, B), d = amDec(b.odds) || 1; return a + (b.result === "win" ? u * (d - 1) : b.result === "loss" ? -u : 0); }, 0);
+  const st = (cls, lbl, v, tip) => `<div class="stat ${cls}" title="${tip}"><small>${lbl}</small><b>${v}</b></div>`;
+  c.innerHTML = st("big", "Bankroll", pot != null ? usdX(pot) : '<a href="../nfl-td-predictor/nfl-td-predictor.html">set it</a>', "one pot for every sport" + (syncCfg() && syncMsg ? " · " + syncMsg : ""))
+    + (pot != null && W.length ? st("", "This week", `<span class="${wpl > 0.004 ? "up" : wpl < -0.004 ? "dn" : ""}">${wpl >= 0 ? "+" : ""}${usdX(wpl)}</span>`, "won / lost on bets settled since Monday — every sport") : "")
+    + st("", "Bets", AB.length, "every bet you've logged — every sport") + st("", "Open", open, "bets still waiting on a result — every sport");
+  try { localStorage.setItem("sims_chip", c.innerHTML); } catch(e){} }
+// ---- look: light (default) or 🌙 dim — one setting for every sport (same site, same storage)
+function setTheme(v){ document.documentElement.dataset.theme = v; const b = $("themeBtn"); if(b){ b.textContent = v === "dim" ? "☀" : "🌙"; b.title = v === "dim" ? "switch to light" : "switch to dim"; }
+  try { localStorage.setItem("sims_theme", v); } catch(e){} }
+setTheme(document.documentElement.dataset.theme === "dim" ? "dim" : "light");
+$("themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "dim" ? "light" : "dim");
+window.addEventListener("storage", e => { if(e.key === "sims_theme" && e.newValue && e.newValue !== document.documentElement.dataset.theme) setTheme(e.newValue); });
 function potChanged(){ renderPot(); if(!$("betcard").classList.contains("hidden")) renderBets(); if(ODDS && scanRows.length) { renderScan(); renderSlip(); } }
 window.addEventListener("storage", e => {
   if(e.key === BETS_KEY){ const L = lsJ(BETS_KEY, null); if(Array.isArray(L)){ bets = L; TOMB = lsJ(TOMB_KEY, {}) || {}; potChanged(); } }
