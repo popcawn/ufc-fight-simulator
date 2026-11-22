@@ -38,6 +38,7 @@
     background:radial-gradient(1100px 520px at 0% -8%,rgba(47,111,228,.10),transparent 60%),radial-gradient(900px 480px at 100% 0%,rgba(106,85,240,.08),transparent 60%),var(--bg);background-attachment:fixed}
   a{color:var(--accent)}
   button,input,select{font-family:var(--sans)}
+  .livetag{display:inline-block;margin-left:8px;font-size:11px;font-weight:800;letter-spacing:.06em;color:#fff;background:var(--bad);border-radius:6px;padding:1px 7px;vertical-align:1px;animation:livepulse 1.6s ease-in-out infinite} @keyframes livepulse{50%{opacity:.55}}
   .muted{color:var(--ink3)} .up{color:var(--good)} .dn{color:var(--bad)} [hidden]{display:none!important}
   /* top bar: brand · sports · the pot · theme, then the tabs (same as the NFL / NBA / NHL pages) */
   .topbar{position:sticky;top:0;z-index:70;background:var(--topbg);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);border-bottom:1px solid var(--line)}
@@ -422,7 +423,7 @@ function renderLog(){ const B = potBank(); let n = 0, staked = 0, pl = 0, cN = 0
     const clv = have ? b.legs.reduce((s, l, j) => s * l.price * cl[j].p, 1) - 1 : null; if(fin){ cN++; cSum += clv; if(clv > 0) cWin++; }
     if(b.result !== "pending"){ n++; if(b.result !== "push") staked += usdOf(b, B); pl += plOf(b, B); }
     const what = b.legs.length > 1 ? `${b.legs.length}-leg parlay <span class="muted">${esc(b.legs.map(l => surname(l.name)).join(" + "))}</span>` : `${esc(b.legs[0].name)} <span class="muted">vs ${esc(b.legs[0].vs)}</span>`;
-    return `<div class="card lb"><div><div style="font-weight:700">${what}</div>
+    return `<div class="card lb"><div><div style="font-weight:700">${what}${b.result === "pending" && LIVE.has(b.id) ? `<span class="livetag" title="${b.legs.length > 1 ? "a fight in this parlay" : "this fight"} is in progress — it settles from ESPN at the result">● LIVE</span>` : ""}</div>
         <div class="nums">${new Date(b.legs[0].t || b.ts).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · <span class="price">${decAm(b.price)}</span> at ${esc(bookName(b.book))} · $<input data-stake="${i}" value="${b.usd != null ? b.usd : ""}" placeholder="${b.stake}%" aria-label="Stake in dollars">
         · CLV ${clv === null ? "—" : `<span class="${clv >= 0 ? "up" : "dn"}">${sgnPct(clv)}</span>${fin ? "" : ` <span class="muted">live</span>`}`} ${b.auto ? `<span class="pill" title="settled automatically from ESPN's results — tap a letter to change it">auto</span>` : ""}</div></div>
       <div class="res">${[["W", "win"], ["L", "loss"], ["P", "push"]].map(([L, r]) => `<button class="${r} ${b.result === r ? "on" : ""}" data-res="${i}" data-r="${r}">${L}</button>`).join("")}<button data-del="${i}" title="delete">×</button></div></div>`; }).join("");
@@ -439,18 +440,29 @@ $("logList").addEventListener("change", e => { const t = e.target; if(!t || t.da
 
 // ---------- ✅ auto-settle from ESPN's UFC scoreboard (draw / no contest = push; a parlay drops a pushed leg)
 const ESPN_SB = "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=", espnCache = new Map();
-async function espnDay(ymd){ const c = espnCache.get(ymd); if(c && Date.now() - c.at < 10 * 60e3) return c.v; const v = [];
+async function espnDay(ymd, ttl = 10 * 60e3){ const c = espnCache.get(ymd); if(c && Date.now() - c.at < ttl) return c.v; const v = [];
   try { const r = await fetch(ESPN_SB + ymd, { cache: "no-store" }); if(!r.ok) return null; const j = await r.json();
     for(const ev of j.events || []) for(const c of ev.competitions || []){ const cs = c.competitors || [], st = (c.status && c.status.type) || {};
-      v.push({ done: !!st.completed, n: cs.map(x => nmz((x.athlete && (x.athlete.displayName || x.athlete.fullName)) || "")), w: cs.map(x => !!x.winner) }); } }
+      v.push({ done: !!st.completed, live: st.state === "in" && !st.completed, n: cs.map(x => nmz((x.athlete && (x.athlete.displayName || x.athlete.fullName)) || "")), w: cs.map(x => !!x.winner) }); } }
   catch(e){ return null; } espnCache.set(ymd, { at: Date.now(), v }); return v; }
 const ymdOf = t => new Date(t).toISOString().slice(0, 10).replace(/-/g, "");
 const sameMan = (a, b) => { const A = nmz(a), B = nmz(b); return !!A && !!B && (A === B || (surname(A) === surname(B) && A[0] === B[0])); };
+const fightOf = (day, l) => day.find(c => c.n.length === 2 && ((sameMan(c.n[0], l.name) && sameMan(c.n[1], l.vs)) || (sameMan(c.n[1], l.name) && sameMan(c.n[0], l.vs))));
 async function legResult(l){ if(!l.vs) return null; const t = Date.parse(l.t); if(!(t < Date.now() - 20 * 60e3)) return null;
   for(const ymd of [ymdOf(t), ymdOf(t - 864e5)]){ const day = await espnDay(ymd); if(!day) return null;
-    const c = day.find(c => c.n.length === 2 && ((sameMan(c.n[0], l.name) && sameMan(c.n[1], l.vs)) || (sameMan(c.n[1], l.name) && sameMan(c.n[0], l.vs))));
+    const c = fightOf(day, l);
     if(!c) continue; if(!c.done) return null; const i = sameMan(c.n[0], l.name) && sameMan(c.n[1], l.vs) ? 0 : 1; return c.w[i] ? "win" : c.w[1 - i] ? "loss" : "push"; }
   return null; }
+// 🔴 LIVE TAG (user, 2026-11-22: "add a live tag", like the NFL log): an open bet whose fight ESPN has in progress shows
+// ● LIVE (a parlay: any of its fights). Checked every 2 min while a card is on (from 2 h before a fight's listed time to 10 h after)
+const LIVE = new Set(); let liveBusy = false;
+async function checkLive(){ if(liveBusy) return; liveBusy = true; const now = Date.now(), next = new Set();
+  try { for(const b of bets){ if(b.result !== "pending") continue;
+      for(const l of b.legs){ const t = Date.parse(l.t); if(!l.vs || !(t - 2 * 3600e3 < now && now - t < 10 * 3600e3)) continue;
+        for(const ymd of [ymdOf(t), ymdOf(t - 864e5)]){ const day = await espnDay(ymd, 100e3); if(!day) break; const c = fightOf(day, l); if(c){ if(c.live) next.add(b.id); break; } } } } }
+  finally { liveBusy = false; }
+  const ch = next.size !== LIVE.size || [...next].some(id => !LIVE.has(id)); LIVE.clear(); next.forEach(id => LIVE.add(id));
+  if(ch && VIEW === "log") renderLog(); }
 let settling = false;
 async function autoSettle(){ if(settling) return; settling = true; let n = 0;
   try { for(const b of bets){ if(b.result !== "pending") continue; const rs = [];
@@ -527,12 +539,13 @@ window.addEventListener("storage", e => {
   else if(e.key === "nfltd_bank" || Object.values(POT_KEYS).includes(e.key)) renderAll();
   else if(e.key === "sims_theme" && e.newValue && e.newValue !== document.documentElement.dataset.theme) setTheme(e.newValue);
   else if(e.key === "nfltd_sync") syncSoon(300); });
-document.addEventListener("visibilitychange", () => { if(document.visibilityState !== "visible") return; syncSoon(500); autoSettle();
+document.addEventListener("visibilitychange", () => { if(document.visibilityState !== "visible") return; syncSoon(500); autoSettle(); checkLive();
   if(ODDS && Date.now() - ODDS._at > 30 * 60e3) loadOdds().then(O => { if(O){ scan(); if(pullDue(O)) pullLive(); } }); });
 
 (async () => {
   setView((() => { try { const v = localStorage.getItem("ufcs_tab"); return ["bets", "v2", "log"].includes(v) ? v : "bets"; } catch(e){ return "bets"; } })());
   renderPot(); syncSoon(800); setTimeout(autoSettle, 1500); setInterval(autoSettle, 15 * 60e3);
+  setTimeout(checkLive, 2000); setInterval(() => { if(document.visibilityState === "visible") checkLive(); }, 2 * 60e3);
   const O = await loadOdds(); await scan(); if(VIEW === "log") renderLog();
   if(pullDue(O)) pullLive();
 })();
