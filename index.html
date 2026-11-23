@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UFC Fight Simulator — Monte Carlo</title>
+<meta name="description" content="UFC fight simulator: win, method and round odds for any matchup, every upcoming fight scanned against US sportsbook prices.">
+<meta name="theme-color" content="#0d0e12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%8A%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0e0f13; --panel:#171922; --panel2:#1e2130; --line:#2b2f42;
@@ -149,7 +152,7 @@
   /* ---- Upcoming fights (card scanner) · parlay slip · My bets ---- */
   .modal-box.wide{max-width:1400px;}
   .wkgrid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; margin-top:10px; align-items:start;}
-  @media (max-width:1000px){ .wkgrid{grid-template-columns:1fr;} }
+  @media (max-width:1180px){ .wkgrid{grid-template-columns:1fr;} }
   table.scan{width:100%; border-collapse:collapse; font-size:13px;}
   table.scan th{color:var(--dim); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:1px; text-align:left; padding:4px 8px; border-bottom:1px solid var(--line);}
   table.scan td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
@@ -159,6 +162,12 @@
   table.scan tr.take td{background:rgba(62,201,126,.08);}
   table.scan tr.dayrow td{color:var(--gold); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding-top:12px;}
   table.scan tr.unscored td{opacity:.6;}
+  table.scan tr.specbar td{padding-top:14px; color:var(--dim); font-size:12px;} table.scan tr.specbar b{color:var(--text);}
+  .nextcard{margin-top:18px; text-align:center;} .nextcard:empty{display:none;}
+  .nextcard h4{font-size:11px; color:var(--gold); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;}
+  .nextcard button{margin:3px; padding:6px 10px; font-size:12.5px; font-weight:600; letter-spacing:0; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px;}
+  .nextcard button:hover{border-color:var(--gold);} .nextcard .sub{font-weight:500;}
+  .blendnote{font-size:12px; color:var(--dim); line-height:1.45; margin-top:4px;} .blendnote:empty{display:none;} .blendnote b{color:var(--text);}
   .sub{font-size:11px; color:var(--dim); font-weight:400;} .bk{font-size:11px; color:var(--dim);}
   .badge{font-size:9.5px; font-weight:800; letter-spacing:.8px; padding:1px 5px; border-radius:4px; border:1px solid var(--line); color:var(--dim); margin-left:4px; cursor:help; white-space:nowrap;}
   .badge.early{color:var(--green); border-color:var(--green);}
@@ -194,6 +203,18 @@
     .dash .panel{display:none; grid-area:auto;} .dash .panel.active{display:block;}
     .grid2{grid-template-columns:1fr 1fr;}
     #verdictBox.hidden + .fit-reserve{display:none;}
+    /* header: Simulate fills its row, the five other buttons shrink to one or two short rows */
+    .topbar #go{flex:1 1 auto;} .topbar button.secondary{padding:6px 9px; font-size:12px; flex:1 1 auto;}
+    /* Upcoming fights: each fight is a stacked block, so the call is on screen without sideways scrolling */
+    .modal{padding:6px;} .modal-box{padding:14px 12px;}
+    .bookchips{flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px;} .bookchips > *{flex:none;}
+    table.scan thead{display:none;} table.scan, table.scan tbody{display:block;}
+    table.scan tr{display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; padding:9px 6px; border-bottom:1px solid var(--line);}
+    table.scan td{border:0; padding:0;} table.scan td:nth-child(1), table.scan td:nth-child(4), table.scan td:nth-child(5){grid-column:1 / -1;}
+    table.scan td:nth-child(1){font-size:14px;} table.scan td:nth-child(4){order:2; margin:2px 0;} table.scan td:nth-child(2){order:3;} table.scan td:nth-child(3){order:4; text-align:right;}
+    table.scan td:nth-child(5){order:5;} table.scan td:nth-child(5):empty{display:none;}
+    table.scan tr.take{background:rgba(62,201,126,.08);} table.scan tr.take td{background:none;}
+    table.scan tr.dayrow, table.scan tr.specbar{display:block; padding:14px 6px 6px;} table.scan tr.dayrow td, table.scan tr.specbar td{padding:0;}
   }
 </style>
 </head>
@@ -258,7 +279,7 @@
 
 <main class="dash" id="result">
   <section class="panel p-res active" data-tab="res">
-    <div class="empty">Pick two fighters above and hit <b>Simulate</b>.<br><span class="dimtxt">10,000 simulated fights per matchup · ~66% of winners on 741 held-out fights · odds calculator anchored to the betting market</span></div>
+    <div class="empty">Pick two fighters above and hit <b>Simulate</b>.<br><span class="dimtxt">10,000 simulated fights per matchup · ~66% of winners on 741 held-out fights · odds calculator anchored to the betting market</span><div class="nextcard" id="nextCard"></div></div>
     <div class="needs-sim">
       <div class="names"><span class="r" id="na"></span><span class="b" id="nb"></span></div>
       <div class="probs">
@@ -267,6 +288,7 @@
       </div>
       <div class="bar"><div class="fillA" id="fill"></div></div>
       <div class="verdict" id="verdict"></div>
+      <div class="blendnote" id="blendNote"></div>
       <div class="warn" id="xdiv"></div>
       <div class="grid2">
         <div class="mini"><h3>Method (winner)</h3><div id="methods"></div></div>
@@ -1605,6 +1627,8 @@ function computeVerdict(){
     ? (entered.length ? `⚠ <b>Not anchored</b> — enter both moneylines (raw model edges lost money in backtesting).` : "")
     : `⚓ <b>${anchor.kind === "open" ? "Opening-line" : "Fight-week"} anchor</b> · ${calcA.name}: market ${(anchor.pMkt*100).toFixed(1)}% → blend <b>${(pStar*100).toFixed(1)}%</b> (raw model ${(pModel*100).toFixed(1)}%)`
       + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn((TRACK.rule || TRACK.anch3).roi)}% ROI` : "");
+  { const bn = $("blendNote"); if(bn){ const fav = pStar >= 0.5 ? calcA : calcB, pf = Math.max(pStar, 1 - pStar), flip = (pStar >= 0.5) !== (pModel >= 0.5);
+    bn.innerHTML = anchor ? `These are the model's own numbers. Blended with the betting line (what the bet calls use): <b>${fav.name} ${(pf * 100).toFixed(1)}%</b>${flip ? " — the blend favors the other fighter" : ""}.` : ""; } }
   if(dist) an.innerHTML += ` · distance: market ${(dist.pMkt*100).toFixed(1)}% → <b>${(dist.p*100).toFixed(1)}%</b> (model ${(dist.pModel*100).toFixed(1)}%)`;
   [calcA, calcB].forEach((f, s) => { if(splitOK[s]) an.innerHTML += ` · ${surname(f.name)} method split ✓`; });
   // style every row, reconciled with the verdict
@@ -1836,6 +1860,7 @@ const modelCache = new Map(), totCache = new Map();
 // fights, BUT far blunter than the books (it "found" +7..+42% edges on 8 of 10 fights — the raw-model trap that
 // lost 14% on moneylines). No totals-line history exists to anchor or backtest it, so it's shown, never flagged.
 const HALF_RD = 0.47;
+let showSpec = false; // Upcoming fights: proposed one-book matchups folded by default
 let showRds = (() => { try { return localStorage.getItem("ufcsim.rds") === "1"; } catch(e){ return false; } })();
 function totalsFor(row, A, B, id){
   const books = Object.entries(row.f.tot || {}).filter(([k]) => usableBook(k)); if(!books.length) return null;
@@ -1924,11 +1949,16 @@ function buildScan(){
 function renderScan(){
   let html = "", lastDay = "";
   const dayOf = r => r.t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: r.t.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined });
-  for(const r of scanRows){
+  const nBk = x => Object.values(x.f.now || {}).filter(v => v && v[0] > 1 && v[1] > 1).length, cards = new Map();
+  for(const r of scanRows){ const d = dayOf(r); if(!cards.has(d)) cards.set(d, []); cards.get(d).push(r); }
+  const isSpec = card => card.filter(x => nBk(x) <= 1).length * 2 > card.length; // mostly one book only = proposed matchups (specials), not a booked card
+  const specRows = scanRows.filter(r => isSpec(cards.get(dayOf(r)))), nSpecTake = specRows.filter(r => r.take).length;
+  const order = [...scanRows.filter(r => !specRows.includes(r)), ...(specRows.length ? [null] : []), ...(showSpec ? specRows : [])]; // real cards first, proposed after
+  for(const r of order){
+    if(!r){ lastDay = ""; html += `<tr class="specbar"><td colspan="5"><button class="mini-btn" id="specToggle">${showSpec ? "Hide" : "Show"}</button> <b>Proposed matchups</b> · ${specRows.length} line${specRows.length === 1 ? "" : "s"} priced by one book only, not confirmed fights${nSpecTake ? ` · ${nSpecTake} bet call${nSpecTake === 1 ? "" : "s"} inside` : ""}</td></tr>`; continue; }
     const day = dayOf(r);
     if(day !== lastDay){ // one section per card: date, main event (the day's last bout), fight count
-      const card = scanRows.filter(x => dayOf(x) === day), main = card.reduce((m, x) => x.t >= m.t ? x : m, card[0]);
-      const nBk = x => Object.values(x.f.now || {}).filter(v => v && v[0] > 1 && v[1] > 1).length, spec = card.filter(x => nBk(x) <= 1).length * 2 > card.length; // mostly one book only = proposed matchups (specials), not a booked card
+      const card = cards.get(day), main = card.reduce((m, x) => x.t >= m.t ? x : m, card[0]), spec = isSpec(card);
       html += `<tr class="dayrow"><td colspan="5">${day} · ${spec ? `${card.length} line${card.length > 1 ? "s" : ""} at one book · proposed, not a confirmed card` : card.length > 1 ? `${surname(main.name[0])} vs ${surname(main.name[1])} card · ${card.length} fights` : "1 fight"}</td></tr>`; lastDay = day;
     }
     const px = i => `<b>${decAm(r.best[i].d)}</b> <span class="bk">${bookName(r.best[i].book)}</span>`;
@@ -2000,6 +2030,7 @@ function simFromScan(id){ // load the fight into the main dashboard with the bes
 }
 $("wkbody").addEventListener("click", e => {
   const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
+  if(b.id === "specToggle"){ showSpec = !showSpec; renderScan(); return; }
   if(b.dataset.sim) simFromScan(b.dataset.sim);
   else if(b.dataset.slip){ const r = scanRows.find(x => x.id === b.dataset.slip); if(r && !slipLegs().some(l => sameFight(l.r, r))) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); }
   else if(b.dataset.log){ const r = scanRows.find(x => x.id === b.dataset.log); if(!r) return; const s = r.side[r.pick];
@@ -2146,6 +2177,25 @@ function attachSearch(id){
   inp.addEventListener("blur", () => setTimeout(close, 100));
 }
 attachSearch("fa"); attachSearch("fb");
+
+// ---- NEXT CARD on the empty screen: one tap loads a fight. Confirmed cards only (not one-book proposed matchups).
+async function renderNextCard(){
+  const box = $("nextCard"); if(!box || window.self !== window.top) return; // not when LINE SHOP runs this page as its hidden engine
+  const O = await loadOdds(); if(!O || !O.fights) return;
+  const now = Date.now(), last = new Date(O.updated).getTime(), nB = f => Object.values(f.now || {}).filter(v => v && v[0] > 1 && v[1] > 1).length;
+  const up = Object.values(O.fights).filter(f => { const t = new Date(f.t).getTime(); return t > now && (!f.seen || last - new Date(f.seen).getTime() < 6 * 36e5); })
+    .map(f => ({ f, t: new Date(f.t), A: findFighter(f.a), B: findFighter(f.b) })).sort((x, y) => x.t - y.t);
+  const byDay = new Map(); for(const x of up){ const d = x.t.toDateString(); if(!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(x); }
+  const card = [...byDay.values()].find(c => c.filter(x => x.A && x.B).length >= 2 && c.filter(x => nB(x.f) <= 1).length * 2 <= c.length); if(!card) return;
+  const tMax = Math.max(...card.map(x => +x.t)), mains = card.filter(x => +x.t === tMax), main = mains.length === 1 && card.length >= 4 ? mains[0] : null;
+  const list = card.filter(x => x.A && x.B).sort((x, y) => y.t - x.t);
+  box.innerHTML = `<h4>Next card · ${card[0].t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · tap a fight</h4>`
+    + list.map((x, i) => `<button data-nc="${i}">${surname(x.A.name)} vs ${surname(x.B.name)}${x === main ? ' <span class="sub">· 5 rds</span>' : ""}</button>`).join("");
+  box.onclick = e => { const b = e.target && e.target.closest ? e.target.closest("button[data-nc]") : null; if(!b) return; const x = list[+b.dataset.nc];
+    $("fa").value = x.A.name; $("fb").value = x.B.name; $("five").checked = x === main; $("go").click(); };
+  if(typeof fitDash === "function") fitDash();
+}
+renderNextCard();
 
 // ---- NEXT OPPONENT: type or pick one fighter and the other box fills with their next scheduled opponent ----
 // From odds.json (fights still listed at the latest scan, starting within the next 90 days). Never replaces a name you
