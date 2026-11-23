@@ -350,8 +350,11 @@ const BOOK_HOME = { fanduel: "https://sportsbook.fanduel.com/", draftkings: "htt
 function slipLink(r){ const st = String((lsJ("nfltd_oddscfg", {}) || {}).state || "").toLowerCase().trim();
   let u = r.f.links && r.f.links[r.book] && r.f.links[r.book][r.k];
   if(u && u.includes("{state}")) u = st ? u.split("{state}").join(st) : null;
-  if(u && /\{[a-zA-Z]+\}/.test(u)) u = null; // other placeholders (BetRivers' stake / pick type): not a usable slip link
-  if(u) return `<a class="statussel" href="${esc(u)}" target="_blank" rel="noopener" title="opens ${esc(bookName(r.book))} with this bet in the slip — check the price, type the stake">📲 Open on ${esc(bookName(r.book))}</a>`;
+  if(u && /\{[a-zA-Z]+\}/.test(u)) u = null;
+  // 💵 BetMGM: the stake goes in the link too (user, 2026-11-23: "add auto fill for betmgm"), whole dollars from the stake plan
+  const x = SP && SP.m && SP.m.get(r.id), got = x && x.got >= 1 ? x.got : 0, fill = !!u && r.book === "betmgm" && got > 0;
+  if(fill) u += (u.includes("?") ? "&" : "?") + "stake=" + got; // other placeholders (BetRivers' stake / pick type): not a usable slip link
+  if(u) return `<a class="statussel" href="${esc(u)}" target="_blank" rel="noopener" title="opens ${esc(bookName(r.book))} with this bet in the slip${fill ? ` and $${got} typed in as the stake` : " — type the stake"} — check the price">📲 Open on ${esc(bookName(r.book))}</a>`;
   const h = BOOK_HOME[r.book], why = r.f.links && r.f.links[r.book] ? "BetMGM / Caesars links need your state — set it once on the NFL page (odds settings)" : "no bet-slip link for this price yet — ⚡ Pull UFC fights gets one";
   return h ? `<a class="statussel" href="${h}" target="_blank" rel="noopener" title="${esc(why)}">🔎 Open ${esc(bookName(r.book))}</a>` : `<span class="muted">bet it at ${esc(bookName(r.book))}</span>`; }
 const KIND = { take: ["TAKE", "var(--accent)"], dog: ["SHORT DOG", "var(--warn)"], fade: ["FADE", "var(--accent2)"] };
