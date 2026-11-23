@@ -3517,7 +3517,7 @@ try { if(window.self !== window.top) document.documentElement.classList.add("emb
 // From the site's odds.json (fights still listed at the latest scan, starting within the next 90 days). The box you changed
 // last decides the fight; if that replaced a name, the note offers "undo" (for a made-up matchup). Display only: no odds,
 // no probability.
-const OPP_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia mesquita", "jose henrique":"jose souza", "charlie radtke":"charles radtke" }; // = NAME_ALIAS in index.html
+const OPP_ALIAS = { "lupita godinez":"loopy godinez", "beatriz mesquita":"bia mesquita", "jose henrique":"jose souza", "charlie radtke":"charles radtke", "marco tulio silva":"marco tulio", "elves brenner":"elves brener", "mehemmedeli osmanli":"mahammadali osmanli", "sergey spivak":"serghei spivac", "enrique hecher sosa":"hecher sosa" }; // = NAME_ALIAS in index.html
 const oppNm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s*\([^)]*\)$/, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 const oppKey = s => { const k = oppNm(s); return OPP_ALIAS[k] || k; };
 const oppIdx = new Map(); fighters.forEach(f => { const k = oppNm(f.name); oppIdx.set(k, oppIdx.has(k) ? null : f); }); // null = two fighters share the name: never guess

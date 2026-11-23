@@ -1803,7 +1803,8 @@ $("tabs").addEventListener("click", e => {
 // fair % (opening-line weights only while the line is fresh), best price per side across books, same TAKE rule.
 const nmz = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 const NAME_ALIAS = { // sportsbook spelling (lower case, no accents) -> the UFCStats name in the roster. Add a line when the name check flags one.
-  "lupita godinez": "Loopy Godinez", "beatriz mesquita": "Bia Mesquita", "jose henrique": "Jose Souza", "charlie radtke": "Charles Radtke" };
+  "lupita godinez": "Loopy Godinez", "beatriz mesquita": "Bia Mesquita", "jose henrique": "Jose Souza", "charlie radtke": "Charles Radtke", "marco tulio silva": "Marco Tulio",
+  "elves brenner": "Elves Brener", "mehemmedeli osmanli": "Mahammadali Osmanli", "sergey spivak": "Serghei Spivac", "enrique hecher sosa": "Hecher Sosa" };
 const rosterIdx = new Map(fighters.map(f => [nmz(f.name), f]));
 const rosterKeys = fighters.map(f => { const q = nmz(f.name); return { f, q, sq: q.replace(/ /g, ""), sk: q.replace(/[aeiouy ]/g, ""), so: q.split(" ").sort().join(" ") }; });
 const editDist = (a, b) => { const d = [...Array(a.length + 1)].map((_, i) => [i]); for(let j = 1; j <= b.length; j++) d[0][j] = j;
