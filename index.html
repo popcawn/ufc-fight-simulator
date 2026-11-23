@@ -6,71 +6,91 @@
 <title>UFC Fight Simulator — Monte Carlo</title>
 <meta name="description" content="UFC fight simulator: win, method and round odds for any matchup, every upcoming fight scanned against US sportsbook prices.">
 <script id="themeBoot">try{var t=localStorage.getItem("ufcsim.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
-<meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/spacegrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/jetbrainsmono-latin.woff2" as="font" type="font/woff2" crossorigin>
+<meta name="theme-color" content="#0d0f15" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%8A%3C/text%3E%3C/svg%3E">
 <style>
-  /* ==== 2026-11-23 layout pass. Rules of this sheet:
+  /* ==== 2026-11-23 overhaul ("go tech forward"). Rules of this sheet:
      color = meaning only: green TAKE/value/won · red PASS/lost · amber warnings · blue live/progress · corners red/blue · the rest neutral
-     four text sizes (--f1..--f4), nothing under 11px after the fit zoom (floor 0.92 x 12px), mono + fixed-width digits for numbers
+     four text sizes (--f1..--f4), nothing under 11px after the fit zoom (floor 0.92 x 12px); display font for names and big numbers, mono for odds
      dark and light follow the device; the header switch (data-theme on <html>) overrides ==== */
+  @font-face{font-family:"Inter"; src:url(fonts/inter-latin.woff2) format("woff2"); font-weight:100 900; font-display:swap;}
+  @font-face{font-family:"Space Grotesk"; src:url(fonts/spacegrotesk-latin.woff2) format("woff2"); font-weight:300 700; font-display:swap;}
+  @font-face{font-family:"JetBrains Mono"; src:url(fonts/jetbrainsmono-latin.woff2) format("woff2"); font-weight:100 800; font-display:swap;}
   :root{
     color-scheme:dark; --gold:var(--amber);
-    --bg:#090a0d; --panel:#111318; --panel2:#181b22; --line:#23262f; --line2:#343946;
-    --text:#eceef3; --dim:#8d93a5; --faint:#646b7c;
-    --red:#ef4b4b; --redt:#ff8080; --blue:#4c82f7; --bluet:#86abff; --green:#35c985; --amber:#e3ab3c;
-    --inv:#eceef3; --on-inv:#0b0c10; --shadow:0 18px 50px rgba(0,0,0,.55);
-    --f1:12px; --f2:13.5px; --f3:16px; --f4:28px; --gap:12px; --rad:14px;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,system-ui,sans-serif;
-    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --bg:#05060a; --panel:#0d0f15; --panel2:#151822; --line:#1e222d; --line2:#333a4b;
+    --text:#f3f5f9; --dim:#959cb1; --faint:#646c81;
+    --red:#ff4b4b; --redt:#ff8a8a; --blue:#4a8cff; --bluet:#93b8ff; --green:#2ee091; --amber:#ffb84a;
+    --inv:#f3f5f9; --on-inv:#06070b; --glass:rgba(15,17,24,.74); --glow-r:rgba(255,75,75,.17); --glow-b:rgba(74,140,255,.18); --grid:rgba(255,255,255,.032);
+    --shadow:0 24px 60px -20px rgba(0,0,0,.75); --hi:inset 0 1px 0 rgba(255,255,255,.05);
+    --f1:12px; --f2:13.5px; --f3:17px; --f4:clamp(32px, 3.8vw, 48px); --gap:12px; --rad:18px;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    --disp:"Space Grotesk","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
   }
   @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
     color-scheme:light;
-    --bg:#f3f4f7; --panel:#ffffff; --panel2:#f1f2f5; --line:#e2e4ea; --line2:#c9cdd6;
-    --text:#13151a; --dim:#5a6172; --faint:#8a91a1;
-    --red:#d93a3a; --redt:#c42b2b; --blue:#2f66e0; --bluet:#2152c4; --green:#0f8a52; --amber:#a66a00;
-    --inv:#13151a; --on-inv:#ffffff; --shadow:0 18px 50px rgba(20,24,40,.18);
+    --bg:#eceff5; --panel:#ffffff; --panel2:#f1f3f8; --line:#dde1ea; --line2:#c2c9d7;
+    --text:#0c0f16; --dim:#535d72; --faint:#8690a4;
+    --red:#e23232; --redt:#c62626; --blue:#2563eb; --bluet:#1d4fd0; --green:#0a9a5a; --amber:#b06800;
+    --inv:#0c0f16; --on-inv:#ffffff; --glass:rgba(255,255,255,.8); --glow-r:rgba(226,50,50,.13); --glow-b:rgba(37,99,235,.14); --grid:rgba(12,15,22,.045);
+    --shadow:0 24px 60px -24px rgba(20,28,50,.3); --hi:inset 0 1px 0 rgba(255,255,255,.9);
   } }
   :root[data-theme="light"]{
     color-scheme:light;
-    --bg:#f3f4f7; --panel:#ffffff; --panel2:#f1f2f5; --line:#e2e4ea; --line2:#c9cdd6;
-    --text:#13151a; --dim:#5a6172; --faint:#8a91a1;
-    --red:#d93a3a; --redt:#c42b2b; --blue:#2f66e0; --bluet:#2152c4; --green:#0f8a52; --amber:#a66a00;
-    --inv:#13151a; --on-inv:#ffffff; --shadow:0 18px 50px rgba(20,24,40,.18);
+    --bg:#eceff5; --panel:#ffffff; --panel2:#f1f3f8; --line:#dde1ea; --line2:#c2c9d7;
+    --text:#0c0f16; --dim:#535d72; --faint:#8690a4;
+    --red:#e23232; --redt:#c62626; --blue:#2563eb; --bluet:#1d4fd0; --green:#0a9a5a; --amber:#b06800;
+    --inv:#0c0f16; --on-inv:#ffffff; --glass:rgba(255,255,255,.8); --glow-r:rgba(226,50,50,.13); --glow-b:rgba(37,99,235,.14); --grid:rgba(12,15,22,.045);
+    --shadow:0 24px 60px -24px rgba(20,28,50,.3); --hi:inset 0 1px 0 rgba(255,255,255,.9);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
-  body{background:var(--bg); color:var(--text); font-family:var(--sans); font-size:var(--f2); line-height:1.4; -webkit-font-smoothing:antialiased;
-       display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;}
-  button{padding:9px 18px; font-size:var(--f2); font-weight:650; background:var(--inv); color:var(--on-inv); border:1px solid var(--inv); border-radius:10px; cursor:pointer; white-space:nowrap; font-family:inherit; transition:opacity .15s, border-color .15s, background .15s;}
-  button:hover{opacity:.88;}
+  body{color:var(--text); font-family:var(--sans); font-size:var(--f2); line-height:1.4; -webkit-font-smoothing:antialiased;
+       display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;
+       background:radial-gradient(55% 45% at 0% 0%, var(--glow-r), transparent 72%), radial-gradient(55% 45% at 100% 0%, var(--glow-b), transparent 72%),
+         linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 44px, linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 44px 100%, var(--bg);}
+  button{padding:9px 18px; font-size:var(--f2); font-weight:650; background:var(--inv); color:var(--on-inv); border:1px solid var(--inv); border-radius:11px; cursor:pointer; white-space:nowrap; font-family:inherit; transition:opacity .15s, border-color .15s, background .15s, transform .12s;}
+  button:hover{opacity:.9;} button:active{transform:scale(.98);}
   button.secondary{background:transparent; color:var(--dim); border-color:transparent; font-weight:550; padding:7px 10px;}
   button.secondary:hover{color:var(--text); background:var(--panel2); opacity:1;}
   button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible{outline:2px solid var(--blue); outline-offset:1px;}
-  code{background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:var(--f1); font-family:var(--mono);}
+  code{background:var(--panel2); padding:1px 5px; border-radius:5px; font-size:var(--f1); font-family:var(--mono);}
   .hidden{display:none !important;}
   .dimtxt{color:var(--dim); font-size:var(--f1);}
   .ok{color:var(--green); font-weight:700;} .miss{color:var(--redt); font-weight:700;} .amb{color:var(--amber); font-weight:600;}
-  .num, .probs, .odds, .mrow, .ts-nums, .calctable td:not(.oc), .calctable th, .oddsin, .bigstat, .usd, .modal-box td, .fpx, .ffair, .slipstat b, .bank input{font-family:var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.01em;}
+  .r{color:var(--redt);} .b{color:var(--bluet);}
+  .num, .mrow, .ts-nums, .calctable td:not(.oc), .oddsin, .usd, .modal-box td, .fpx, .ffair, .slipstat b, .bank input, .hodds{font-family:var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em;}
   .mrow .lab, .driver, .modal-box td:first-child{font-family:var(--sans); letter-spacing:0;}
+  .topbar, .dash{background:var(--glass); -webkit-backdrop-filter:blur(18px) saturate(1.25); backdrop-filter:blur(18px) saturate(1.25);}
+  body, .topbar, .dash, .panel, .hero, .matchup, .modal-box, .tabs{transition:background-color .35s ease, border-color .35s ease, color .25s ease;}
 
-  /* ---- top bar: brand · matchup · nav ---- */
-  .topbar{display:flex; align-items:center; gap:10px 14px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:relative; flex:none;}
-  .brand{font-size:var(--f3); font-weight:800; letter-spacing:.14em; white-space:nowrap;} .brand span{color:var(--faint); margin-left:.3em;}
-  .matchup{display:flex; align-items:center; gap:8px; flex:1 1 520px; min-width:0;}
+  /* ---- top bar: brand mark · one matchup bar · nav ---- */
+  .topbar{zoom:1 !important; display:flex; align-items:center; gap:10px 16px; padding:11px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; position:relative; flex:none; z-index:10;}
+  .brand{display:flex; align-items:center; gap:9px; font-family:var(--disp); font-size:var(--f3); font-weight:700; letter-spacing:.03em; white-space:nowrap;}
+  .brand::before{content:""; width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg, var(--red) 0 50%, var(--blue) 50% 100%); box-shadow:-5px 0 18px var(--glow-r), 5px 0 18px var(--glow-b);}
+  .brand span{color:var(--faint); font-weight:500; margin-left:-.25em;}
+  .matchup{display:flex; align-items:center; gap:6px; flex:1 1 560px; min-width:0; background:var(--panel2); border:1px solid var(--line); border-radius:15px; padding:5px; box-shadow:var(--hi);}
+  .matchup:focus-within{border-color:var(--line2);}
   .pick{flex:1 1 160px; min-width:0; position:relative;}
-  .ac{position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:60; background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:4px; box-shadow:var(--shadow); min-width:240px;}
-  .ac-item{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 10px; border-radius:7px; cursor:pointer; font-size:var(--f2); white-space:nowrap;}
+  .pick::before{content:""; position:absolute; left:6px; top:9px; bottom:9px; width:3px; border-radius:2px;}
+  .pick.red::before{background:var(--red); box-shadow:0 0 12px var(--red);} .pick.blue::before{background:var(--blue); box-shadow:0 0 12px var(--blue);}
+  .ac{position:absolute; left:0; right:0; top:calc(100% + 10px); z-index:60; background:var(--panel); border:1px solid var(--line2); border-radius:12px; padding:4px; box-shadow:var(--shadow); min-width:240px;}
+  .ac-item{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:var(--f2); white-space:nowrap;}
   .ac-item .d{color:var(--dim); font-size:var(--f1);} .ac-item b{color:var(--text); font-weight:800;}
   .ac-item.on{background:var(--panel2);}
-  .pick input{width:100%; padding:9px 12px; font-size:var(--f3); background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:10px; outline:none; font-family:inherit; text-overflow:ellipsis;}
-  .pick.red input{box-shadow:inset 3px 0 0 var(--red);} .pick.blue input{box-shadow:inset 3px 0 0 var(--blue);}
-  .pick input:focus{border-color:var(--line2);}
-  .vs{font-size:var(--f1); font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.1em;}
-  .chk{font-size:var(--f1); font-weight:600; color:var(--dim); display:flex; align-items:center; cursor:pointer; white-space:nowrap; border:1px solid var(--line); border-radius:10px; padding:9px 11px; user-select:none;}
+  .pick input{width:100%; padding:8px 10px 8px 18px; font-size:var(--f3); font-family:var(--disp); font-weight:600; background:transparent; color:var(--text); border:0; border-radius:10px; outline:none; text-overflow:ellipsis;}
+  .pick input::placeholder{color:var(--faint); font-weight:500;}
+  .vs{font-family:var(--disp); font-size:var(--f1); font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.1em; padding:0 2px;}
+  .chk{font-size:var(--f1); font-weight:600; color:var(--dim); display:flex; align-items:center; cursor:pointer; white-space:nowrap; border:1px solid var(--line); border-radius:10px; padding:9px 11px; user-select:none; background:var(--panel);}
   .chk input{position:absolute; opacity:0; pointer-events:none;}
-  .chk:has(input:checked){color:var(--text); border-color:var(--text); background:var(--panel2);}
+  .chk:has(input:checked){color:var(--text); border-color:var(--text);}
   .chk:has(input:focus-visible){outline:2px solid var(--blue);}
+  #go{font-family:var(--disp); font-weight:700; letter-spacing:.02em; padding:9px 22px;}
   .nav{display:flex; align-items:center; gap:2px; margin-left:auto;}
   .nav .sm{display:none;}
   .oppnote{position:absolute; right:14px; top:100%; margin-top:6px; color:var(--dim); font-size:var(--f1); z-index:5; background:var(--panel); border:1px solid var(--line); padding:4px 9px; border-radius:8px; max-width:calc(100% - 28px);}
@@ -79,59 +99,90 @@
   .err{position:absolute; left:14px; top:100%; margin-top:6px; color:var(--redt); font-size:var(--f2); z-index:5; background:var(--panel); border:1px solid var(--red); padding:4px 9px; border-radius:8px;}
   .err:empty{display:none;}
 
-  /* ---- dashboard: three panels that fill the window; the page never scrolls and fitDash() keeps every panel inside its box ---- */
-  .tabs{display:none; background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:3px; gap:3px;}
-  .tabs button{flex:1; padding:7px 4px; font-size:var(--f1); background:transparent; color:var(--dim); border:0; border-radius:8px; font-weight:650;}
+  /* ---- dashboard: fight hero on top, three panels under it; the page never scrolls and fitDash() keeps every panel inside its box ---- */
+  .tabs{display:none; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:3px; gap:3px;}
+  .tabs button{flex:1; padding:7px 4px; font-size:var(--f1); background:transparent; color:var(--dim); border:0; border-radius:9px; font-weight:650;}
   .tabs button.on{background:var(--panel); color:var(--text); box-shadow:0 0 0 1px var(--line2);}
-  .dash{flex:1; min-height:0; display:grid; gap:var(--gap); padding:var(--gap);
-        grid-template-columns:minmax(290px,1fr) minmax(240px,.8fr) minmax(430px,1.75fr); grid-template-areas:"res tape calc";}
-  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--rad); padding:16px; overflow:auto; min-height:0; min-width:0; position:relative;}
-  .p-res{grid-area:res;} .p-tape{grid-area:tape;} .p-calc{grid-area:calc;}
-  .dash.ready .p-res{background:
-      radial-gradient(90% 46% at 0% 0%, color-mix(in srgb, var(--red) 13%, transparent), transparent 70%),
-      radial-gradient(90% 46% at 100% 0%, color-mix(in srgb, var(--blue) 13%, transparent), transparent 70%), var(--panel);}
-  .empty{color:var(--dim); font-size:var(--f2); line-height:1.7; margin-top:24px; text-align:center;}
+  .dash{flex:1; min-height:0; display:grid; gap:0; padding:0;
+        grid-template-columns:minmax(290px,1fr) minmax(250px,.85fr) minmax(430px,1.7fr); grid-template-rows:auto minmax(0,1fr); grid-template-areas:"hero hero hero" "res tape calc";}
+  .panel{border:0; border-left:1px solid var(--line); padding:18px 22px; overflow:auto; min-height:0; min-width:0; position:relative;}
+  .p-res{grid-area:res; border-left:0;} .p-tape{grid-area:tape;} .p-calc{grid-area:calc;}
+  /* panes never scroll (fitDash keeps them inside), so no scrollbar: one that appears mid-fit narrows the pane, wraps a label and keeps it overflowing */
+  .panel{scrollbar-width:none;} .panel::-webkit-scrollbar{width:0; height:0;}
+  .ts-lab{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .dash:not(.ready) .needs-sim{display:none;} .dash.ready .empty{display:none;}
-  .panel h3, .mini h3, .ts-lab, .bth, .modal-box h3{font-size:var(--f1); font-weight:650; color:var(--faint); text-transform:uppercase; letter-spacing:.09em; margin-bottom:6px;}
-  .sec{margin-top:14px;}
+  .panel h3, .mini h3, .ts-lab, .bth, .modal-box h3{font-size:var(--f1); font-weight:650; color:var(--faint); text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px;}
+  .sec{margin-top:16px;}
+  /* a short fade when a pane appears; no movement, so nothing ever sits outside its box */
+  @media (prefers-reduced-motion: no-preference){
+    .dash.ready .hero, .dash.ready .panel{animation:fadein .28s ease-out;}
+    @keyframes fadein{ from{opacity:.25;} to{opacity:1;} }
+  }
+  /* landing: before the first sim one panel fills the dashboard */
+  .dash:not(.ready){display:flex;} .dash:not(.ready) .p-res{flex:1; display:block !important;} .dash:not(.ready) .p-tape, .dash:not(.ready) .p-calc, .dash:not(.ready) .hero{display:none !important;}
+  body:has(.dash:not(.ready)) .tabs{display:none !important;}
+  .empty{color:var(--dim); font-size:var(--f2); line-height:1.6; text-align:center; min-height:100%; display:grid; place-content:center; justify-items:center; gap:14px; padding:12px 0;}
+  .landh{font-family:var(--disp); font-size:var(--f4); font-weight:700; line-height:1.02; letter-spacing:-.035em; color:var(--text); max-width:16ch;}
+  .landh em{font-style:normal; background:linear-gradient(90deg, var(--redt), var(--bluet)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .landp{max-width:54ch;}
+  .landstats{display:flex; flex-wrap:wrap; justify-content:center; gap:8px;}
+  .landstats span{border:1px solid var(--line); background:var(--panel2); border-radius:999px; padding:5px 12px; font-size:var(--f1);} .landstats b{color:var(--text); font-family:var(--mono);}
+  .nextcard{width:min(100%, 880px); margin-top:6px;} .nextcard:empty{display:none;}
+  .nextcard h4{font-size:var(--f1); color:var(--faint); text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; font-weight:650;}
+  .ncgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(212px, 1fr)); gap:8px;}
+  .nextcard button{display:flex; align-items:baseline; justify-content:center; gap:7px; padding:10px 12px; font-family:var(--disp); font-size:var(--f2); font-weight:600; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:12px; min-width:0;}
+  .nextcard button span{min-width:0; overflow:hidden; text-overflow:ellipsis;} .nextcard button i{font-style:normal; color:var(--faint); font-size:var(--f1); font-weight:500;}
+  .nextcard button.main{grid-column:1 / -1; padding:13px 14px; font-size:var(--f3); border-color:var(--line2); background:linear-gradient(90deg, color-mix(in srgb, var(--red) 16%, transparent), transparent 40%, transparent 60%, color-mix(in srgb, var(--blue) 16%, transparent)), var(--panel2);}
+  .nextcard button:hover{border-color:var(--line2); opacity:1; background:var(--panel);} .nextcard .sub{font-family:var(--sans); font-weight:600; color:var(--faint); flex:none;}
 
-  /* result */
-  .names{display:flex; justify-content:space-between; gap:10px; font-size:var(--f3); font-weight:700;}
-  .names span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .names .r, .r{color:var(--redt);} .names .b, .b{color:var(--bluet);} .names .b{text-align:right;}
-  .probs{display:flex; justify-content:space-between; font-size:var(--f4); font-weight:700; line-height:1.15; margin:2px 0 8px;}
-  .probs .pcol:last-child{text-align:right;}
-  .odds{font-size:var(--f1); font-weight:600; color:var(--dim); line-height:1.4;}
-  .bar{height:6px; border-radius:3px; overflow:hidden; display:flex; background:var(--blue); position:relative;}
-  .bar::after{content:""; position:absolute; left:50%; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--panel);}
-  .bar .fillA{background:var(--red); height:100%; transition:width .6s;}
-  .verdict{margin:12px 0 2px; font-size:var(--f2); line-height:1.45;} .verdict b{color:var(--text); font-weight:750;}
-  .blendnote{font-size:var(--f1); color:var(--dim); line-height:1.45; margin-top:4px;} .blendnote:empty{display:none;} .blendnote b{color:var(--text);}
+  /* fight hero: names, the big numbers, the split bar, the pick */
+  .hero{grid-area:hero; display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,1.25fr) minmax(0,1fr); align-items:center; gap:10px 26px; padding:14px 28px; border:0; border-bottom:1px solid var(--line); position:relative; overflow:hidden;}
+  .hero::before{content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg, color-mix(in srgb, var(--red) 24%, transparent), transparent 36%, transparent 64%, color-mix(in srgb, var(--blue) 24%, transparent));}
+  .hero > *{position:relative; min-width:0;}
+  .hside.hb{text-align:right;}
+  .hname{font-family:var(--disp); font-size:var(--f3); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .hpct{font-family:var(--disp); font-size:var(--f4); font-weight:700; line-height:1.02; letter-spacing:-.04em; font-variant-numeric:tabular-nums;}
+  .hodds{font-size:var(--f1); font-weight:600; color:var(--dim);}
+  .hmid{text-align:center;}
+  .bar{height:10px; border-radius:999px; overflow:hidden; display:flex; background:var(--blue); position:relative; box-shadow:0 0 0 1px var(--line), 0 0 26px -6px var(--blue);}
+  .bar::after{content:""; position:absolute; left:50%; top:-2px; bottom:-2px; width:2px; margin-left:-1px; background:var(--text); opacity:.85;}
+  .bar .fillA{background:var(--red); height:100%; transition:width .7s cubic-bezier(.2,.7,.2,1); box-shadow:0 0 26px 0 var(--red);}
+  .verdict{margin:10px 0 0; font-size:var(--f2); line-height:1.45;} .verdict b{color:var(--text); font-weight:750;}
+  .blendnote{font-size:var(--f1); color:var(--dim); line-height:1.45; margin-top:3px;} .blendnote:empty{display:none;} .blendnote b{color:var(--text);}
   .warn{color:var(--amber); font-size:var(--f1); margin-top:4px; line-height:1.4;} .warn:empty{display:none;}
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px;}
-  .mrow{display:flex; justify-content:space-between; gap:8px; font-size:var(--f2); padding:calc(3px + var(--rp,0px)) 0; border-bottom:1px solid var(--line);}
-  .mrow:last-child{border-bottom:none;} .mrow .lab{color:var(--dim); text-align:center;} .mrow > span:first-child{font-family:var(--sans); letter-spacing:0;}
-  .driver{font-size:var(--f2); padding:calc(4px + var(--rp,0px)) 0; border-bottom:1px solid var(--line); line-height:1.35;}
-  .driver:last-child{border-bottom:none;} .driver .who{font-weight:700;}
 
-  /* tale of the tape: the better number is bold, the other dim (green is kept for bets) */
-  .taphd{border-bottom:1px solid var(--line2); margin-bottom:2px;}
-  .taphd span{font-family:var(--sans); font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .taphd .b{text-align:right;}
-  .p-tape .mrow > span:first-child{font-family:var(--mono);}
+  /* breakdown: every number sits on a bar of its own size */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .mrow{display:flex; justify-content:space-between; gap:8px; font-size:var(--f2); padding:calc(3px + var(--rp,0px)) 0; border-bottom:1px solid var(--line);}
+  .mrow:last-child{border-bottom:none;} .mrow .lab{color:var(--dim); text-align:center;}
+  .mrow.vb{border:0; border-radius:8px; padding:calc(5px + var(--rp,0px)) 9px; margin-bottom:3px; font-weight:600;
+    background:linear-gradient(90deg, color-mix(in srgb, var(--text) 15%, transparent) var(--v), color-mix(in srgb, var(--text) 4.5%, transparent) 0);}
+  .mrow.vb .lab{color:var(--text); font-weight:500; text-align:left;}
+  .driver{font-size:var(--f2); padding:calc(4px + var(--rp,0px)) 0 calc(4px + var(--rp,0px)) 11px; margin-bottom:3px; line-height:1.35; border-left:2px solid var(--line2);}
+  .driver:has(.who.r){border-left-color:var(--red);} .driver:has(.who.b){border-left-color:var(--blue);} .driver .who{font-weight:700;}
+
+  /* tale of the tape: mirrored bars from the centre; the better number is bold (green is kept for bets) */
+  .taphd{border-bottom:1px solid var(--line2); margin-bottom:4px; padding-bottom:6px;}
+  .taphd span{font-family:var(--disp); font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .taphd .b{text-align:right;}
+  .mrow.tp{position:relative; isolation:isolate; border:0; padding:calc(4px + var(--rp,0px)) 6px; margin-bottom:2px;}
+  .mrow.tp::before, .mrow.tp::after{content:""; position:absolute; top:2px; bottom:2px; z-index:-1;}
+  .mrow.tp::before{right:50%; width:calc(var(--a) / 2); border-radius:5px 0 0 5px; background:linear-gradient(270deg, color-mix(in srgb, var(--red) 46%, transparent), color-mix(in srgb, var(--red) 10%, transparent));}
+  .mrow.tp::after{left:50%; width:calc(var(--b) / 2); border-radius:0 5px 5px 0; background:linear-gradient(90deg, color-mix(in srgb, var(--blue) 46%, transparent), color-mix(in srgb, var(--blue) 10%, transparent));}
   .twin{color:var(--text); font-weight:800;} .tlose{color:var(--faint);} .tval{color:var(--text);}
   .tapescore{margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
-  .ts-nums{display:flex; justify-content:space-between; font-size:var(--f3); font-weight:700;}
-  .ts-bar{height:6px; border-radius:3px; overflow:hidden; display:flex; background:var(--blue); margin:3px 0 6px;}
+  .ts-nums{display:flex; justify-content:space-between; font-family:var(--disp); font-size:var(--f3); font-weight:700;}
+  .ts-bar{height:8px; border-radius:999px; overflow:hidden; display:flex; background:var(--blue); margin:3px 0 6px;}
   .ts-fill{background:var(--red); height:100%;}
   .ts-verdict{font-size:var(--f2);} .ts-verdict b{color:var(--text);}
   .ts-note{font-size:var(--f1); color:var(--dim); margin-top:4px; line-height:1.4;}
+  .ts-more{margin-top:4px;} .ts-more summary{cursor:pointer; color:var(--dim); font-size:var(--f1); font-weight:600;}
 
   /* calculator */
   .calc-top{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin-bottom:10px;}
   .calc-top h3{margin:0 auto 0 0;}
   .fld{font-size:var(--f1); color:var(--dim); display:flex; align-items:center; gap:5px; white-space:nowrap;}
-  select{background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:5px 6px; font-size:var(--f1); font-family:inherit; max-width:170px;}
-  .bank{display:inline-flex; align-items:center; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:0 0 0 7px; color:var(--dim); font-family:var(--mono);}
+  select{background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:9px; padding:5px 6px; font-size:var(--f1); font-family:inherit; max-width:170px;}
+  .bank{display:inline-flex; align-items:center; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:0 0 0 7px; color:var(--dim); font-family:var(--mono);}
   .bank input{width:68px; padding:5px 6px 5px 2px; background:transparent; border:0; color:var(--text); font-size:var(--f1); outline:none;}
   .bank:focus-within{border-color:var(--line2);}
   .notes{position:relative; margin:0 0 8px;}
@@ -139,34 +190,34 @@
   .notes-btn{flex:none; padding:3px 9px; font-size:var(--f1); font-weight:600; background:var(--panel2); color:var(--dim); border:1px solid var(--line); border-radius:999px;}
   .notes.open .notes-btn{color:var(--text); border-color:var(--line2);}
   .notes-peek{min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:var(--f1); color:var(--dim);} .notes-peek b{color:var(--text);}
-  .notes-pop{display:none; position:absolute; z-index:20; left:0; right:0; top:calc(100% + 6px); background:var(--panel); border:1px solid var(--line2); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow);}
+  .notes-pop{display:none; position:absolute; z-index:20; left:0; right:0; top:calc(100% + 6px); background:var(--panel); border:1px solid var(--line2); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow);}
   .notes.open .notes-pop{display:block;}
   .anchornote{font-size:var(--f1); color:var(--dim); line-height:1.5; margin:0 0 8px;} .anchornote:empty{display:none;} .anchornote b{color:var(--text);}
   .legend{font-size:var(--f1); color:var(--dim); line-height:1.5; border-top:1px solid var(--line); padding-top:8px;}
-  .verdict-box{margin:0 0 10px; padding:10px 12px 10px 14px; border-radius:10px; font-size:var(--f2); line-height:1.45; border:1px solid var(--line); position:relative; overflow:hidden;}
-  .verdict-box::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--dim);}
-  .verdict-box .vh{font-size:var(--f1); font-weight:800; letter-spacing:.09em; display:block; margin-bottom:3px;}
-  .verdict-box.take{background:color-mix(in srgb, var(--green) 11%, transparent); border-color:color-mix(in srgb, var(--green) 45%, transparent);} .verdict-box.take .vh{color:var(--green);} .verdict-box.take::before{background:var(--green);}
-  .verdict-box.pass{background:color-mix(in srgb, var(--red) 9%, transparent); border-color:color-mix(in srgb, var(--red) 40%, transparent);} .verdict-box.pass .vh{color:var(--redt);} .verdict-box.pass::before{background:var(--red);}
-  .verdict-box.caution{background:color-mix(in srgb, var(--amber) 11%, transparent); border-color:color-mix(in srgb, var(--amber) 45%, transparent);} .verdict-box.caution .vh{color:var(--amber);} .verdict-box.caution::before{background:var(--amber);}
-  .seg{display:inline-flex; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:2px; gap:2px; margin-bottom:6px; max-width:100%;}
-  .seg button{padding:4px 10px; font-size:var(--f1); font-weight:600; background:transparent; color:var(--dim); border:0; border-radius:7px;}
+  .verdict-box{--vc:var(--dim); margin:0 0 10px; padding:12px 14px 12px 18px; border-radius:14px; font-size:var(--f2); line-height:1.45; position:relative; overflow:hidden;
+    border:1px solid color-mix(in srgb, var(--vc) 45%, transparent); background:linear-gradient(100deg, color-mix(in srgb, var(--vc) 17%, transparent), color-mix(in srgb, var(--vc) 5%, transparent)); box-shadow:0 14px 40px -22px var(--vc);}
+  .verdict-box::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--vc); box-shadow:0 0 16px var(--vc);}
+  .verdict-box .vh{font-family:var(--disp); font-size:var(--f3); font-weight:700; letter-spacing:.02em; display:block; margin-bottom:2px; color:var(--vc);}
+  .verdict-box.take{--vc:var(--green);} .verdict-box.pass{--vc:var(--red);} .verdict-box.pass .vh{color:var(--redt);} .verdict-box.caution{--vc:var(--amber);}
+  .seg{display:inline-flex; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:2px; gap:2px; margin-bottom:6px; max-width:100%;}
+  .seg button{padding:4px 10px; font-size:var(--f1); font-weight:600; background:transparent; color:var(--dim); border:0; border-radius:8px;}
   .seg button.on{background:var(--panel); color:var(--text); box-shadow:0 0 0 1px var(--line2);}
   .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .calctable{width:100%; border-collapse:collapse; font-size:var(--f2);}
   .calctable th{color:var(--faint); font-family:var(--sans); font-weight:650; text-transform:uppercase; font-size:var(--f1); letter-spacing:.07em; text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap;}
   .calctable td{padding:2px 6px; border-bottom:1px solid var(--line); white-space:nowrap; height:calc(27px + 2*var(--rp,0px));}
   .calctable tr:last-child td{border-bottom:none;}
+  .calctable tbody tr:hover td{background:color-mix(in srgb, var(--text) 3.5%, transparent);}
   .oc{font-weight:500;} .oc .r, .oc .b{font-weight:650;}
-  .oddsin{width:68px; padding:3px 6px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:7px; font-size:var(--f2);}
+  .oddsin{width:68px; padding:3px 6px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; font-size:var(--f2);}
   .oddsin:focus{border-color:var(--line2); outline:none;}
   .blcell{color:var(--text); font-weight:700;} td[id^="bl"]:not(.blcell){color:var(--dim);}
   .evcell{font-weight:600; color:var(--dim);}
-  .evcell .tag{font-family:var(--sans); font-size:var(--f1); font-weight:600; margin-left:6px; letter-spacing:0;}
+  .evcell .tag{font-family:var(--sans); font-size:var(--f1); font-weight:650; margin-left:7px; letter-spacing:0; border:1px solid currentColor; border-radius:999px; padding:0 7px; opacity:.9;}
   .evcell.ok, .evcell.best{color:var(--green); font-weight:750;}
   .evcell.suspect{color:var(--amber);}
   .mktcell{color:var(--dim);}
-  tr.rec td{background:color-mix(in srgb, var(--green) 12%, transparent);}
+  tr.rec td, .calctable tbody tr.rec:hover td{background:color-mix(in srgb, var(--green) 13%, transparent);}
   tr.rec td:first-child{box-shadow:inset 3px 0 0 var(--green);}
   .calctable.g-ml tr.me, .calctable.g-ml tr.dc, .calctable.g-ml tr.dc-head,
   .calctable.g-me tr.ml, .calctable.g-me tr.dc, .calctable.g-me tr.dc-head,
@@ -177,19 +228,19 @@
   /* holds the verdict's space until odds are entered, so nothing jumps; doubles as the "enter odds" hint */
   .fit-reserve{display:none; position:relative; margin-bottom:10px;} #verdictBox.hidden + .fit-reserve{display:block;}
   .fit-reserve > *{visibility:hidden;} .fit-reserve .verdict-box{margin:0;}
-  .fit-reserve::after{content:"Enter the book's odds below. Your TAKE or PASS call shows up here."; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px; border:1px dashed var(--line2); border-radius:10px; color:var(--dim); font-size:var(--f2);}
+  .fit-reserve::after{content:"Enter the book's odds below. Your TAKE or PASS call shows up here."; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px; border:1px dashed var(--line2); border-radius:14px; color:var(--dim); font-size:var(--f2);}
 
   /* ---- pop-ups ---- */
-  .modal{position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
-  .modal-box{background:var(--panel); border:1px solid var(--line2); border-radius:16px; padding:20px 22px; max-width:1180px; width:100%; max-height:100%; overflow:auto; position:relative; box-shadow:var(--shadow);}
-  .modal-box h3{color:var(--text); margin-bottom:6px; padding-right:34px;}
-  .close{position:absolute; top:10px; right:10px; background:var(--panel2); color:var(--dim); border:1px solid var(--line); border-radius:999px; font-size:var(--f3); line-height:1; padding:0; width:30px; height:30px;}
+  .modal{position:fixed; inset:0; background:rgba(2,3,6,.62); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
+  .modal-box{background:var(--panel); border:1px solid var(--line2); border-radius:22px; padding:22px 24px; max-width:1180px; width:100%; max-height:100%; overflow:auto; position:relative; box-shadow:var(--hi), var(--shadow);}
+  .modal-box h3{font-family:var(--disp); font-size:var(--f3); text-transform:none; letter-spacing:0; color:var(--text); margin-bottom:6px; padding-right:38px;}
+  .close{position:absolute; top:12px; right:12px; background:var(--panel2); color:var(--dim); border:1px solid var(--line); border-radius:999px; font-size:var(--f3); line-height:1; padding:0; width:32px; height:32px; z-index:3;}
   .mcols{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:28px;}
   @media (max-width:1000px){ .mcols{grid-template-columns:1fr; gap:4px;} }
-  @media (max-height:760px) and (min-width:1001px){ .modal{padding:8px;} .modal-box{padding:12px 18px;} .modal-box .bth{margin-top:10px;} .modal-box .note{margin-top:5px; line-height:1.45;} .modal-box th, .modal-box td{padding:3px 8px;} }
-  .bigstat{font-size:var(--f4); font-weight:700; color:var(--text);}
+  @media (max-height:760px) and (min-width:1001px){ .modal{padding:8px;} .modal-box{padding:14px 20px;} .modal-box .bth{margin-top:10px;} .modal-box .note{margin-top:5px; line-height:1.45;} .modal-box th, .modal-box td{padding:3px 8px;} }
+  .bigstat{font-family:var(--disp); font-size:var(--f4); font-weight:700; letter-spacing:-.03em; line-height:1.1; color:var(--text);}
   .modal-box table{width:100%; border-collapse:collapse; font-size:var(--f2); margin-top:6px;}
-  .modal-box th, .modal-box td{text-align:left; padding:5px 8px; border-bottom:1px solid var(--line);}
+  .modal-box th, .modal-box td{text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);}
   .modal-box th{color:var(--faint); font-weight:650; text-transform:uppercase; font-size:var(--f1); letter-spacing:.07em; font-family:var(--sans);}
   .bth{margin:16px 0 4px;}
   .note{font-size:var(--f1); color:var(--dim); margin-top:8px; line-height:1.55;} .note b{color:var(--text);}
@@ -199,7 +250,7 @@
   .classic{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column;}
   .classic-bar{display:flex; align-items:center; gap:12px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; flex:none;}
   .classic-bar button.secondary{border-color:var(--line); color:var(--text);}
-  .classic-title{font-weight:800; letter-spacing:.12em; color:var(--text); font-size:var(--f2);}
+  .classic-title{font-family:var(--disp); font-weight:700; letter-spacing:.1em; color:var(--text); font-size:var(--f2);}
   .classic-ver{display:flex; gap:6px;} .classic-ver button{padding:5px 12px; font-size:var(--f1);} .classic-ver button.on{border-color:var(--text); color:var(--text); font-weight:700;}
   #classicSub{font-size:var(--f1); color:var(--dim);}
   @media(max-width:700px){ #classicSub{display:none;} }
@@ -209,44 +260,40 @@
   /* ---- Upcoming fights (card scanner) · parlay slip · My bets ---- */
   .modal-box.wide{max-width:1320px;}
   .wkhead{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin-top:4px;}
-  .wkhead .dimtxt{flex:1 1 260px;}
+  .wkhead .dimtxt, .wkhead #betsum{flex:1 1 260px;}
   .books{margin-top:8px;} .books summary{cursor:pointer; color:var(--dim); font-size:var(--f1); font-weight:600;}
   .bookchips{margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;} .bookchips .sub{margin-right:4px;}
   .wkgrid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; margin-top:10px; align-items:start;}
   @media (max-width:1180px){ .wkgrid{grid-template-columns:1fr;} }
-  .flist{border-top:1px solid var(--line);}
-  .dayrow{display:flex; align-items:baseline; gap:10px; padding:16px 2px 6px; font-size:var(--f1); letter-spacing:.07em; text-transform:uppercase; color:var(--faint); font-weight:650; border-bottom:1px solid var(--line2);}
-  .dayrow b{color:var(--text); font-weight:750;} .dayrow.spec span{color:var(--amber);}
-  .specbar{padding:16px 2px 8px; color:var(--amber); font-size:var(--f1); border-bottom:1px solid var(--line);} .specbar b{color:var(--text);} .specbar .mini-btn{margin-right:6px;}
-  .frow{border-bottom:1px solid var(--line);}
-  .frow.take{background:color-mix(in srgb, var(--green) 8%, transparent); box-shadow:inset 3px 0 0 var(--green);}
-  .fmain{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 150px 170px 14px; align-items:center; gap:10px; padding:8px 6px 8px 10px; cursor:pointer; min-height:36px;}
+  .dayrow{display:flex; align-items:baseline; gap:10px; padding:18px 2px 8px; border-bottom:1px solid var(--line2); font-size:var(--f1); letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:650;}
+  .dayrow b{font-family:var(--disp); color:var(--text); font-weight:700; font-size:var(--f2); letter-spacing:.04em;} .dayrow.spec span{color:var(--amber);}
+  .specbar{padding:18px 2px 8px; color:var(--amber); font-size:var(--f1);} .specbar b{color:var(--text);} .specbar .mini-btn{margin-right:6px;}
+  .frow{border-bottom:1px solid var(--line); transition:background-color .15s;}
+  .frow:hover, .frow.open{background:color-mix(in srgb, var(--text) 3.5%, transparent);}
+  .frow.take, .frow.take:hover{background:linear-gradient(90deg, color-mix(in srgb, var(--green) 15%, transparent), transparent 70%); box-shadow:inset 3px 0 0 var(--green);}
+  .fmain{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 150px 170px 14px; align-items:center; gap:10px; padding:8px 10px 8px 12px; cursor:pointer; min-height:38px;}
   .fmain::after{content:""; width:7px; height:7px; border-right:2px solid var(--faint); border-bottom:2px solid var(--faint); transform:rotate(45deg); transition:transform .15s; justify-self:end; margin-top:-3px;}
   .frow.open .fmain::after{transform:rotate(-135deg); margin-top:3px;}
-  .fmain:hover{background:color-mix(in srgb, var(--text) 4%, transparent);}
-  .fnames{display:flex; align-items:baseline; gap:6px; min-width:0; font-weight:650;}
-  .fnames > span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .fnames i{font-style:normal; color:var(--faint); font-size:var(--f1); font-weight:500; flex:none;}
-  .frow.unscored .fnames{color:var(--dim); font-weight:550;}
-  .fcall{font-size:var(--f1); font-weight:800; letter-spacing:.06em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .fcall.take{color:var(--green);} .fcall.pass{color:var(--redt);} .fcall.none{color:var(--faint);} .fcall.prog{color:var(--bluet);}
+  .fnames{display:flex; align-items:baseline; gap:6px; min-width:0; font-family:var(--disp); font-weight:600;}
+  .fnames > span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .fnames i{font-style:normal; color:var(--faint); font-size:var(--f1); font-weight:500; flex:none; font-family:var(--sans);}
+  .frow.unscored .fnames{color:var(--dim); font-weight:500;}
+  .fcall{justify-self:start; max-width:100%; font-size:var(--f1); font-weight:750; letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid currentColor; border-radius:999px; padding:1px 9px;}
+  .fcall.take{color:var(--on-inv); background:var(--green); border-color:var(--green);} .fcall.pass{color:var(--redt); border-color:color-mix(in srgb, var(--red) 45%, transparent);}
+  .fcall.none{color:var(--faint); border-color:var(--line2);} .fcall.prog{color:var(--bluet);}
   .ffair, .fpx{font-size:var(--f1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--dim);} .ffair b, .fpx b{color:var(--text); font-weight:650;} .fpx{text-align:right;}
-  .fmore{display:none; padding:2px 10px 12px; font-size:var(--f1); color:var(--dim); line-height:1.55;} .frow.open .fmore{display:block;}
-  .fmore b{color:var(--text);} .fline{margin-top:3px;} .fline.why{color:var(--text);} .fmore .acts{margin-top:8px;}
+  .fmore{display:none; padding:0 12px 12px; font-size:var(--f1); color:var(--dim); line-height:1.55;} .frow.open .fmore{display:block;}
+  .fmore b{color:var(--text);} .fline{margin-top:4px;} .fline.why{color:var(--text);} .fmore .acts{margin-top:8px;}
   .thinf{cursor:help;}
-  .ufcn, .badge{font-size:var(--f1); font-weight:700; letter-spacing:.04em; border:1px solid var(--line2); border-radius:5px; padding:0 5px; margin-left:5px; color:var(--dim); white-space:nowrap; font-family:var(--sans);}
+  .ufcn, .badge{font-size:var(--f1); font-weight:700; letter-spacing:.04em; border:1px solid var(--line2); border-radius:6px; padding:0 5px; margin-left:5px; color:var(--dim); white-space:nowrap; font-family:var(--sans);}
   .ufcn{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent);}
   .badge{cursor:help;} .badge.early{color:var(--bluet); border-color:color-mix(in srgb, var(--blue) 50%, transparent);}
-  .nextcard{margin-top:18px; text-align:center;} .nextcard:empty{display:none;}
-  .nextcard h4{font-size:var(--f1); color:var(--faint); text-transform:uppercase; letter-spacing:.09em; margin-bottom:8px; font-weight:650;}
-  .nextcard button{margin:3px; padding:6px 11px; font-size:var(--f1); font-weight:600; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:999px;}
-  .nextcard button:hover{border-color:var(--line2); opacity:1;} .nextcard .sub{font-weight:500;}
   .sub{font-size:var(--f1); color:var(--dim); font-weight:400;} .bk{font-size:var(--f1); color:var(--dim); font-family:var(--sans); letter-spacing:0;}
-  .mini-btn{padding:4px 10px; font-size:var(--f1); font-weight:600; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; margin:1px 2px;}
+  .mini-btn{padding:4px 10px; font-size:var(--f1); font-weight:600; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:9px; margin:1px 2px;}
   .mini-btn.on{background:var(--inv); color:var(--on-inv); border-color:var(--inv);}
   .mini-btn:disabled{opacity:.5; cursor:default;}
   .mini-btn.x{background:none; border:none; color:var(--dim); font-size:var(--f3); padding:0 4px;}
   .acts{white-space:nowrap;}
-  .slip{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px;}
+  .slip{background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:14px;}
   .leg{display:flex; justify-content:space-between; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid var(--line); font-size:var(--f2);}
   .slipstat{font-size:var(--f2); margin-top:8px;}
   .warnline{font-size:var(--f1); color:var(--amber); margin-top:8px; line-height:1.4;}
@@ -257,48 +304,65 @@
   table.scan td{vertical-align:middle;}
   .sub.rds{margin-top:2px;} .sub.rds b{color:var(--text);}
 
-  /* ---- medium screens: calculator stays on the right; Result / Tale of the tape toggle on the left ---- */
+  /* ---- medium screens: calculator stays on the right; Breakdown / Tale of the tape toggle on the left ---- */
   @media (max-width:1180px) and (min-width:761px){
     .tabs{display:flex; margin:10px 12px 0; flex:none; max-width:460px;}
     .tabs button[data-tab="calc"]{display:none;}
-    .dash{grid-template-columns:minmax(300px,1fr) minmax(420px,1.3fr); grid-template-rows:1fr; grid-template-areas:"left calc";}
-    .p-res, .p-tape{grid-area:left; display:none;} .p-res.active, .p-tape.active{display:block;}
+    .dash{grid-template-columns:minmax(300px,1fr) minmax(420px,1.3fr); grid-template-areas:"hero hero" "left calc";}
+    .p-res, .p-tape{grid-area:left; display:none; border-left:0;} .p-res.active, .p-tape.active{display:block;}
     .dash.fitting .p-res, .dash.fitting .p-tape{display:block;}
-    .nav{margin-left:0; flex:1 1 100%; order:5;}
+    .matchup{flex:1 1 360px;} .nav{gap:0;} .nav .lg{display:none;} .nav .sm{display:inline;} .nav button.secondary{padding:6px 8px; font-size:var(--f1);}
+    .hero{grid-template-columns:minmax(0,1fr) minmax(220px,1.1fr) minmax(0,1fr); padding:12px 22px; gap:6px 16px;}
   }
-  /* ---- phones: one panel at a time via tabs, each fits the screen ---- */
-  @media (max-width:760px){
-    :root{--gap:8px;}
-    .topbar{gap:8px; padding:8px 10px 10px;}
-    .brand{font-size:var(--f2); order:1;}
-    .nav{order:2; margin-left:auto; gap:0;} .nav .lg{display:none;} .nav .sm{display:inline;} .nav button.secondary{padding:6px 7px; font-size:var(--f1);}
-    .matchup{order:3; flex:1 1 100%; flex-wrap:wrap;}
-    .pick{flex:1 1 40%;} .vs{display:none;}
-    .chk{flex:none;} #go{flex:1 1 auto;}
-    .tabs{display:flex; margin:8px 10px 0; flex:none;}
-    .dash{grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:none; padding:8px 10px 10px;}
-    .dash .panel{display:none; grid-area:auto; padding:14px 12px;} .dash .panel.active{display:block;}
-    .grid2{grid-template-columns:1fr 1fr;}
-    #verdictBox.hidden + .fit-reserve{display:none;}
-    .calc-top{flex-wrap:nowrap; gap:6px; margin-bottom:8px;} .calc-top h3{display:none;} .fld{min-width:0;} .fld .lbl{display:none;} .fld.bk .lbl{display:inline;} .fld.bk{margin-left:auto;} select{max-width:118px; min-width:0;} .bank input{width:50px;}
-    #ocSeg button[data-g="all"]{display:none;}
-    /* odds table: fair odds sits under fair %, market % under the book-odds box, so the row fits a phone with no sideways scroll */
+  /* ---- panes narrower than a laptop's (tablets, phones): the odds table goes two-line ---- */
+  @media (max-width:1000px){
+    .hero{grid-template-columns:1fr 1fr;} .hmid{grid-column:1 / -1; order:3;}
+    /* odds table: fair odds sits under fair %, market % under the book-odds box, so the row fits a narrow pane with no sideways scroll */
     .calctable, .calctable thead, .calctable tbody{display:block;}
-    .calctable tr{display:grid; grid-template-columns:minmax(0,1fr) 66px 78px 70px; column-gap:8px; align-items:center; padding:calc(3px + var(--rp,0px)) 0; border-bottom:1px solid var(--line); line-height:1.25;}
+    .calctable tr{display:grid; grid-template-columns:minmax(0,1fr) 66px 78px 74px; column-gap:8px; align-items:center; padding:calc(3px + var(--rp,0px)) 0; border-bottom:1px solid var(--line); line-height:1.25;}
     .calctable th{letter-spacing:0;} .calctable td.oc{white-space:normal;}
     .calctable tr:last-child{border-bottom:0;}
     .calctable th, .calctable td{border:0; padding:0; height:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;}
+    .calctable tbody tr:hover td{background:none;}
     .calctable tr > :nth-child(1){grid-column:1; grid-row:1 / span 2;}
     .calctable tr > :nth-child(2){grid-column:2; grid-row:1;} .calctable tr > :nth-child(3){grid-column:2; grid-row:2; font-size:var(--f1); color:var(--dim);}
     .calctable tr > :nth-child(4){grid-column:3; grid-row:1;} .calctable tr > :nth-child(5){grid-column:3; grid-row:2; font-size:var(--f1);}
     .calctable tr > :nth-child(6){grid-column:4; grid-row:1 / span 2; text-align:right; white-space:normal;}
-    .calctable .oddsin{width:100%;} .evcell .tag{display:block; margin:0;}
+    .calctable .oddsin{width:100%;} .evcell .tag{display:inline-block; margin:2px 0 0;}
     .calctable tr.dc-head{display:none;}
-    tr.rec{background:color-mix(in srgb, var(--green) 12%, transparent); box-shadow:inset 3px 0 0 var(--green);} tr.rec td{background:none;} tr.rec td:first-child{box-shadow:none; padding-left:8px;}
-    /* pop-ups */
-    .modal{padding:6px;} .modal-box{padding:14px 12px; border-radius:14px;}
-    .fmain{grid-template-columns:minmax(0,1fr) auto auto 12px; gap:8px; padding:9px 4px 9px 8px;} .ffair{display:none;} .fpx .bk{display:none;}
+    tr.rec{background:color-mix(in srgb, var(--green) 13%, transparent); box-shadow:inset 3px 0 0 var(--green); border-radius:8px;} tr.rec td, .calctable tbody tr.rec:hover td{background:none;} tr.rec td:first-child{box-shadow:none; padding-left:8px;}
+  }
+  /* ---- short laptops and landscape tablets: tighter rows so the tape and the odds table stay inside their panes ---- */
+  @media (min-width:761px) and (max-height:820px){
+    .panel{padding:12px 18px;} .hero{padding:8px 22px; gap:4px 16px;} .verdict{margin-top:6px;} .sec{margin-top:10px;} .tabs{margin-top:8px;}
+    .mrow.tp{padding:calc(2px + var(--rp,0px)) 6px; margin-bottom:1px;} .mrow.vb{padding:calc(3px + var(--rp,0px)) 9px; margin-bottom:2px;} .driver{padding:calc(2px + var(--rp,0px)) 0 calc(2px + var(--rp,0px)) 11px;}
+    .tapescore{margin-top:6px; padding-top:6px;} .taphd{padding-bottom:3px;} .verdict-box{padding:9px 12px 9px 16px;} .calctable td{height:calc(25px + 2*var(--rp,0px));}
+  }
+  /* ---- phones: an app-style tab bar at the bottom, one panel at a time, each fits the screen ---- */
+  @media (max-width:760px){
+    :root{--gap:8px; --rad:16px;}
+    .topbar{gap:8px; padding:8px 10px 10px;}
+    .brand{font-size:var(--f2); order:1;} .brand::before{width:18px; height:18px; border-radius:6px;}
+    .nav{order:2; margin-left:auto; gap:0;} .nav .lg{display:none;} .nav .sm{display:inline;} .nav button.secondary{padding:6px 7px; font-size:var(--f1);}
+    .matchup{order:3; flex:1 1 100%; flex-wrap:wrap; padding:4px; gap:4px;}
+    .pick{flex:1 1 40%;} .vs{display:none;} .pick input{padding:8px 6px 8px 16px;}
+    .chk{flex:none;} #go{flex:1 1 auto;}
+    .tabs{display:flex; order:3; flex:none; margin:0; border-radius:0; border-width:1px 0 0; padding:6px 10px calc(6px + env(safe-area-inset-bottom)); background:var(--glass); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);}
+    .tabs button{padding:10px 4px; border-radius:11px;} .tabs button.on{background:var(--inv); color:var(--on-inv); box-shadow:none;}
+    .dash{grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); grid-template-areas:none;}
+    .dash .panel{display:none; grid-area:auto; padding:14px 16px; border-left:0;} .dash .panel.active{display:block;}
+    .hero{grid-area:auto; grid-template-columns:1fr 1fr; gap:6px 12px; padding:14px 16px;} .hmid{grid-column:1 / -1; order:3; text-align:left;}
+    .dash:not(:has(.p-res.active)) .hero{display:none;}
+    .verdict{margin-top:8px;}
+    #verdictBox.hidden + .fit-reserve{display:none;}
+    .calc-top{flex-wrap:nowrap; gap:6px; margin-bottom:8px;} .calc-top h3{display:none;} .fld{min-width:0;} .fld .lbl{display:none;} .fld.bk .lbl{display:inline;} .fld.bk{margin-left:auto;} select{max-width:118px; min-width:0;} .bank input{width:50px;}
+    #ocSeg button[data-g="all"]{display:none;}
+    /* pop-ups slide up as sheets */
+    .modal{padding:0; align-items:flex-end;} .modal-box{padding:18px 12px calc(14px + env(safe-area-inset-bottom)); border-radius:22px 22px 0 0; border-width:1px 0 0; max-height:94dvh;}
+    .modal-box::before{content:""; display:block; width:38px; height:4px; border-radius:2px; background:var(--line2); margin:-8px auto 10px;}
+    .fmain{grid-template-columns:minmax(0,1fr) auto auto 12px; gap:8px; padding:9px 8px 9px 10px;} .ffair{display:none;} .fpx .bk{display:none;}
     .dayrow{flex-wrap:wrap; gap:2px 10px;}
+    .ncgrid{grid-template-columns:1fr 1fr;} .empty{gap:10px;} .landp{display:none;}
     /* bet log: two lines per bet */
     table.scan thead{display:none;} table.scan, table.scan tbody{display:block;}
     table.scan tr{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:6px 8px; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line);}
@@ -306,11 +370,12 @@
     table.scan td:nth-child(1){grid-column:1; grid-row:1; color:var(--dim);} table.scan td:nth-child(2){grid-column:2 / span 2; grid-row:1; font-family:var(--sans);} table.scan td:nth-child(5){grid-column:4; grid-row:1; text-align:right;}
     table.scan td:nth-child(3){grid-column:1 / span 2; grid-row:2;} table.scan td:nth-child(4){grid-column:3; grid-row:2;} table.scan td:nth-child(6){grid-column:4; grid-row:2;}
   }
-  .ts-more{margin-top:4px;} .ts-more summary{cursor:pointer; color:var(--dim); font-size:var(--f1); font-weight:600;}
   /* ---- short phones (iPhone SE height): tighter spacing, and the long outcome groups take the verdict's room (it stays on the Moneyline view) ---- */
   @media (max-width:760px) and (max-height:740px){
-    .dash .panel{padding:10px 12px;} .grid2{margin-top:8px; gap:12px;} .sec{margin-top:8px;} .verdict{margin-top:8px;} .probs{margin-bottom:6px;}
-    .mrow{padding:calc(1px + var(--rp,0px)) 0;} .driver{padding:calc(3px + var(--rp,0px)) 0;} .tapescore{margin-top:6px; padding-top:6px;} .p-tape h3{display:none;} .calctable tr{padding:calc(2px + var(--rp,0px)) 0;} .seg{margin-bottom:4px;}
+    .dash .panel{padding:10px 16px;} .grid2{gap:12px;} .sec{margin-top:8px;} .hero{padding:9px 16px; gap:3px 12px;} .verdict{margin-top:6px;}
+    .mrow{padding:calc(1px + var(--rp,0px)) 0;} .mrow.vb{padding:calc(3px + var(--rp,0px)) 8px; margin-bottom:2px;} .mrow.tp{padding:calc(2px + var(--rp,0px)) 6px; margin-bottom:1px;}
+    .driver{padding:calc(2px + var(--rp,0px)) 0 calc(2px + var(--rp,0px)) 10px;} .tapescore{margin-top:6px; padding-top:6px;} .p-tape h3{display:none;} .calctable tr{padding:calc(2px + var(--rp,0px)) 0;} .seg{margin-bottom:4px;}
+    .tabs button{padding:8px 4px;}
     .dash[data-oc="me"] #verdictBox, .dash[data-oc="me"] .notes, .dash[data-oc="me"] .fit-reserve, .dash[data-oc="dc"] #verdictBox, .dash[data-oc="dc"] .notes, .dash[data-oc="dc"] .fit-reserve{display:none !important;}
   }
 </style>
@@ -377,21 +442,28 @@
 </div>
 
 
-<nav class="tabs" id="tabs"><button data-tab="res" class="on">Result</button><button data-tab="tape">Tale of the tape</button><button data-tab="calc">Odds &amp; value</button></nav>
+<nav class="tabs" id="tabs"><button data-tab="res" class="on">Fight</button><button data-tab="tape">Tale of the tape</button><button data-tab="calc">Odds &amp; value</button></nav>
 
 <main class="dash" id="result">
-  <section class="panel p-res active" data-tab="res">
-    <div class="empty">Pick two fighters above and hit <b>Simulate</b>.<br><span class="dimtxt">10,000 simulated fights per matchup · ~66% of winners on 741 held-out fights · odds calculator anchored to the betting market</span><div class="nextcard" id="nextCard"></div></div>
-    <div class="needs-sim">
-      <div class="names"><span class="r" id="na"></span><span class="b" id="nb"></span></div>
-      <div class="probs">
-        <div class="pcol"><span id="pa"></span><div class="odds" id="oa"></div></div>
-        <div class="pcol"><span id="pb"></span><div class="odds" id="ob"></div></div>
-      </div>
+  <section class="hero needs-sim" aria-label="Fight result">
+    <div class="hside"><div class="hname r" id="na"></div><div class="hpct" id="pa"></div><div class="hodds" id="oa"></div></div>
+    <div class="hmid">
       <div class="bar"><div class="fillA" id="fill"></div></div>
       <div class="verdict" id="verdict"></div>
       <div class="blendnote" id="blendNote"></div>
       <div class="warn" id="xdiv"></div>
+    </div>
+    <div class="hside hb"><div class="hname b" id="nb"></div><div class="hpct" id="pb"></div><div class="hodds" id="ob"></div></div>
+  </section>
+
+  <section class="panel p-res active" data-tab="res">
+    <div class="empty">
+      <h1 class="landh">Simulate any <em>UFC fight</em></h1>
+      <p class="landp">Pick two fighters above and hit <b>Simulate</b>. You get win, method and round odds, then a TAKE or PASS call once both moneylines are in under Odds &amp; value (e.g. <code>-150</code>, <code>+220</code>).</p>
+      <div class="landstats"><span><b>10,000</b> simulated fights per matchup</span><span><b>~66%</b> of winners on 741 held-out fights</span><span>odds calculator anchored to the betting market</span></div>
+      <div class="nextcard" id="nextCard"></div>
+    </div>
+    <div class="needs-sim">
       <div class="grid2">
         <div class="mini"><h3>Method (winner)</h3><div id="methods"></div></div>
         <div class="mini"><h3>Round of finish</h3><div id="rounds"></div></div>
@@ -1559,7 +1631,9 @@ function fitDash(){
   while(lo > floor && !fits(lo)) lo -= 0.02;
   dashZoom = Math.floor(lo * 100) / 100; d.style.zoom = dashZoom; // round down: never past the last size that fit
   // still too tall with every outcome row on screen: show the moneyline rows (the rest stay one tap away) rather than let the panel scroll
-  if(ocG === "all" && !fitDash.again && panelsOverflow()){ fitDash.again = true; setOc("ml", false); d.classList.remove("fitting"); fitDash(); fitDash.again = false; return; }
+  if(ocG === "all" && (fitDash.depth | 0) < 2 && panelsOverflow()){ fitDash.depth = (fitDash.depth | 0) + 1;
+    if(!dcOff && !document.querySelector("#calcTable tr.dc.rec")) setDc(true, false); else setOc("ml", false);
+    d.classList.remove("fitting"); fitDash(); fitDash.depth--; return; }
   panels.forEach(spreadRows);
   // the real verdict takes exactly the placeholder's space, so the odds inputs don't move while typing
   const rv = $("fitReserve").querySelector(".verdict-box"); if(rv && rv.offsetHeight) $("verdictBox").style.minHeight = rv.offsetHeight + "px";
@@ -1826,14 +1900,14 @@ $("go").onclick = () => {
     : divSteps(A, B) === 1 ? `ℹ One class apart by original division (${natTxt(A)} vs ${natTxt(B)}): no size adjustment — fighters moving up one class won slightly more than expected since 2021.`
     : A.div !== B.div ? `ℹ Same original division (${natTxt(A)} vs ${natTxt(B)}): no size adjustment.` : "";
 
-  $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow"><span class="lab">${mName[m]}</span><span>${pct(c)}</span></div>`).join("");
+  $("methods").innerHTML = methods.map(([m,c])=>`<div class="mrow vb" style="--v:${(c*100).toFixed(1)}%"><span class="lab">${mName[m]}</span><span>${pct(c)}</span></div>`).join("");
   const rdAll = {};
   for(const[k,v] of Object.entries(t.rdA)) rdAll[k]=(rdAll[k]||0)+v;
   for(const[k,v] of Object.entries(t.rdB)) rdAll[k]=(rdAll[k]||0)+v;
   const finishes = Object.values(rdAll).reduce((a,b)=>a+b,0);
   const pDist = probA*sAc[2] + (1-probA)*sBc[2], sc = finishes ? (1 - pDist)/finishes : 0; // sim's round timing, scaled to the calibrated finish chance
-  $("rounds").innerHTML = Object.keys(rdAll).sort().map(k=>`<div class="mrow"><span class="lab">Round ${k}</span><span>${pct(rdAll[k]*sc)}</span></div>`).join("")
-    + `<div class="mrow"><span class="lab">Goes the distance</span><span>${pct(pDist)}</span></div>`;
+  $("rounds").innerHTML = Object.keys(rdAll).sort().map(k=>`<div class="mrow vb" style="--v:${(rdAll[k]*sc*100).toFixed(1)}%"><span class="lab">Round ${k}</span><span>${pct(rdAll[k]*sc)}</span></div>`).join("")
+    + `<div class="mrow vb" style="--v:${(pDist*100).toFixed(1)}%"><span class="lab">Goes the distance</span><span>${pct(pDist)}</span></div>`;
 
   $("drivers").innerHTML = drivers(A,B).map(d=>{
     const f = d.who==="A"?A:B;
@@ -1873,12 +1947,13 @@ $("go").onclick = () => {
       if(na === nb){ tsA += wt/2; tsB += wt/2; }
       else { const aWins = lower ? na < nb : na > nb; if(aWins){ tsA += wt; aCls="twin"; bCls="tlose"; } else { tsB += wt; bCls="twin"; aCls="tlose"; } }
     }
-    return `<div class="mrow"><span class="${aCls}">${da}</span><span class="lab">${lab}</span><span class="${bCls}">${db}</span></div>`;
+    const tot = na != null && nb != null ? Math.abs(na) + Math.abs(nb) : 0, wa = tot ? Math.abs(na) / tot * 100 : 0; // mirrored bars: each side's share of the pair
+    return `<div class="mrow${tot ? " tp" : ""}"${tot ? ` style="--a:${wa.toFixed(1)}%;--b:${(100 - wa).toFixed(1)}%"` : ""}><span class="${aCls}">${da}</span><span class="lab">${lab}</span><span class="${bCls}">${db}</span></div>`;
   }).join("");
   const tsPctA = tsTot ? tsA/tsTot : 0.5, tsWin = tsPctA >= 0.5 ? A : B;
   const scoreHtml =
     `<div class="tapescore">`+
-      `<div class="ts-lab">Weighted tale-of-the-tape score</div>`+
+      `<div class="ts-lab">Weighted tape score</div>`+
       `<div class="ts-nums"><span class="r">${Math.round(tsPctA*100)}</span><span class="b">${Math.round((1-tsPctA)*100)}</span></div>`+
       `<div class="ts-bar"><div class="ts-fill" style="width:${(tsPctA*100).toFixed(1)}%"></div></div>`+
       `<div class="ts-verdict">On-paper winner: <b>${tsWin.name}</b></div>`+
@@ -2003,6 +2078,7 @@ function setOc(g, remember){ if(!g || (g === "all" && ocPhone())) g = ocPhone() 
   if(remember){ try { localStorage.setItem("ufcsim.ocg", g); } catch(e){} } }
 $("ocSeg").addEventListener("click", e => { const b = e.target && e.target.closest ? e.target.closest("button[data-g]") : null; if(!b) return; setOc(b.dataset.g, true); fitDash(); });
 if(document.addEventListener) document.addEventListener("toggle", e => { if(e.target && e.target.classList && e.target.classList.contains("ts-more")) fitDash(); }, true); // opening the tape note re-fits the panel
+if(document.fonts && document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(() => { if($("result").classList.contains("ready")) fitDash(); });
 const evHtml = (ev, tag) => "+" + (ev * 100).toFixed(1) + "%" + (tag ? `<span class="tag">${tag}</span>` : ""); // EV cell: the number, then a short word
 // ---- PRICING NOTES: one line in the panel (the anchor, else Classic 2.0's view, else the auto-fill); tap it for all three + the legend
 { const ids = ["anchorNote", "c20note", "autoOdds"], peek = () => { const n = ids.map(id => $(id).innerHTML).find(Boolean) || "Enter both moneylines to anchor the model to the market."; if($("notesPeek").innerHTML !== n) $("notesPeek").innerHTML = n; };
@@ -2351,8 +2427,8 @@ async function renderNextCard(){
   const card = [...byDay.values()].find(c => c.filter(x => x.A && x.B).length >= 2 && c.filter(x => nB(x.f) <= 1).length * 2 <= c.length); if(!card) return;
   const tMax = Math.max(...card.map(x => +x.t)), mains = card.filter(x => +x.t === tMax), main = mains.length === 1 && card.length >= 4 ? mains[0] : null;
   const list = card.filter(x => x.A && x.B).sort((x, y) => y.t - x.t);
-  box.innerHTML = `<h4>Next card · ${card[0].t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · tap a fight</h4>`
-    + list.map((x, i) => `<button data-nc="${i}">${surname(x.A.name)} vs ${surname(x.B.name)}${x === main ? ' <span class="sub">· 5 rds</span>' : ""}</button>`).join("");
+  box.innerHTML = `<h4>Next card · ${card[0].t.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · tap a fight</h4><div class="ncgrid">`
+    + list.map((x, i) => `<button data-nc="${i}"${x === main ? ' class="main"' : ""}><span class="r">${surname(x.A.name)}</span><i>vs</i><span class="b">${surname(x.B.name)}</span>${x === main ? '<span class="sub">main event · 5 rounds</span>' : ""}</button>`).join("") + "</div>";
   box.onclick = e => { const b = e.target && e.target.closest ? e.target.closest("button[data-nc]") : null; if(!b) return; const x = list[+b.dataset.nc];
     $("fa").value = x.A.name; $("fb").value = x.B.name; $("five").checked = x === main; $("go").click(); };
   if(typeof fitDash === "function") fitDash();
