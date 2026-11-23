@@ -439,7 +439,6 @@
     .calctable td{height:auto;}
   }
   @media (max-width:760px) and (max-height:740px){
-    .dash:not([data-oc="ml"]) .hero, .dash:has(.p-res.active) .hero, .dash:has(.p-tape.active) .hero{display:none;}
     .mrow.tp{padding:calc(1px + var(--rp,0px)) 6px; margin-bottom:0;} .taphd{padding-bottom:2px; margin-bottom:2px;} .tapescore{margin-top:4px; padding-top:4px;}
     .hero{padding:8px 16px 4px;} .blendnote{display:none;} .verdict-box{padding:10px 12px 10px 16px; margin-bottom:8px;}
   }
@@ -459,6 +458,34 @@
   .matchup{max-width:860px;} .mrow.tp{padding:calc(2px + var(--rp,0px)) 6px; margin-bottom:1px;}
   @media (max-width:1180px) and (min-width:761px){ .brand{order:1;} .nav{order:2; margin-left:auto;} .matchup{order:3; flex:1 1 100%; max-width:none;} }
   @media (min-width:761px) and (max-height:820px){ .dash:has(.p-tape.active) .hero{display:none;} }
+
+  /* ==== FIT PASS 3 (2026-11-23, user's iPhone screenshot: the bet call and the odds rows were squeezed and cut inside the Call view).
+     The Call view never shrinks its boxes. When a view is too tall, fitDash() frees room in steps instead:
+     .c1 = on Call / All odds the fight header keeps names, numbers and the bar (its pick line and notes stay on Breakdown);
+           on Breakdown it keeps the pick line and notes and drops the big numbers.   .c2 = no fight header. ==== */
+  .p-calc > .needs-sim{flex:none; min-height:auto;} .p-calc > .needs-sim > *, .p-calc > .calc-top{flex:none;}
+  .dash.c1:has(.p-calc.active) .hero .verdict, .dash.c1:has(.p-calc.active) .hero .blendnote, .dash.c1:has(.p-calc.active) .hero .warn{display:none;}
+  .dash.c1:has(.p-res.active) .hero .hside, .dash.c1:has(.p-res.active) .hero .bar{display:none;}
+  .dash.c1:has(.p-res.active) .hero .verdict{margin-top:0;}
+  .dash.c2 .hero, .dash.c3 .hero{display:none !important;}
+  /* .c3 (very short phones only): Tape and All odds also take the fighter picker's room; it is back on Call and Breakdown */
+  body:has(.dash.c3 .p-tape.active) .matchup, body:has(.dash.c3:not([data-oc="ml"]) .p-calc.active) .matchup{display:none;}
+  @media (max-width:760px){
+    /* slim fighter picker: the two names on the left, 5 rounds and Simulate on the right */
+    .matchup{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 6px; padding:4px; align-items:stretch;}
+    .matchup .pick.red{grid-area:1 / 1;} .matchup .pick.blue{grid-area:2 / 1;}
+    .matchup .chk{grid-area:1 / 2; justify-content:center; padding:6px 12px;} .matchup #go{grid-area:2 / 2; padding:7px 18px;}
+    .pick input{padding:7px 6px 7px 16px;}
+    /* the Call view's two moneyline rows get real room */
+    .dash[data-oc="ml"] .calctable tbody tr{padding:calc(4px + var(--rp,0px)) 0;}
+    /* the quiet controls stay on one row */
+    .p-calc .calc-top{flex-wrap:wrap; justify-content:center; gap:6px 5px; margin-top:8px;} .p-calc .calc-top .fld{flex:none; min-width:auto;} .p-calc .calc-top .fld.bk{margin-left:0;}
+    .p-calc .calc-top select{flex:none; max-width:none; -webkit-appearance:none; appearance:none; padding:6px 21px 6px 9px; background-image:linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%); background-position:calc(100% - 12px) 55%, calc(100% - 7px) 55%; background-size:5px 5px; background-repeat:no-repeat;}
+    .p-calc .calc-top .bank input{width:42px;}
+    /* last step before the fight header goes: a one-line table header */
+    .dash.c2 .calctable thead th:nth-child(3), .dash.c2 .calctable thead th:nth-child(5), .dash.c3 .calctable thead th:nth-child(3), .dash.c3 .calctable thead th:nth-child(5){display:none;}
+    .p-calc .notes{margin-top:6px;}
+  }
 </style>
 </head>
 <body>
@@ -1691,6 +1718,7 @@ let dashZoom = 1;
 function panelsOverflow(){
   const d = $("result"); if(!d || !d.querySelectorAll) return false;
   if(d.scrollWidth > d.clientWidth + 1) return true;
+  if(innerWidth > 760){ const tw = d.querySelector(".p-calc .tblwrap"); if(tw && tw.offsetParent && tw.scrollWidth > tw.clientWidth + 1) return true; }
   return [...d.querySelectorAll(".panel")].some(p => p.offsetParent && (p.scrollHeight > p.clientHeight + 1 || p.scrollWidth > p.clientWidth + 1));
 }
 function fitDash(){
@@ -1698,6 +1726,8 @@ function fitDash(){
   if(!d || !d.style || !tb || typeof innerWidth !== "number") return;
   const panels = d.querySelectorAll ? [...d.querySelectorAll(".panel")] : [];
   panels.forEach(p => p.style.setProperty("--rp", "0px"));
+  const setLv = i => { d.classList.toggle("c1", i === 1); d.classList.toggle("c2", i === 2); d.classList.toggle("c3", i === 3); };
+  setLv(0);
   if(!d.classList.contains("ready")){ d.style.zoom = ""; tb.style.zoom = ""; dashZoom = 1; $("verdictBox").style.minHeight = ""; return; }
   const phone = innerWidth <= 760; // phones: one tab at a time, only ever shrink (to 0.8) so the open tab fits
   d.classList.add("fitting");
@@ -1705,6 +1735,9 @@ function fitDash(){
   tb.style.zoom = "";
   let lo, hi;
   const floor = 0.92; // with 12px as the smallest text, nothing drops under 11px on screen
+  // too tall: phones give up the fight header's extra lines before they shrink the text; the All odds view folds rows first (below)
+  { const cands = phone ? [[0, 1], [1, 1], [1, floor], [2, 1], [2, floor], [3, 1], [3, floor]] : (ocG === "all" && (fitDash.depth | 0) < 2) ? [[0, floor]] : [[0, floor], [1, floor], [2, floor]];
+    for(const [i, z] of cands){ setLv(i); if(fits(z)) break; } }
   if(fits(1)){ lo = 1; hi = phone ? 1 : 1.3; } else { lo = floor; hi = 1; }
   if(!fits(lo)) hi = lo;
   for(let k = 0; k < 7 && hi - lo > 0.01; k++){ const m = (lo + hi) / 2; if(fits(m)) lo = m; else hi = m; }
