@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UFC Fight Simulator — Monte Carlo</title>
 <meta name="description" content="UFC fight simulator: win, method and round odds for any matchup, every upcoming fight scanned against US sportsbook prices.">
-<script id="themeBoot">try{var t=localStorage.getItem("ufcsim.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script id="themeBoot">try{var t=localStorage.getItem("ufcsim.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);if(/iPhone|iPod/.test(navigator.userAgent)){var m=document.querySelector("meta[name=viewport]");if(m)m.setAttribute("content","width=device-width, initial-scale=1.0, maximum-scale=1")}}catch(e){}</script>
 <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/spacegrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/jetbrainsmono-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -49,7 +49,7 @@
     --shadow:0 24px 60px -24px rgba(20,28,50,.3); --hi:inset 0 1px 0 rgba(255,255,255,.9);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{height:100%;}
+  html,body{height:100%;} html{-webkit-text-size-adjust:100%; text-size-adjust:100%;} /* iPhones never re-size the text on their own */
   body{color:var(--text); font-family:var(--sans); font-size:var(--f2); line-height:1.4; -webkit-font-smoothing:antialiased;
        display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;
        background:radial-gradient(55% 45% at 0% 0%, var(--glow-r), transparent 72%), radial-gradient(55% 45% at 100% 0%, var(--glow-b), transparent 72%),
@@ -468,8 +468,8 @@
   .dash.c1:has(.p-res.active) .hero .hside, .dash.c1:has(.p-res.active) .hero .bar{display:none;}
   .dash.c1:has(.p-res.active) .hero .verdict{margin-top:0;}
   .dash.c2 .hero, .dash.c3 .hero{display:none !important;}
-  /* .c3 (very short phones only): Tape and All odds also take the fighter picker's room; it is back on Call and Breakdown */
-  body:has(.dash.c3 .p-tape.active) .matchup, body:has(.dash.c3:not([data-oc="ml"]) .p-calc.active) .matchup{display:none;}
+  /* .c3 (very short phones only): Call, Tape and All odds also take the fighter picker's room; it is back on Breakdown */
+  body:has(.dash.c3 .p-tape.active) .matchup, body:has(.dash.c3 .p-calc.active) .matchup{display:none;}
   @media (max-width:760px){
     /* slim fighter picker: the two names on the left, 5 rounds and Simulate on the right */
     .matchup{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 6px; padding:4px; align-items:stretch;}
