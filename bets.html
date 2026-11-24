@@ -449,7 +449,7 @@ async function espnDay(ymd, ttl = 10 * 60e3){ const c = espnCache.get(ymd); if(c
       v.push({ done: !!st.completed, live: st.state === "in" && !st.completed, n: cs.map(x => nmz((x.athlete && (x.athlete.displayName || x.athlete.fullName)) || "")), w: cs.map(x => !!x.winner) }); } }
   catch(e){ return null; } espnCache.set(ymd, { at: Date.now(), v }); return v; }
 const ymdOf = t => new Date(t).toISOString().slice(0, 10).replace(/-/g, "");
-const sameMan = (a, b) => { const A = nmz(a), B = nmz(b); return !!A && !!B && (A === B || (surname(A) === surname(B) && A[0] === B[0])); };
+const sameMan = (a, b) => { const bare = x => String(x || "").replace(/\s*\([^)]*\)$/, ""), A = nmz(bare(a)), B = nmz(bare(b)); /* "Bruno Silva (Flyweight)" = ESPN's "Bruno Silva" */ return !!A && !!B && (A === B || (surname(A) === surname(B) && A[0] === B[0])); };
 const fightOf = (day, l) => day.find(c => c.n.length === 2 && ((sameMan(c.n[0], l.name) && sameMan(c.n[1], l.vs)) || (sameMan(c.n[1], l.name) && sameMan(c.n[0], l.vs))));
 async function legResult(l){ if(!l.vs) return null; const t = Date.parse(l.t); if(!(t < Date.now() - 20 * 60e3)) return null;
   for(const ymd of [ymdOf(t), ymdOf(t - 864e5)]){ const day = await espnDay(ymd); if(!day) return null;

@@ -7,6 +7,7 @@
 //   method: "K" KO/TKO, "S" submission, "D" decision, "O" other
 // Cached: only fighters not yet in the file are fetched. Run: node espn-history.mjs [--refresh=Name]
 import { readFileSync, writeFileSync, existsSync } from "fs";
+import { who, baseOf } from "./same-name.mjs"; // "Bruno Silva (Flyweight)" / "(Middleweight)": searched as "Bruno Silva", accepted by their own UFC dates
 
 const ROOT = import.meta.dirname.replace(/\\/g, "/"), DIR = ROOT + "/ufc-data/", OUT = ROOT + "/espn-history.json";
 function parseCSV(text) {
@@ -32,7 +33,7 @@ const ev = new Map(parseCSV(readFileSync(DIR + "ufc_event_details.csv", "utf8"))
 const ufcDates = new Map();
 for (const r of parseCSV(readFileSync(DIR + "ufc_fight_results.csv", "utf8"))) {
   const d = ev.get(r.EVENT.trim()); if (!d || isNaN(d)) continue;
-  for (const n of r.BOUT.split(" vs. ").map(x => x.trim())) (ufcDates.get(n) || ufcDates.set(n, []).get(n)).push(d.getTime());
+  for (const n of r.BOUT.split(" vs. ").map(x => who(x.trim(), r.WEIGHTCLASS))) (ufcDates.get(n) || ufcDates.set(n, []).get(n)).push(d.getTime());
 }
 const want = [...ufcDates.entries()].filter(([, ds]) => ds.some(t => t >= Date.UTC(2019, 0, 1))).map(([n]) => n);
 const cache = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
@@ -49,7 +50,8 @@ const getJSON = async (url, tries = 3) => { for (let i = 0; i < tries; i++) { tr
 const kindOf = e => /Contender Series/i.test(e.name || "") ? "C" : /\bUFC\b|Ultimate Fighter/i.test(e.name || "") && /~l:3321~/.test(e.uid || "") ? "U" : "R";
 const methodOf = e => { const m = ((e.status && e.status.result && e.status.result.name) || "").toLowerCase(); return /ko|tko/.test(m) ? "K" : /sub/.test(m) ? "S" : /decision/.test(m) ? "D" : "O"; };
 
-async function lookup(name) {
+async function lookup(full) {
+  const name = baseOf(full); // the name ESPN and UFCStats use
   const s = await getJSON(`https://site.web.api.espn.com/apis/common/v3/search?query=${encodeURIComponent(name)}&limit=8&mode=prefix&type=player&sport=mma`);
   if (s === FAIL) return FAIL;
   const items = (s && s.items || []).filter(x => x.sport === "mma" || /mma/i.test(x.label || ""));
@@ -61,7 +63,7 @@ async function lookup(name) {
     if (s2 === FAIL) return FAIL;
     cands = ((s2 && s2.items) || []).filter(x => (x.sport === "mma" || /mma/i.test(x.label || "")) && norm(x.displayName || "").split(" ").pop() === last);
   }
-  const mine = ufcDates.get(name) || [];
+  const mine = ufcDates.get(full) || [];
   for (const c of cands.slice(0, 4)) {
     const a = await getJSON(`https://site.web.api.espn.com/apis/common/v3/sports/mma/athletes/${c.id}`);
     if (a === FAIL) return FAIL;

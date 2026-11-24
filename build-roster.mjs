@@ -7,6 +7,7 @@
 // Re-run any time to refresh:  node build-roster.mjs   (always re-downloads current data)
 // Pass --cache to reuse the local ufc-data/ snapshot instead (faster, for dev only).
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { who, baseOf, tapeRowOf } from "./same-name.mjs"; // two fighters with one UFCStats name (Bruno Silva) stay two roster rows
 
 const ROOT = import.meta.dirname.replace(/\\/g, "/"); // repo folder, works on Windows/Linux/CI
 const BASE = "https://raw.githubusercontent.com/Greco1899/scrape_ufc_stats/main/";
@@ -87,7 +88,7 @@ for (const { r, date } of bouts) {
   const names = r.BOUT.split(" vs. ").map(x=>x.trim());
   if (names.length !== 2) continue;
   const [nA, nB] = names;
-  const sA = getS(nA), sB = getS(nB);
+  const sA = getS(who(nA, r.WEIGHTCLASS)), sB = getS(who(nB, r.WEIGHTCLASS)); // nA/nB stay the UFCStats names for the per-bout stat lookup below
   const out = r.OUTCOME.trim();
   const method = r.METHOD || "";
   const isKO = /KO\/TKO|TKO/.test(method), isSub = /Submission/.test(method);
@@ -105,7 +106,7 @@ for (const { r, date } of bouts) {
     }
     s.time += mins; s.last = date;
     if (wcM) { s.div = wcM[0]; (s.divs ||= []).push(wcM[0]); }
-    (s.opps ||= []).push(on);
+    (s.opps ||= []).push(who(on, r.WEIGHTCLASS));
   });
   if (out === "W/L" || out === "L/W") {
     const [win, lose] = out === "W/L" ? [sA,sB] : [sB,sA];
@@ -146,6 +147,7 @@ try {
   for (const f of Object.values(O.fights || {})) {
     const t = new Date(f.t).getTime(); if (!(t > now - 864e5 && t < now + 60 * 864e5)) continue;
     for (const n of [f.a, f.b]) { const k = nmz(n || ""); if (!k) continue;
+      const same = known.filter(x => x !== baseOf(x) && nmz(baseOf(x)) === k); if (same.length) { same.forEach(x => booked.add(x)); continue; } // a shared name: keep both
       if (byNorm.has(k)) { booked.add(byNorm.get(k)); continue; }
       const last = k.split(" ").pop(), c = known.filter(x => { const q = nmz(x); return q.split(" ").pop() === last && q[0] === k[0]; });
       if (c.length === 1) booked.add(c[0]); }
@@ -173,7 +175,7 @@ const rows = [];
 for (const [name, s] of S) {
   if (!s.last || (s.last < CUTOFF && !booked.has(name))) continue;
   if (s.last < CUTOFF) console.log(`  + returning from a long layoff (booked): ${name}, last UFC fight ${s.last.toISOString().slice(0, 10)}`);
-  const t = tape.get(name) || {};
+  const t = tapeRowOf(tott, name) || tape.get(name) || {};
   const div = s.div || oppDiv(s) || "Unknown";
   const ht = inches(t.HEIGHT) || medHt[div] || 70;
   const reach = inches(t.REACH) || ht;
