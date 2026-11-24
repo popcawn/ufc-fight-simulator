@@ -163,7 +163,7 @@
   <div class="hero">
     <div class="herorow">
       <button class="btn big" id="pullBtn">⚡ Pull UFC fights</button>
-      <div><div class="herot" id="bHead">Loading UFC lines…</div><div class="muted herodesc" style="font-size:13.5px">Every UFC fight on the board, priced at every US book — the bets where Classic 2.0 and the main sim agree, with links that open them in your book.</div><div id="pullMsg" class="muted" style="font-size:13px"></div></div>
+      <div><div class="herot" id="bHead">Loading UFC lines…</div><div class="muted herodesc" style="font-size:13.5px">Every UFC fight on the board, priced at every US book — the 2.0 + main bets (Classic 2.0 backs a side and the main sim doesn't back the other), with links that open them in your book.</div><div id="pullMsg" class="muted" style="font-size:13px"></div></div>
       <div class="herometa"><span id="oddsLeft"></span><br><span id="builtLbl"></span></div>
     </div>
     <details id="oddsCfg" style="margin-top:10px;font-size:13px"><summary>odds settings</summary>
@@ -174,7 +174,7 @@
   </div>
   <div id="bList" style="margin-top:14px"></div>
   <details class="pass" id="passBox" hidden><summary id="passSum"></summary><div id="passList"></div></details>
-  <div class="note">A bet shows when <b>Classic 2.0 and the main sim agree</b> — the one UFC rule that made money: +21.5% on 221 bets at opening lines, every year 2022–26 up (+19.9% at closing lines). Line shopping alone lost at your books, so the price only matters once the models pick a side. Stakes are dollars from your LINE SHOP bankroll (¼-Kelly, max 3%; short underdogs and fades smaller), held to your 💰 bankroll limit. 📲 opens the book's bet slip with the fight in it — check the price, type the stake, then tap <b>📓 Log</b>. Bets settle themselves from ESPN's results.</div>
+  <div class="note">A bet shows when <b>Classic 2.0 backs a side and the main sim doesn't back the other one</b> (the sim's 2.0 + main rule, the same as its Upcoming fights and Call view) — the one UFC rule that made money: +21.5% on 221 bets at opening lines, every year 2022–26 up (+19.9% at closing lines). Line shopping alone lost at your books, so the price only matters once the models pick a side. Stakes are dollars from your LINE SHOP bankroll (¼-Kelly, max 3%; short underdogs and fades smaller), held to your 💰 bankroll limit. 📲 opens the book's bet slip with the fight in it — check the price, type the stake, then tap <b>📓 Log</b>. Bets settle themselves from ESPN's results.</div>
 </main>
 
 <main class="wrap" id="vLog" hidden>
@@ -290,7 +290,7 @@ function judge(r, M, C){ r.pending = false; r.take = false;
   r.name = [m.A.name, m.B.name];
   const sur = i => surname(r.name[i]), P = [m.pFair, 1 - m.pFair], mEv = [0, 1].map(i => P[i] * r.best[i].d - 1), mainTake = i => mEv[i] >= 0.05 && mEv[i] <= 0.20;
   const mainPick = mEv[0] >= mEv[1] ? 0 : 1;
-  let c = null; try { c = C.classic20(m.A.name, m.B.name, 3, 4000); } catch(e){}
+  let c = null; try { c = C.classic20(m.A.name, m.B.name, r.nR || 3, 4000); } catch(e){}
   const v = c ? c20View(c.p, r.pMkt, [r.best[0].d, r.best[1].d], [c.nA, c.nB]) : { back: null, why: "does not have both fighters in its roster" };
   if(v.back == null){ r.why = mainTake(mainPick) ? `main sim likes ${sur(mainPick)} (${sgnPct(mEv[mainPick])}); Classic 2.0 ${v.why} — left out` : `Classic 2.0 ${v.why}`; return; }
   const k = v.back;
@@ -314,6 +314,8 @@ async function scan(){ const run = ++scanRun, O = ODDS; if(!O){ renderBets(); re
   const now = Date.now(), soon = now + 45 * 864e5, last = Date.parse(O.updated);
   ROWS = Object.entries(O.fights).filter(([, f]) => { const t = Date.parse(f.t); return t > now && t < soon && (!f.seen || last - Date.parse(f.seen) < 6 * 36e5); })
     .map(([id, f]) => baseRow(id, f)).filter(Boolean).sort((a, b) => a.t - b.t);
+  { const by = new Map(); for(const r of ROWS){ const d = r.t.toDateString(); if(!by.has(d)) by.set(d, []); by.get(d).push(r); } // a card's main event (its last bout, one fight on a card of 4+) is 5 rounds, as in the sim
+    for(const L of by.values()){ const tMax = Math.max(...L.map(x => +x.t)), top = L.filter(x => +x.t === tMax); if(L.length >= 4 && top.length === 1) top[0].nR = 5; } }
   ENGINE = "loading"; renderBets();
   const [M, C] = await Promise.all([engine("mainSim", "scoreFight"), engine("c2", "classic20")]); if(run !== scanRun) return;
   if(!M || !C){ ENGINE = "failed"; renderBets(); return; }
@@ -393,7 +395,7 @@ function renderBets(){
   $("bList").innerHTML = (un.length ? cardStat("new", `🆕 ${un.length} NEW BET${un.length > 1 ? "S" : ""}`, `${SP.pot != null ? `$${tot} to bet` : "stakes in % — set your bankroll in any sport"}${nIn ? ` · ${nIn} already logged` : ""} · best bet first`)
       : takes.length ? cardStat("done", "✅ NO NEW BETS", `${takes.length > 1 ? `all ${takes.length} bets are` : "the bet is"} already in your log`)
       : cardStat("none", "NO BETS THIS WEEK", "nothing clears the bar at your books"))
-    + (un.length ? "" : `<div class="muted" style="font-size:14px">${takes.length ? "They're in 📓 Bet log." : "Classic 2.0 and the main sim don't agree on an edge at your books right now — that's the normal case. New lines come in through the week."}</div>`)
+    + (un.length ? "" : `<div class="muted" style="font-size:14px">${takes.length ? "They're in 📓 Bet log." : "No 2.0 + main bet at your books right now — that's the normal case. New lines come in through the week."}</div>`)
     + [...byBook].map(([b, L]) => `<div class="bgame">${esc(bookName(b))} · ${L.length} bet${L.length > 1 ? "s" : ""}${SP.pot != null ? ` · $${L.reduce((a, r) => a + want(r), 0)}` : ""}</div><div class="bcards">${L.map(card).join("")}</div>`).join("");
   const pass = ROWS.filter(r => !r.pending && !r.take), nUn = pass.filter(r => r.unscored).length, nPass = pass.length - nUn;
   $("passBox").hidden = !pass.length;

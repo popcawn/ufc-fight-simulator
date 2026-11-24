@@ -278,7 +278,7 @@
   .fnames > span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .fnames i{font-style:normal; color:var(--faint); font-size:var(--f1); font-weight:500; flex:none; font-family:var(--sans);}
   .frow.unscored .fnames{color:var(--dim); font-weight:500;}
   .fcall{justify-self:start; max-width:100%; font-size:var(--f1); font-weight:750; letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid currentColor; border-radius:999px; padding:1px 9px;}
-  .fcall.take{color:var(--on-inv); background:var(--green); border-color:var(--green);} .fcall.pass{color:var(--redt); border-color:color-mix(in srgb, var(--red) 45%, transparent);}
+  .fcall.take{color:var(--on-inv); background:var(--green); border-color:var(--green);} .fcall.dog{color:var(--amber); border-color:var(--amber);} .dayrow .cardslip{margin-left:auto; text-transform:none; letter-spacing:0;} .verdict-box.wait{--vc:var(--bluet);} .verdict-box .cslip{display:inline-flex; flex-wrap:wrap; gap:6px; align-items:center; vertical-align:middle; margin-left:4px;} .fcall.pass{color:var(--redt); border-color:color-mix(in srgb, var(--red) 45%, transparent);}
   .fcall.none{color:var(--faint); border-color:var(--line2);} .fcall.prog{color:var(--bluet);}
   .ffair, .fpx{font-size:var(--f1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--dim);} .ffair b, .fpx b{color:var(--text); font-weight:650;} .fpx{text-align:right;}
   .fmore{display:none; padding:0 12px 12px; font-size:var(--f1); color:var(--dim); line-height:1.55;} .frow.open .fmore{display:block;}
@@ -591,7 +591,7 @@
   <section class="panel p-calc active" data-tab="calc">
     <div class="calc-top">
       <h3>Odds &amp; value</h3>
-      <label class="fld" title="2.0 + main sim: a TAKE is a moneyline Classic 2.0 backs (favorite edge with 4+ UFC fights each, or the fade of a 3-fight newcomer), left out when the main sim backs the other side. Find +EV: flags every bet the model sees as +EV (3-50%), props and longshots included — the Classic sim's style. Proven only: just the backtested moneyline rule (5-20% at the opener)."><span class="lbl">Mode</span> <select id="betMode"><option value="consensus">2.0 + main sim</option><option value="aggressive">Find +EV</option><option value="proven">Proven only</option></select></label>
+      <label class="fld" title="2.0 + main sim: a TAKE is a moneyline Classic 2.0 backs (favorite edge with 4+ UFC fights each, or the fade of a 3-fight newcomer, or a short underdog near its opening line at a small stake), left out when the main sim backs the other side. The Call view and Upcoming fights use this same rule. Find +EV: flags every bet the model sees as +EV (3-50%), props and longshots included — the Classic sim's style. Proven only: just the backtested moneyline rule (5-20% at the opener)."><span class="lbl">Mode</span> <select id="betMode"><option value="consensus">2.0 + main sim</option><option value="aggressive">Find +EV</option><option value="proven">Proven only</option></select></label>
       <label class="fld"><span class="lbl">Betting</span> <select id="lineTiming"><option value="current">Fight-week line</option><option value="open">Opening line</option></select></label>
       <label class="fld bk" title="Only turns a stake percent into dollars, on this device. It never changes a call or a stake percent."><span class="lbl">Bankroll</span> <span class="bank">$<input class="bankin" inputmode="decimal" placeholder="set" aria-label="Bankroll in dollars"></span></label>
     </div>
@@ -1919,6 +1919,11 @@ function computeVerdict(){
     if(b && (b.ev < 0.05 || b.ev > 0.20)) notes.push("outside the 5–20% backtested window");
     if(notes.length) v.body += ` <span class="dimtxt">Find +EV mode — ${notes.join("; ")}. Size it like a long shot.</span>`;
   }
+  // "2.0 + main sim" mode: the moneyline call IS the Upcoming fights rule (consensusRow), at the prices in this table,
+  // so this view and the board never disagree about what is a bet (user 2026-11-24: "dont be misleading")
+  const cons = calcCons = CONS() && anchor ? calcConsensus(decs[0], decs[1], pStar, xdivFight) : null;
+  if(cons) Object.assign(v, consVerdict(cons, v, m));
+  else if(v.status === "take" && !/Find \+EV mode/.test(v.body)) v.body += ` <span class="dimtxt">${AGG() ? "Find +EV mode: an edge the main sim sees, unproven" : "Proven only mode: the main sim's own rule"}, not checked by Classic 2.0.</span>`;
   // anchor status line (one line; the backtest detail lives in the hover tooltip)
   const an = $("anchorNote"), sgn = x => (x >= 0 ? "+" : "") + x;
   an.title = !anchor ? "" : anchor.kind === "open"
@@ -1927,7 +1932,8 @@ function computeVerdict(){
   an.innerHTML = !anchor
     ? (entered.length ? `<b class="amb">Not anchored</b> — enter both moneylines (raw model edges lost money in backtesting).` : "")
     : `<b>${anchor.kind === "open" ? "Opening-line" : "Fight-week"} anchor</b> · ${calcA.name}: market ${(anchor.pMkt*100).toFixed(1)}% → blend <b>${(pStar*100).toFixed(1)}%</b> (raw model ${(pModel*100).toFixed(1)}%)`
-      + (anchor.kind === "open" && TRACK ? ` · backtest ${sgn((TRACK.rule || TRACK.anch3).roi)}% ROI` : "");
+      + (anchor.kind === "open" && TRACK ? ` · main sim rule backtest ${sgn((TRACK.rule || TRACK.anch3).roi)}% ROI` : "")
+      + (CONS() ? " · 2.0 + main rule backtest +21.5% (221 bets, opening lines)" : "");
   { const bn = $("blendNote"); if(bn){ const fav = pStar >= 0.5 ? calcA : calcB, pf = Math.max(pStar, 1 - pStar), flip = (pStar >= 0.5) !== (pModel >= 0.5);
     bn.innerHTML = anchor ? `Model only. With the betting line blended in: <b>${fav.name} ${(pf * 100).toFixed(1)}%</b>${flip ? " (the other fighter)" : ""}` : ""; } }
   if(dist) an.innerHTML += ` · distance: market ${(dist.pMkt*100).toFixed(1)}% → <b>${(dist.p*100).toFixed(1)}%</b> (model ${(dist.pModel*100).toFixed(1)}%)`;
@@ -1941,6 +1947,7 @@ function computeVerdict(){
     const e = m[i];
     if(!e){ mkt.textContent = "—"; mkt.className = "mktcell"; ev.textContent = "—"; ev.className = "evcell"; return; }
     mkt.textContent = (marketPct(i,m)*100).toFixed(1)+"%";
+    if(v.tags && v.tags[i]){ ev.innerHTML = sgnPct(e.ev) + `<span class="tag">${v.tags[i].t}</span>`; ev.className = "evcell " + v.tags[i].c; return; } // 2.0 + main: the row says what the call says
     if(e.ev <= 0){ ev.textContent = (e.ev*100).toFixed(1)+"%"; ev.className = "evcell"; }
     else if(e.tag === "unanch"){ ev.innerHTML = evHtml(e.ev, xdivFight ? "weight change" : thinFight && i >= 2 ? "thin data" : "unanchored"); ev.className = "evcell suspect"; }
     else if(e.tag === "info"){ ev.innerHTML = evHtml(e.ev, "info only"); ev.className = "evcell"; } // props: reference only
@@ -2290,13 +2297,14 @@ function buildScan(){
   const cardDays = new Set(scored.filter(r => r.A || r.B).map(r => r.t.toDateString())); // two unknown names: other promotions, unless a UFC card that day
   scanRows = scored.filter(r => r.A || r.B || cardDays.has(r.t.toDateString()))
     .sort((a, b) => a.t.toDateString() === b.t.toDateString() ? (b.take - a.take) || (a.t - b.t) : a.t - b.t);
+  markMains();
   const h = (now - new Date(O.updated)) / 36e5, ago = h < 1 ? "under an hour" : h < 48 ? Math.round(h) + "h" : Math.round(h / 24) + " days";
   if(CONS()) consensusPrep();
   const takes = scanRows.filter(r => r.take).length;
-  $("wkinfo").innerHTML = `<b id="wkTakes">${takes} bet${takes === 1 ? "" : "s"}</b><span id="wkCons"></span> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`
+  $("wkinfo").innerHTML = `<b id="wkTakes">${takes} bet${takes === 1 ? "" : "s"}</b><span id="wkCons">${CONS() ? "" : AGG() ? " (Find +EV mode: every edge the main sim sees, unproven)" : " (Proven only mode: the main sim's own rule, not checked by Classic 2.0)"}</span> on ${scanRows.filter(r => r.side).length} scored fights · lines from ${Object.keys(O.books).length} US books, updated ${ago} ago`
     + (h > 36 ? ` <span class="warnline">Stale: the "Scan odds" GitHub Action isn't refreshing (is the ODDS_API_KEY secret set?). Re-check prices at your book.</span>` : "");
   renderScan(); renderSlip();
-  if(CONS()) consensusPass();
+  if(CONS()) return consensusPass(); // a promise: the Call view's "+ Parlay" waits for it
 }
 function renderScan(){
   let html = "", lastDay = "";
@@ -2312,7 +2320,7 @@ function renderScan(){
     const day = dayOf(r);
     if(day !== lastDay){ // one section per card: date, main event (the day's last bout), fight count
       const card = cards.get(day), main = card.reduce((m, x) => x.t >= m.t ? x : m, card[0]), spec = isSpec(card);
-      html += `<div class="dayrow${spec ? " spec" : ""}"><b>${day}</b><span>${spec ? `${card.length} line${card.length > 1 ? "s" : ""} at one book · proposed, not a confirmed card` : card.length > 1 ? `${surname(main.name[0])} vs ${surname(main.name[1])} card · ${card.length} fights` : "1 fight"}</span></div>`; lastDay = day;
+      html += `<div class="dayrow${spec ? " spec" : ""}"><b>${day}</b><span>${spec ? `${card.length} line${card.length > 1 ? "s" : ""} at one book · proposed, not a confirmed card` : card.length > 1 ? `${surname(main.name[0])} vs ${surname(main.name[1])} card · ${card.length} fights` : "1 fight"}</span>${cardSlipBtn(card, spec)}</div>`; lastDay = day;
     }
     const px = i => `<b>${decAm(r.best[i].d)}</b> <span class="bk">${bookName(r.best[i].book)}</span>`, sur = i => surname(r.name[i]), open = openRows.has(r.id) ? " open" : "";
     const both = `<b>${decAm(r.best[0].d)}</b> / <b>${decAm(r.best[1].d)}</b>`;
@@ -2330,7 +2338,7 @@ function renderScan(){
     const tip = r.early ? `Fresh line (first seen ${Math.round(r.age)}h ago, hasn't moved 3+ pts): opening-line weights, the backtested edge`
       : "Line has been up a while or already moved: conservative fight-week weights";
     // the one-word call on the row, and the reason behind it for the details
-    const call = cons && r.cpending ? ["…", "prog"] : r.take ? [(cons && r.cv.kind === "fade" ? "FADE → " : cons && r.cv.kind === "dog" ? "SHORT DOG " : "TAKE ") + sur(k), "take"] : ["PASS", "pass"];
+    const call = cons && r.cpending ? ["…", "prog"] : r.take ? [(cons && r.cv.kind === "fade" ? "FADE → " : cons && r.cv.kind === "dog" ? "SHORT DOG " : "TAKE ") + sur(k), cons && r.cv.kind === "dog" ? "dog" : "take"] : ["PASS", "pass"];
     const why = cons ? consCall(r, sur) : r.take ? `+${(s.ev * 100).toFixed(1)}% EV at ${bookName(s.book)} · stake ${stakeHtml(r.stake.toFixed(1), "%")}${r.thin ? ` (halved: ${thinWho()})` : ""}`
       : r.xdiv ? `<span class="amb">weight-class change</span> (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.noBook ? "not offered at your books" : `best edge ${(s.ev * 100).toFixed(1)}% (${sur(k)})`;
     const thin = [r.A, r.B].some(f => f && ufcN(f) < 4);
@@ -2363,14 +2371,14 @@ const sameFight = (r1, r2) => { const a = r1.name.map(nmz), b = r2.name.map(nmz)
 function renderSlip(){
   const legs = slipLegs(), gone = slip.length - legs.length;
   const goneNote = gone > 0 ? `<div class="warnline">${gone} leg${gone === 1 ? "" : "s"} dropped: the fight is no longer in the odds feed (cancelled or re-booked).</div>` : "";
-  if(!legs.length){ $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip</h4><p class="sub" style="line-height:1.5">Add TAKE rows, one per fight. Every leg needs its own edge — the book's cut multiplies across legs.</p>` + goneNote; return; }
+  if(!legs.length){ $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip</h4><p class="sub" style="line-height:1.5">Add bets with + Parlay (on a fight, on a card, or in the Call view), one per fight. Every leg needs its own edge — the book's cut multiplies across legs.</p>` + goneNote; return; }
   const P = legs.reduce((s, l) => s * l.p, 1), offers = slipOffers(legs), top = offers[0];
   const stake = top ? Math.min(1, 25 * Math.max(0, (P * top.D - 1) / (top.D - 1))) : 0;
   const evAt = l => top ? l.p * l.r.f.now[top.b][l.k] - 1 : l.r.side[l.k].ev; // this leg's edge at the ONE book the parlay settles at
   const weak = legs.filter(l => evAt(l) < 0.03), thinLegs = legs.filter(l => legThin(l).length);
   const badge = l => legThin(l).map(f => `<span class="ufcn" style="color:var(--gold);border-color:var(--gold)" title="${f.name} has only ${ufcCount(f)} UFC fight${ufcCount(f) === 1 ? "" : "s"}: thin data, a high-variance leg">${surname(f.name)} ${ufcCount(f)} UFC</span>`).join("");
   $("slip").innerHTML = `<h4 class="bth" style="margin-top:0">Parlay slip · ${legs.length} leg${legs.length === 1 ? "" : "s"}</h4>` +
-    legs.map((l, i) => `<div class="leg"><span>${l.name}${badge(l)} <span class="sub">${pct(l.p)} fair${top ? ` · ${evAt(l) >= 0 ? "+" : ""}${(evAt(l) * 100).toFixed(1)}% at ${bookName(top.b)}` : ""}</span></span><button class="mini-btn x" data-rm="${i}" aria-label="Remove">×</button></div>`).join("") +
+    legs.map((l, i) => `<div class="leg"><span>${l.name}${badge(l)}${l.r.take && l.r.cv && l.r.cv.kind === "dog" ? ` <span class="ufcn" style="color:var(--amber);border-color:var(--amber)" title="Short underdog: small stake, promising, not proven">short dog</span>` : ""} <span class="sub">${pct(l.p)} fair${top ? ` · ${evAt(l) >= 0 ? "+" : ""}${(evAt(l) * 100).toFixed(1)}% at ${bookName(top.b)}` : ""}</span></span><button class="mini-btn x" data-rm="${i}" aria-label="Remove">×</button></div>`).join("") +
     `<div class="slipstat">Hits about <b>1 in ${(1 / P).toFixed(1)}</b> (${pct(P)})</div>` +
     (top ? `<div class="slipstat">Best payout <b>${decAm(top.D)}</b> at ${bookName(top.b)} · EV <b class="${top.ev >= 0 ? "ok" : "miss"}">${top.ev >= 0 ? "+" : ""}${(top.ev * 100).toFixed(1)}%</b></div>` +
       offers.slice(1, 3).map(o => `<div class="sub">${bookName(o.b)} ${decAm(o.D)} · EV ${(o.ev * 100).toFixed(1)}%</div>`).join("") +
@@ -2382,7 +2390,7 @@ function renderSlip(){
 }
 function simFromScan(id){ // load the fight into the main dashboard with the best prices filled in
   const r = scanRows.find(x => x.id === id); if(!r || !r.A || !r.B) return;
-  $("fa").value = r.A.name; $("fb").value = r.B.name;
+  $("fa").value = r.A.name; $("fb").value = r.B.name; $("five").checked = r.nR === 5; // the main event is 5 rounds, as the board rated it
   $("wkcard").classList.add("hidden");
   $("go").click();
   $("lineTiming").value = r.early ? "open" : "current";
@@ -2394,6 +2402,7 @@ $("wkbody").addEventListener("click", e => {
   if(!b){ const row = e.target && e.target.closest ? e.target.closest(".fmain") : null; // tap a row: open or close its details
     if(row){ const fr = row.parentNode, id = fr.dataset.row; if(openRows.has(id)) openRows.delete(id); else openRows.add(id); fr.classList.toggle("open"); } return; }
   if(b.id === "specToggle"){ showSpec = !showSpec; renderScan(); return; }
+  if(b.dataset.cardslip){ for(const r of scanRows) if(r.take && !r.cpending && r.t.toDateString() === b.dataset.cardslip && !slipLegs().some(l => sameFight(l.r, r))) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); return; }
   if(b.dataset.sim) simFromScan(b.dataset.sim);
   else if(b.dataset.slip){ const r = scanRows.find(x => x.id === b.dataset.slip); if(r && !slipLegs().some(l => sameFight(l.r, r))) slip.push({ id: r.id, k: r.pick }); renderScan(); renderSlip(); }
   else if(b.dataset.log){ const r = scanRows.find(x => x.id === b.dataset.log); if(!r) return; const s = r.side[r.pick];
@@ -2424,6 +2433,7 @@ $("wkbooks").addEventListener("click", e => { // toggle a sportsbook in/out of "
 // (best price at your books), set the timing selector, and say where they came from. Never overwrites typed prices.
 async function autoFillOdds(A, B){
   const O = await loadOdds(); if(!O || calcA !== A || calcB !== B) return; // a newer sim started meanwhile
+  if(CONS() && calcProps.length) computeVerdict(); // the 2.0 + main call reads this fight's market % and openers from the feed
   const now = Date.now(), lastScan = new Date(O.updated).getTime();
   const hit = Object.entries(O.fights).find(([, f]) => { const t = new Date(f.t).getTime();
     if(t < now - 3 * 36e5 || (f.seen && lastScan - new Date(f.seen).getTime() > 6 * 36e5)) return false; // past, or pulled from the books
@@ -2668,7 +2678,7 @@ function consensusPrep(){ // before the first paint: no TAKEs until Classic 2.0 
     r.take = false; r.stake = 0; r.cpending = true; r.cv = null; }
 }
 function consensusRow(r){ // sets r.cv; when Classic 2.0 backs a side the row points at it (pick, chance, stake)
-  const api = c20Api(), c = api ? api(r.A.name, r.B.name, 3, 4000) : null, M = r.main, sur = i => surname(r.name[i]);
+  const api = c20Api(), c = r.c20 || (api ? api(r.A.name, r.B.name, r.nR || 3, 4000) : null), M = r.main, sur = i => surname(r.name[i]); // r.c20: the Call view's own Classic 2.0 number · r.nR: 5 for a card's main event
   const mainTake = i => M.side[i].ev >= 0.05 && M.side[i].ev <= 0.20;
   r.cpending = false; r.take = false; r.stake = 0; r.pick = M.pick; r.side = M.side.map(x => ({ ...x })); r.agree = false;
   const v = r.cv = c ? c20View(c.p, r.pMkt, [r.best[0].d, r.best[1].d], [c.nA, c.nB]) : { back: null, kind: null, why: "does not have both fighters in its roster" };
@@ -2713,16 +2723,102 @@ function consCall(r, sur){ // the reason behind a scanner row's call in consensu
   if(r.take) return `${r.agree ? `<span class="badge early" style="margin-left:0" title="The main sim's own edge on this side is not negative">both agree</span> ` : ""}${r.cnote} · stake ${stakeHtml(r.stake.toFixed(1), "%")} at ${bookName(x.book)}`;
   return r.cv.back != null && r.xdiv ? `<span class="amb">weight-class change</span> (${r.A.div} vs ${r.B.div}) — untested, no bet` : r.cv.back != null && r.noBook ? "not offered at your books" : r.cnote;
 }
+// a card's main event (its last bout, when that is one fight on a card of 4+) is 5 rounds: Classic 2.0 rates it that way,
+// like the Call view with "5 rounds" on (the Next card buttons and Sim turn it on)
+function markMains(){ const by = new Map();
+  for(const r of scanRows){ r.nR = 3; const d = r.t.toDateString(); if(!by.has(d)) by.set(d, []); by.get(d).push(r); }
+  for(const L of by.values()){ const tMax = Math.max(...L.map(x => +x.t)), top = L.filter(x => +x.t === tMax); if(L.length >= 4 && top.length === 1) top[0].nR = 5; } }
+// one tap: every bet on a card into the parlay slip (one leg per fight)
+function cardSlipBtn(card, spec){
+  if(spec) return ""; const bets = card.filter(x => x.take && !x.cpending); if(bets.length < 2) return "";
+  const left = bets.filter(x => !slipLegs().some(l => sameFight(l.r, x))).length;
+  return `<button class="mini-btn cardslip" data-cardslip="${card[0].t.toDateString()}" ${left ? "" : "disabled"}>${left ? `+ Parlay all ${bets.length}` : "All in slip"}</button>`; }
+// ---- CALL VIEW in "2.0 + main sim" mode: the SAME rule as Upcoming fights (consensusRow), at the prices in the table ----
+let calcCons = null;
+function calcFeedRow(){ // this fight in odds.json, turned to the corners on screen: the market % from every book + the openers
+  if(!ODDS || !ODDS.fights || !calcA || !calcB) return null;
+  const mm = calcFeedRow.memo; if(mm && mm.A === calcA && mm.B === calcB && mm.at === ODDS._at) return mm.v;
+  const now = Date.now(), lastScan = new Date(ODDS.updated).getTime(); let v = null;
+  for(const f of Object.values(ODDS.fights)){ const t = new Date(f.t).getTime();
+    if(t < now - 3 * 36e5 || (f.seen && lastScan - new Date(f.seen).getTime() > 6 * 36e5)) continue; // past, or pulled from the books
+    const [x, y] = findPair(f.a, f.b), flip = x === calcB && y === calcA; if(!flip && !(x === calcA && y === calcB)) continue;
+    const L = Object.values(f.now || {}).filter(q => q && q[0] > 1 && q[1] > 1); if(!L.length) break;
+    const avg = i => L.reduce((s, q) => s + q[i], 0) / L.length, pM = noVig(avg(0), avg(1)), open = {};
+    for(const [b, q] of Object.entries(f.open || {})) if(q) open[b] = flip ? [q[1], q[0]] : q;
+    v = { pMkt: flip ? 1 - pM : pM, open }; break; }
+  calcFeedRow.memo = { A: calcA, B: calcB, at: ODDS._at, v }; return v;
+}
+function calcConsensus(dA, dB, pStar, xdiv){
+  const c = C20.calc; if(!c || c.A !== calcA || c.B !== calcB) return { state: "pending" };
+  if(c.fail || c.none) return { state: c.fail ? "fail" : "none" };
+  const feed = calcFeedRow(), side = [0, 1].map(i => { const p = i ? 1 - pStar : pStar, d = i ? dB : dA, ev = p * d - 1; return { p, d, ev, kelly: ev / (d - 1), book: "" }; });
+  const r = { A: calcA, B: calcB, name: [calcA.name, calcB.name], pMkt: feed ? feed.pMkt : noVig(dA, dB), best: [{ d: dA, book: "" }, { d: dB, book: "" }],
+    f: { open: feed ? feed.open : {} }, noBook: false, xdiv, c20: c, side, main: { pick: side[0].ev >= side[1].ev ? 0 : 1, take: false, stake: 0, side: side.map(x => ({ ...x })) } };
+  consensusRow(r);
+  return { state: "ready", r };
+}
+function consVerdict(cs, v0, m){ // -> { status, title, body, bestIndex, tags } for the Call view (tags: what each moneyline row says)
+  const F = i => i ? calcB : calcA, sur = i => surname(F(i).name);
+  const mainK = v0.status === "take" && v0.bestIndex < 2 ? v0.bestIndex : null; // the main sim's own rule (Proven only mode) backs this side
+  const tagMain = mainK == null ? null : { [mainK]: { t: "main sim only", c: "suspect" } };
+  const mainNote = mainK == null ? "" : ` The main sim alone likes <b>${sur(mainK)}</b> (${sgnPct(m[mainK].ev)}): not a 2.0 + main bet.`;
+  const out = (status, title, body, bestIndex, tags) => ({ status, title, body, bestIndex: bestIndex == null ? null : bestIndex, tags: tags || null });
+  if(cs.state === "pending") return out("wait", "CHECKING CLASSIC 2.0…", "This mode bets a moneyline only when Classic 2.0 backs it. Getting its number for this fight.");
+  if(cs.state !== "ready") return out(mainK == null ? "pass" : "caution", "NO 2.0 + MAIN CALL", (cs.state === "fail" ? "Classic 2.0 could not be loaded" : "Classic 2.0 does not have both fighters (a UFC debut, or a name it can't match)") + ", so this mode makes no bet." + mainNote, null, tagMain);
+  const r = cs.r, cv = r.cv, k = r.pick, slipBtn = ` <span class="cslip" id="cslipBox">${calcSlipHtml()}</span>`;
+  if(r.take){
+    const st = stakeHtml(r.stake.toFixed(1)), evM = r.main.side[k].ev, who = `<b>${F(k).name} to win</b>`;
+    if(cv.kind === "dog") return out("caution", "SHORT UNDERDOG — SMALL STAKE", `${who}. Classic 2.0 shows ${sgnPct(cv.ev)}, but its underdog numbers run hot, so the stake assumes about +10%. The line is still near its opener. Promising, not proven (+23% at opening lines, +6% at closing lines). Stake ~${st}.${slipBtn}`, null, { [k]: { t: "short dog", c: "suspect" } });
+    if(cv.kind === "fade") return out("take", "TAKE — FADE", `${who}. Classic 2.0's own pick is ${sur(1 - k)}, who has only 3 UFC fights; those picks went 9–43, so this mode bets ${sur(k)}. Stake ~${st}.${slipBtn}`, k, { [k]: { t: "fade", c: "best" } });
+    return out("take", "TAKE THIS BET", `${who}. Classic 2.0 backs it (${sgnPct(cv.ev)}) and the main sim ${evM >= 0 ? `agrees (${sgnPct(evM)})` : `doesn't back the other side (${sgnPct(evM)} on this one)`}. Stake ~${st}.${slipBtn}`, k, { [k]: { t: "TAKE", c: "best" } });
+  }
+  if(cv.back != null && r.xdiv) return out("caution", "NO BET — WEIGHT-CLASS CHANGE", `Classic 2.0 backs <b>${sur(cv.back)}</b> (${sgnPct(cv.ev)}), but these fighters come from different weight classes (${calcA.div} vs ${calcB.div}). Neither model was tested on that, so this mode makes no bet.`, null, { [cv.back]: { t: "weight change", c: "suspect" } });
+  if(cv.back != null) return out("caution", "MODELS SPLIT — NO BET", `Classic 2.0 backs <b>${sur(cv.back)}</b> (${sgnPct(cv.ev)}) and the main sim backs <b>${sur(1 - cv.back)}</b> (${sgnPct(r.main.side[1 - cv.back].ev)}). When they disagree, this mode makes no bet.`, null, { [1 - cv.back]: { t: "models split", c: "suspect" } });
+  const why = `Classic 2.0 ${cv.why || "doesn't back either side"}`;
+  if(mainK != null) return out("caution", "MAIN SIM ONLY — NOT A 2.0 + MAIN BET", `The main sim alone likes <b>${sur(mainK)}</b> (${sgnPct(m[mainK].ev)}). ${why}. This mode leaves it out, like Upcoming fights: in the backtest, main-sim-only picks were much weaker than 2.0 + main bets and only held up at opening lines.`, null, tagMain);
+  const bi = r.main.side[0].ev >= r.main.side[1].ev ? 0 : 1, be = r.main.side[bi].ev;
+  const main = be <= 0 ? "The main sim sees no value either" : r.xdiv ? "The main sim never bets a weight-class change" : be > 0.20 ? `The main sim's ${sgnPct(be)} on ${sur(bi)} is over its 20% limit (usually model error)` : `The main sim's ${sgnPct(be)} on ${sur(bi)} is under its 5% minimum`;
+  return out("pass", "PASS", `${why}. ${main}. No 2.0 + main bet.`);
+}
+function calcSlipHtml(){ // the Call view's "+ Parlay": the same fight and side as on Upcoming fights
+  const me = { name: [calcA.name, calcB.name] }, legs = slipLegs(), n = legs.length, inS = legs.some(l => sameFight(l.r, me));
+  return inS ? `<span class="sub">In parlay · ${n} leg${n === 1 ? "" : "s"}</span><button class="mini-btn" id="calcSlipView">View slip</button>`
+    : `<button class="mini-btn" id="calcSlip">+ Parlay</button>${n ? `<button class="mini-btn" id="calcSlipView">Slip (${n})</button>` : ""}`;
+}
+async function calcToSlip(){ // -> null when added, else the reason it wasn't
+  const A = calcA, B = calcB, kc = calcCons && calcCons.r && calcCons.r.take ? calcCons.r.pick : null;
+  if(kc == null) return "No 2.0 + main bet here to add.";
+  if(!(await loadOdds())) return "Couldn't load the odds feed.";
+  if(!scanRows.length || scanRows.some(r => r.cpending)) await buildScan(); // the board, built in the background (its window stays closed)
+  if(calcA !== A || calcB !== B) return null;
+  const me = { name: [A.name, B.name] }, r = scanRows.find(x => x.side && sameFight(x, me));
+  if(!r) return "This fight isn't on the Upcoming fights board, so it can't go in a parlay.";
+  if(!r.take || (r.A === A ? r.pick : 1 - r.pick) !== kc) return `Upcoming fights doesn't back ${surname(F_(kc, A, B).name)} at its prices (best at your books), so it wasn't added.`;
+  if(!slipLegs().some(l => sameFight(l.r, r))) slip.push({ id: r.id, k: r.pick });
+  renderScan(); renderSlip(); return null;
+}
+const F_ = (i, A, B) => i ? B : A;
+$("verdictBox").addEventListener("click", async e => {
+  const b = e.target && e.target.closest ? e.target.closest("button") : null; if(!b) return;
+  if(b.id === "calcSlipView"){ openScan(); return; }
+  if(b.id !== "calcSlip") return;
+  b.disabled = true; b.textContent = "Adding…";
+  const msg = await calcToSlip(); computeVerdict();
+  const box = $("cslipBox"); if(msg && box) box.innerHTML = `<span class="amb">${msg}</span>`;
+});
 // calculator: one line with Classic 2.0's chance and its call at the moneylines in the table
 async function c20Note(A, B, rounds){
   const el = $("c20note"); el.textContent = ""; C20.calc = null;
-  if(!(await c20Load()) || calcA !== A || calcB !== B) return;
+  const ok = await c20Load(); if(calcA !== A || calcB !== B) return;
+  if(!ok){ C20.calc = { fail: true, A, B }; c20NoteRender(); if(CONS()) computeVerdict(); return; }
   const c = c20Api()(A.name, B.name, rounds, 10000); if(calcA !== A || calcB !== B) return;
   C20.calc = c ? { ...c, A, B } : { none: true, A, B };
+  if(CONS()) computeVerdict(); // the Call view's 2.0 + main verdict was waiting for this number
   c20NoteRender(); setTimeout(c20NoteRender, 800); setTimeout(c20NoteRender, 2500); // the moneylines are auto-filled a moment later
 }
 function c20NoteRender(){
   const el = $("c20note"), c = C20.calc; if(!c || c.A !== calcA || c.B !== calcB){ return; }
+  if(c.fail){ el.textContent = "Classic 2.0 could not be loaded."; return; }
   if(c.none){ el.textContent = "Classic 2.0 does not have both fighters in its roster."; return; }
   const d = [0, 1].map(i => { const inp = document.querySelector(`#calcBody .oddsin[data-i="${i}"]`); return inp ? amToDec(inp.value) : null; }), sA = surname(c.A.name), sB = surname(c.B.name);
   let txt = `Classic 2.0: ${sA} ${pct(c.p)} · ${sB} ${pct(1 - c.p)}`;
